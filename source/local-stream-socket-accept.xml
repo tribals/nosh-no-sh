@@ -33,7 +33,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>local-stream-socket-accept</command> expects file descriptor 3 to be a socket that has been set up with <citerefentry><refentrytitle>local-stream-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> to listen for incoming local socket connections.
+<command>local-stream-socket-accept</command> expects to inherit 1 or more sockets that have been set up to listen for incoming local socket connections, as done by <citerefentry><refentrytitle>local-stream-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 It loops forever, accepting local socket connections and (for each such connection) spawning <replaceable>next-prog</replaceable>, closing the listening socket in the child process and setting the connected socket as the child process' standard input and standard output.
 </para>
 
@@ -42,7 +42,40 @@ It loops forever, accepting local socket connections and (for each such connecti
 </para>
 
 <para>
-Following the UCSPI conventions, <command>local-stream-socket-accept</command> sets up several environment variables containing information about the local socket connection, which it obtains using the <citerefentry><refentrytitle><code>getpeername</code></refentrytitle><manvolnum>2</manvolnum></citerefentry>, <citerefentry><refentrytitle><code>getsockname</code></refentrytitle><manvolnum>2</manvolnum></citerefentry>, and (if available) <code>SO_PEERCRED</code> option of the <citerefentry><refentrytitle><code>getsockopt</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> library functions.
+If the <arg choice='plain'>--verbose</arg> option is used, <command>local-stream-socket-accept</command> logs information about processes spawned and the current and maximum number of connections.
+The latter is set with the <arg choice='plain'>--connection-limit</arg> option, which defaults to 40.
+If it is reached, <command>local-stream-socket-accept</command> stops accepting new connections until one or more child processes exit.
+<command>local-stream-socket-accept</command> always limits the number of connections, and has no notion of an "unlimited" number of connections.
+</para>
+
+<refsection><title>Listening socket conventions</title>
+
+<para>
+There are no UCSPI conventions for listening sockets before a connection has been accepted.
+<command>local-stream-socket-accept</command> follows the systemd convention, falling back on a daemontools-like default.
+</para>
+
+<para>
+If the <envar>LISTEN_PID</envar> environment variable is set, if its value is parseable as a (decimal) number, if that number is the process ID of the <command>local-stream-socket-accept</command> process, if the <envar>LISTEN_FDS</envar> environment variable is set, and if its value is parseable as a (positive decimal) number <replaceable>n</replaceable>: then the listening sockets are taken to be file descriptors 3 up to but not including 3+<replaceable>n</replaceable>.
+(It is an error for there to be zero listening file descriptors.)
+Otherwise file descriptor 3 is taken unconditionally to be the single listening open file descriptor.
+</para>
+
+<para>
+<command>local-stream-socket-accept</command> unconditionally unsets the <envar>LISTEN_PID</envar>, <envar>LISTEN_FDS</envar>, and <envar>LISTEN_FDNAMES</envar> environment variables after it has determined what the open file descriptors to use are.
+</para>
+
+</refsection>
+
+<refsection><title>UCSPI (specifically UCSPI-UNIX) conventions</title>
+
+<para>
+<replaceable>next-prog</replaceable> is expected to follow the UCSPI conventions: its standard input and output are the connected socket, which it should treat as generic I/O streams and not expect to be a socket, and information about the local and remote ends of the connected socket is in environment variables.
+</para>
+
+<para>
+In the child process, <command>local-stream-socket-accept</command> closes all of the listening sockets.
+It obtains information about the local socket connection, using the <citerefentry><refentrytitle><code>getpeername</code></refentrytitle><manvolnum>2</manvolnum></citerefentry>, <citerefentry><refentrytitle><code>getsockname</code></refentrytitle><manvolnum>2</manvolnum></citerefentry>, and (if available) <code>SO_PEERCRED</code> option of the <citerefentry><refentrytitle><code>getsockopt</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> library functions, and sets up the conventional UCSPI-UNIX environment variables as follows:
 </para>
 
 <variablelist>
@@ -51,7 +84,7 @@ Following the UCSPI conventions, <command>local-stream-socket-accept</command> s
 <term><envar>PROTO</envar></term>
 <listitem>
 <para>
-This always has the value <code>UNIX</code>.
+This always has the value <code>UNIX</code>, indicating the prefix to the names of the remaining environment variables.
 </para>
 </listitem>
 </varlistentry>
@@ -104,28 +137,25 @@ The effective GID of the remote (client) process that connected.
 
 </variablelist>
 
-<para>
-If the <arg choice='plain'>--verbose</arg> option is used, <command>local-stream-socket-accept</command> logs information about processes spawned and the current and maximum number of connections.
-The latter is set with the <arg choice='plain'>--connection-limit</arg> option, which defaults to 40.
-If it is reached, <command>local-stream-socket-accept</command> stops accepting new connections until one or more child processes exit.
-<command>local-stream-socket-accept</command> always limits the number of connections, and has no notion of an "unlimited" number of connections.
-</para>
+</refsection>
 
 </refsection><refsection><title>USAGE</title>
 
 <para>
-<command>local-stream-socket-accept</command> can be used 
+<command>local-stream-socket-accept</command> can be used
+</para>
 <itemizedlist>
-<listitem>
+<listitem><para>
 as a "socket-activated" d&#xe6;mon monitored by <citerefentry><refentrytitle>systemd</refentrytitle><manvolnum>1</manvolnum></citerefentry> (with the systemd-recommended <code>Accept=false</code>),
-</listitem>
-<listitem>
+</para></listitem>
+<listitem><para>
 as a d&#xe6;mon started by <citerefentry><refentrytitle>inetd</refentrytitle><manvolnum>1</manvolnum></citerefentry> (with <code>wait</code> and as long as it is chained via <command>fdmove</command> <arg choice="plain">0</arg> <arg choice="plain">3</arg>), and
-</listitem>
-<listitem>
+</para></listitem>
+<listitem><para>
 as a simple d&#xe6;mon chained from <citerefentry><refentrytitle>local-stream-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> and monitored by <citerefentry><refentrytitle>service-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-</listitem>
+</para></listitem>
 </itemizedlist>
+<para>
 Together, <command>local-stream-socket-accept</command> and <citerefentry><refentrytitle>local-stream-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> replace <citerefentry><refentrytitle>unixserver</refentrytitle><manvolnum>1</manvolnum></citerefentry> from ucspi-unix.
 </para>
 

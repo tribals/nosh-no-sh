@@ -286,6 +286,7 @@ END {
 		if (dhcp[n]) printf "DHCP ";
 		if (wpa[n]) printf "WPA ";
 		if (hostap[n]) printf "HOSTAP ";
+		if (rtsol[n]) printf "RTSOL ";
 		if (ipv4ll[n]) printf "IPV4LL ";
 		printf "inet %s %s\"\n",ipv4_address[n],ipv4[n];
 	}

@@ -8,6 +8,7 @@ Description=Nagios Core server
 [Service]
 ExecStart=%p
 User=nagios
+SessionLeader=yes
 Restart=no
 
 [Install]

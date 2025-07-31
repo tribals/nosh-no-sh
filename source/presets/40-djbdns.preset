@@ -1,0 +1,25 @@
+#
+# Enable djbdns services
+#
+# This is not a systemd preset.
+# It goes in a special nosh system-manager preset directory.
+# It is used by the nosh-run-djbdns package in order to enable the services themselves.
+#
+
+# Disable the old style of service.
+disable	axfrdns.service
+disable	dnscache.service
+disable	tinydns.service
+disable	walldns.service
+
+# Enable the shared logs.
+enable	cyclog@axfrdns.service
+enable	cyclog@dnscache.service
+enable	cyclog@tinydns.service
+enable	cyclog@walldns.service
+
+# Enable the new style of service that listens on the IP address supplied as a parameter.
+enable	axfrdns@*.service
+enable	dnscache@*.service
+enable	tinydns@*.service
+enable	walldns@*.service

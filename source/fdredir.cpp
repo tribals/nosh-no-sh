@@ -18,6 +18,8 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
+namespace {
+
 struct open_mode_definition : public popt::simple_named_definition {
 public:
 	open_mode_definition(char s, const char * l, const char * d, int p_m, int & p_v) : simple_named_definition(s, l, d), m(p_m), v(p_v) {}
@@ -27,6 +29,7 @@ protected:
 	int m;
 	int & v;
 };
+
 open_mode_definition::~open_mode_definition() {}
 void open_mode_definition::action(popt::processor &)
 {
@@ -35,15 +38,17 @@ void open_mode_definition::action(popt::processor &)
 	v = m;
 }
 
+}
+
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-fdredir ( 
+fdredir (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	unsigned long permissions = 0666;
@@ -51,6 +56,7 @@ fdredir (
 	try {
 		bool non_blocking(false);
 		popt::bool_definition non_blocking_option('n', "non-blocking", "Open in non-blocking mode.", non_blocking);
+		popt::unsigned_number_definition permissions_option('m', "mode", "number", "Specify the file permissions.", permissions, 0);
 		open_mode_definition read_option('r', "read", "Open the file for read-only.", O_RDONLY|O_NOCTTY, mode);
 		open_mode_definition append_clobber_option('a', "append", "Open the file for write-only append.", O_WRONLY|O_NOCTTY|O_CREAT|O_APPEND, mode);
 		open_mode_definition append_option('c', "append-noclobber", "Open the file for write-only append but don't overwrite an existing file.", O_WRONLY|O_NONBLOCK|O_NOCTTY|O_CREAT|O_EXCL|O_APPEND, mode);
@@ -62,9 +68,7 @@ fdredir (
 				|O_DIRECTORY
 #endif
 				, mode);
-		popt::unsigned_number_definition permissions_option('m', "mode", "number", "Specify the file permissions.", permissions, 0);
-		popt::definition * top_table[] = {
-			&non_blocking_option,
+		popt::definition * modes_table[] = {
 			&read_option,
 			&write_clobber_option,
 			&write_option,
@@ -72,43 +76,43 @@ fdredir (
 			&append_option,
 			&update_option,
 			&directory_option,
-			&permissions_option
+		};
+		popt::table_definition modes_table_option(sizeof modes_table/sizeof *modes_table, modes_table, "Open access options");
+		popt::definition * top_table[] = {
+			&non_blocking_option,
+			&permissions_option,
+			&modes_table_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{fd} {file} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 		if (non_blocking) mode |= O_NONBLOCK;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing destination file descriptor number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "destination file descriptor number");
 	}
 	const char * to(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing source file descriptor number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "source file descriptor number");
 	}
 	const char * file(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
 
-	const char * old(0);
+	const char * old(nullptr);
 	old = to;
 	const unsigned long d(std::strtoul(to, const_cast<char **>(&to), 0));
-	if (to == old || *to) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, old, "Not a number.");
-		throw EXIT_FAILURE;
-	}
+	if (to == old || *to)
+		die_invalid(prog, envs, old, "Not a number.");
 
 	const bool append(mode & O_APPEND);
 	mode &= ~O_APPEND;
@@ -117,8 +121,7 @@ fdredir (
 file_error:
 		const int error(errno);
 		if (0 <= s) close(s);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, file, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, error, file);
 	}
 	if (append) {
 		if (0 > lseek(s, 0, SEEK_END)) goto file_error;

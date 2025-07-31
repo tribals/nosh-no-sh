@@ -34,7 +34,7 @@
 		print "@unexec","system-control","stop","ttylogin@" two ".service";
 		print "@unexec","system-control","stop","cyclog@ttylogin@" two ".service";
 	} else
-	if ("ktty_login_service_with_dedicated_logger" == $1) {
+	if ("kvt_login_service_with_dedicated_logger" == $1) {
 		print "@exec","system-control","preset","--ttys","--prefix","ttylogin@","ttyC" two ".service";
 		print "@exec","system-control","preset","--ttys","--prefix","cyclog@ttylogin@","ttyC" two ".service";
 		print "@exec","system-control","reset","ttylogin@ttyC" two ".service";
@@ -45,6 +45,42 @@
 		print "@unexec","system-control","unload-when-stopped","cyclog@ttylogin@ttyC" two ".service";
 		print "@unexec","system-control","stop","ttylogin@ttyC" two ".service";
 		print "@unexec","system-control","stop","cyclog@ttylogin@ttyC" two ".service";
+	} else
+	if ("kvt_realizer_service_with_dedicated_logger" == $1) {
+		print "@exec","system-control","preset","--prefix","console-kvt-realizer@","ttyC" two ".service";
+		print "@exec","system-control","preset","--prefix","cyclog@console-kvt-realizer@","ttyC" two ".service";
+		print "@exec","system-control","reset","console-kvt-realizer@ttyC" two ".service";
+		print "@exec","system-control","reset","cyclog@console-kvt-realizer@ttyC" two ".service";
+		print "@unexec","system-control","disable","console-kvt-realizer@ttyC" two ".service";
+		print "@unexec","system-control","disable","cyclog@console-kvt-realizer@ttyC" two ".service";
+		print "@unexec","system-control","unload-when-stopped","console-kvt-realizer@ttyC" two ".service";
+		print "@unexec","system-control","unload-when-stopped","cyclog@console-kvt-realizer@ttyC" two ".service";
+		print "@unexec","system-control","stop","console-kvt-realizer@ttyC" two ".service";
+		print "@unexec","system-control","stop","cyclog@console-kvt-realizer@ttyC" two ".service";
+	} else
+	if ("serial_tty_login_service_with_dedicated_logger" == $1) {
+		print "@exec","system-control","preset","--ttys","--prefix","ttylogin@","tty0" two ".service";
+		print "@exec","system-control","preset","--ttys","--prefix","cyclog@ttylogin@","tty0" two ".service";
+		print "@exec","system-control","reset","ttylogin@tty0" two ".service";
+		print "@exec","system-control","reset","cyclog@ttylogin@tty0" two ".service";
+		print "@unexec","system-control","disable","ttylogin@tty0" two ".service";
+		print "@unexec","system-control","disable","cyclog@ttylogin@tty0" two ".service";
+		print "@unexec","system-control","unload-when-stopped","ttylogin@tty0" two ".service";
+		print "@unexec","system-control","unload-when-stopped","cyclog@ttylogin@tty0" two ".service";
+		print "@unexec","system-control","stop","ttylogin@tty0" two ".service";
+		print "@unexec","system-control","stop","cyclog@ttylogin@tty0" two ".service";
+	} else
+	if ("serial_tty_callout_service_with_dedicated_logger" == $1) {
+		print "@exec","system-control","preset","--prefix","ttycallout@","tty0" two ".service";
+		print "@exec","system-control","preset","--prefix","cyclog@ttycallout@","tty0" two ".service";
+		print "@exec","system-control","reset","ttycallout@tty0" two ".service";
+		print "@exec","system-control","reset","cyclog@ttycallout@tty0" two ".service";
+		print "@unexec","system-control","disable","ttycallout@tty0" two ".service";
+		print "@unexec","system-control","disable","cyclog@ttycallout@tty0" two ".service";
+		print "@unexec","system-control","unload-when-stopped","ttycallout@tty0" two ".service";
+		print "@unexec","system-control","unload-when-stopped","cyclog@ttycallout@tty0" two ".service";
+		print "@unexec","system-control","stop","ttycallout@tty0" two ".service";
+		print "@unexec","system-control","stop","cyclog@ttycallout@tty0" two ".service";
 	} else
 	if ("socket_with_dedicated_logger" == $1) {
 		print "@exec","system-control","preset",two ".socket";

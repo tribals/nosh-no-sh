@@ -7,7 +7,7 @@ For copyright and licensing terms, see the file named COPYING.
 #define INCLUDE_PACKED_H
 
 #if defined(__LINUX__) || defined(__linux__)
-#define __packed
+#define __packed __attribute__ ((__packed__))
 #else
 #include <sys/cdefs.h>
 #endif

@@ -8,9 +8,9 @@ Description=BSD NTP daemon one-shot
 [Service]
 Type=oneshot
 EnvironmentDirectory=env
+# Per the ntpdate(1) manual, we prefer using ntpd(1) with the -q option.
 ExecStart=ntpd -n -q -g -f /var/db/ntpd.drift
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

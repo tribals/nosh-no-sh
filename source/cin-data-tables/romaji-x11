@@ -1,25 +1,196 @@
 %ename Common romaji X11 compositions
 %keep_key_case
 %chardef begin
-# This intentionally excludes everything that can already be typed with the standard combining characters on an ISO 9995 keyboard.
+# This intentionally excludes X11 compose sequences that can already be typed with the standard combining characters on an ISO 9995 keyboard.
+# This conversely includes various mnemonics longer than X11 compose sequences.
+#
+###########################
+# Letters and ligatures
+###########################
 AE	Æ
+AT	@
+et	&
+and	&
 DH	Ð
 ae	æ
 dh	ð
+TH	Þ
+th	þ
 IJ	Ĳ
 Ij	Ĳ
 ij	ĳ
 OE	Œ
 oe	œ
+SS	ẞ
+ss	ß
+ss	ſs
+fs	ſ
+s	ſ
+f/	ẜ
+ff	ﬀ
+fi	ﬁ
+fl	ﬂ
+ffi	ﬃ
+Fi	ﬃ
+ffl	ﬄ
+Fl	ﬄ
+micro	μ
+mu	μ
+\u	μ
+u\	μ
+###########################
+# Punctuation marks
+###########################
 ((	[
 ))	]
-AT	@
 (-	{
 -(	{
 )-	}
 -)	}
 /^	|
 ^/	|
+...	…
+!^	¦
+!	¡
+!	⸘
+!	‽
+!!	‼
+!!	¡
+?	¿
+?	⸘
+?	‽
+??	¿
+?!	⸘
+!?	‽
+"	«
+"	»
+<<	«
+>>	»
+'	‘
+'	’
+'	‹
+'	›
+<'	‘
+'<	‘
+>'	’
+'>	’
+"	“
+<"	“
+"<	“
+"	”
+>"	”
+">	”
+,"	„
+",	„
+.=	•
+bul	•
+.-	·
+.^	·
+middot	·
+p!	¶
+P!	¶
+para	¶
+s!	§
+S!	§
+So	§
+SO	§
+sect	§
+-	‐
+hyphen	‐
+endash	–
+emdash	—
+--	—
+###########################
+# Mathematical symbols
+###########################
+.:	∵
+:.	∵
+:-	÷
+-:	÷
+/	/
+/	÷
+:/	÷
+/:	÷
+divide	÷
++-	±
+-+	∓
+!=	≠
+<>	≠
+/=	≠
+=/	≠
+1/	⅟
+1_	⅟
+/v	√
+v/	√
+2/	√
+2v/	√
+3/	∛
+3v/	∛
+4/	∜
+4v/	∜
+\-	⌿
+-\	⌿
+/-	⌿
+-/	⌿
+!	¬
+not	¬
+,-	¬
+-,	¬
+<>	⋄
+percent	%
+ %o	‰
+ %0	‰
+ %.	‰
+perlakh	‰
+ %:	‱
+ %..	‱
+permil	‱
+<_	≤
+<=	≤
+>_	≥
+>=	≥
+=_	≡
+==	≡
+degree	°
+^0	°
+*0	°
+88	∞
+inf	∞
+->	→
+=>	⇒
+=<	⇐
+<-	←
+^|	↑
+v|	↓
+*	×
+xx	×
+times	×
+minus	-
+a_	ª
+_a	ª
+o_	º
+_o	º
+###########################
+# Musical notation
+###########################
+crotchet    	♩
+quaver    	♪
+flat     ♭
+natural     ♮
+sharp 	♯
+C# 	C♯
+ #q    	♩
+ #e    	♪
+ #E    	♫
+ #S    	♬
+ #b     ♭
+ #f     ♮
+ ## 	♯
+###########################
+# Currency and marks
+###########################
+copyright	©
+(c)	©
 oc	©
 Oc	©
 oC	©
@@ -28,6 +199,7 @@ co	©
 Co	©
 cO	©
 CO	©
+(r)	®
 or	®
 Or	®
 oR	®
@@ -36,58 +208,47 @@ ro	®
 rO	®
 Ro	®
 RO	®
-...	…
-.-	·
-!^	¦
-!!	¡
-p!	¶
-P!	¶
-+-	±
--+	±
-??	¿
-ss	ß
-ff	ﬀ
-fi	ﬁ
-fl	ﬂ
-Fi	ﬃ
-Fl	ﬄ
-*0	°
-<<	«
->>	»
-<'	‘
-'<	‘
->'	’
-'>	’
-<"	“
-"<	“
->"	”
-">	”
-,"	„
-",	„
- %o	‰
- %0	‰
+(tm)	™
+trademark	™
+TM	™
+Tm	™
+tM	™
+tm	™
+No	№
+Num	№
+currency	¤
+ox	¤
+Ox	¤
+oX	¤
+OX	¤
+euro	€
 E=	€
 L=	₤
 L-	£
+GBP	£
 CE	₠
 C/	₡
 Cr	₢
 c|	¢
-fs	ſ
- #q    	♩
- #e    	♪
- #E    	♫
- #S    	♬
- #b     ♭
- #f     ♮
- ## 	♯
-s!	§
-S!	§
-No	№
-?!	⸘
-!?	‽
-<_	≤
->_	≥
-=_	≡
-micro	μ
+cent	¢
+yen	¥
+franc	₣
+rupee	₨
+won	₩
+###########################
+# Dingbats
+###########################
+tick	✓
+<8	♥
+CCCP	☭
+SSSR	☭
+:)	☺
+:-)	☺
+(-:	☺
+:(	☹
+:-(	☹
+)-:	☹
+arm	🮀🮀🮁🮁🮼🯁🯂🯃
+folder	🮹🮺
+run	🮲🮳
 %chardef end

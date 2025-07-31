@@ -7,6 +7,7 @@ Description=NcFTP spool daemon
 
 [Service]
 User=ncftp
+SessionLeader=yes
 EnvironmentDirectory=env
 ExecStart=%p -d ${queue:+-q "${queue}"} -o /dev/stderr
 

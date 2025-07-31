@@ -37,7 +37,7 @@ login_user_runtime_dir(const ProcessEnvironment & envs)
 	std::string r("/run/user/");
 	if (const char * l = getlogin()) {
 		r += l;
-	} else 
+	} else
 	if (const char * u = envs.query("USER")) {
 		r += u;
 	} else

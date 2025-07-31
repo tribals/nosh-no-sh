@@ -1,0 +1,138 @@
+#!/bin/sh -e
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=sh:
+#
+# Create nonce services for various HIDs.
+# This is invoked by a devd rule in uhid-nosh.conf .
+# This is invoked by a devpubd rule in 80-nosh-uhid .
+# Nothing here requires the service manager to actually be running.
+#
+
+if ! test $# -ge 2
+then
+	echo "Two or more arguments are required." 1>&2 
+	exit 100
+fi
+
+generators="`dirname "$0"`"
+instance="$1"
+shift
+
+# The assumption is that we are at the apex of a bundle tree.
+install -d -m 0755 ./services ./targets
+
+e="--no-systemd-quirks --escape-instance --local-bundle"
+
+# Prefer using the amalgamated rc.conf .
+if test -r /etc/system-control/convert/rc.conf 
+then
+        read_rc() { clearenv read-conf /etc/system-control/convert/rc.conf printenv "$1" ; }
+else
+        read_rc() { sysrc -n "$1" ; }
+fi
+
+# These get us *only* the configuration variables, safely.
+get_var() { read_rc "$1" || true ; }
+get_var_default() { read_rc "$1" || printf "%s\n" "$2" ; }
+get_global_var() { read_rc "${prefix}"_"$1" || true ; }
+get_instance_var() { read_rc "${prefix}"_"${instance}"_"$1" || read_rc "${prefix}"_"$1" || true ; }
+
+for prefix
+do
+	log="${prefix}-log"
+	if ! test -L ./services/"${log}"
+	then
+		if l="`system-control find "${log}"`"
+		then
+			ln -f -s "$l" ./services/"${log}"
+		fi
+	fi
+
+	if ! test -d ./targets/"${prefix}"
+	then
+		system-control convert-systemd-units $e --bundle-root ./targets "${generators}/${prefix}.target"
+	fi
+
+	s=./services/"${prefix}@${instance}"
+
+        test \! -d "$s" || continue
+
+	# Make the bundle.
+        system-control convert-systemd-units $e --bundle-root ./services "${generators}/${prefix}@${instance}.service"
+        ln -f -s ../../../targets/"${prefix}" "$s"/wanted-by/
+        install -d -m 0755 -- "$s"/service/env
+	ln -f -s ../"${log}" "$s"/log
+	ln -f -s ../../"${log}" "$s"/wants/
+        install -d -m 0755 -- "$s"/supervise
+
+	# Add in any service-specific stuff such as environment variables.
+        system-control set-service-env -- "$s" flags "`get_instance_var flags`"
+        case "${prefix}" in
+        moused)
+                system-control set-service-env -- "$s" type "`get_instance_var type`"
+                system-control set-service-env -- "$s" level "`get_instance_var level`"
+                ;;
+        webcamd)
+                system-control set-service-env -- "$s" user "`get_instance_var user`"
+                system-control set-service-env -- "$s" group "`get_instance_var group`"
+                if 2>/dev/null system-control is-enabled hald
+                then
+                        system-control set-service-env -- "$s" hald_flags "-H"
+                else
+                        system-control set-service-env -- "$s" hald_flags
+                fi
+                ;;
+	console-fb-realizer)
+		if test -d /etc/system-control/convert/user-vt/
+		then
+			ln -f -s -- /etc/system-control/convert/user-vt/vcs "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/fonts "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/mice-aggregate "$s"/service/
+		else
+			install -d -m 0755 "$s"/service/fonts
+			install -d -m 0755 -u root -g user-vt-realizer "$s"/service/vcs
+			install -m 0060 -u root -g user-vt-realizer /dev/null "$s"/service/mice-aggregate
+		fi
+		;;
+	console-pcat-kbd-realizer|console-kvt-realizer)
+		if test -d /etc/system-control/convert/user-vt/
+		then
+			ln -f -s -- /etc/system-control/convert/user-vt/kbdmaps "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/vcs "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/keyboards-aggregate "$s"/service/
+		else
+			install -d -m 0755 -u root -g user-vt-realizer "$s"/service/kbdmaps
+			install -d -m 0755 -u root -g user-vt-realizer "$s"/service/vcs
+			install -m 0060 -u root -g user-vt-realizer /dev/null "$s"/service/keyboards-aggregate
+		fi
+		;;
+	console-pcat-mouse-realizer|console-ps2-mouse-realizer)
+		if test -d /etc/system-control/convert/user-vt/
+		then
+			ln -f -s -- /etc/system-control/convert/user-vt/vcs "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/mice-aggregate "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/keyboards-aggregate "$s"/service/
+		else
+			install -d -m 0755 -u root -g user-vt-realizer "$s"/service/vcs
+			install -m 0060 -u root -g user-vt-realizer /dev/null "$s"/service/mice-aggregate
+			install -m 0060 -u root -g user-vt-realizer /dev/null "$s"/service/keyboards-aggregate
+		fi
+		;;
+	console-evdev-realizer|console-ugen-hid-realizer|console-uhid-realizer|console-wscons-realizer)
+		if test -d /etc/system-control/convert/user-vt/
+		then
+			ln -f -s -- /etc/system-control/convert/user-vt/kbdmaps "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/vcs "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/mice-aggregate "$s"/service/
+			ln -f -s -- /etc/system-control/convert/user-vt/keyboards-aggregate "$s"/service/
+		else
+			install -d -m 0755 -u root -g user-vt-realizer "$s"/service/kbdmaps
+			install -d -m 0755 -u root -g user-vt-realizer "$s"/service/vcs
+			install -m 0060 -u root -g user-vt-realizer /dev/null "$s"/service/mice-aggregate
+			install -m 0060 -u root -g user-vt-realizer /dev/null "$s"/service/keyboards-aggregate
+		fi
+		;;
+	esac
+done

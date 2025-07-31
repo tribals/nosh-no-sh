@@ -18,8 +18,9 @@ if_yes() { case "$1" in [Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1) echo "$2" ;; e
 
 redo-ifchange rc.conf general-services "v9-jail@.service" "v9-jailed@.service"
 
-r="/var/local/sv"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 find "$r/" -maxdepth 1 -type d \( -name 'v9-jail@*' -o -name 'v9-jailed@*' \) |
 while read -r n
@@ -50,11 +51,14 @@ do
 	jail_service="v9-jail@$i"
 	jailed_service="v9-jailed@$i"
 
-	system-control convert-systemd-units $e "$r/" ./"${jail_service}.service"
-	system-control convert-systemd-units $e "$r/" ./"${jailed_service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" ./"${jail_service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" ./"${jailed_service}.service"
 
-	mkdir -p -m 0755 "$r/${jail_service}/service/env"
-	mkdir -p -m 0755 "$r/${jailed_service}/service/env"
+	install -d -m 0755 "$r/${jail_service}/service/env"
+	install -d -m 0755 "$r/${jailed_service}/service/env"
+
+	test -e "$r/${jail_service}/log" || ln -f -s ../../../service-bundles/services/v9-jails-log "$r/${jail_service}/log"
+	test -e "$r/${jailed_service}/log" || ln -f -s ../../../service-bundles/services/v9-jails-log "$r/${jailed_service}/log"
 
 	system-control preset -- "${jail_service}"
 	system-control preset -- "${jailed_service}"

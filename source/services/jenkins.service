@@ -21,6 +21,7 @@ JVMVersions=1.8
 # http://github.com/jenkinsci/jenkins/commit/2fb288474e980d0e7ff9c4a3b768874835a3e92e
 LimitNOFILE=8192
 User=%p
+SessionLeader=yes
 ExecStart=setenv JENKINS_HOME "${JENKINS_HOME:-%S/%p}" "${JAVA_HOME}/bin/java" ${JAVA_ARGS:--Djava.awt.headless=true} -jar "${JENKINS_WAR:-/usr/share/%p/%p.war}" ${JENKINS_ARGS:---webroot="%C/%p/war" --httpPort="${HTTP_PORT:-8080}"}
 
 [Install]

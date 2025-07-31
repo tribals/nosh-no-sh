@@ -1,0 +1,3 @@
+ This package causes the fake-hwclock service to run.
+ .
+ On systems without an RTC, fake-hwclock provides a poor man's persistent clock using a file on disc.

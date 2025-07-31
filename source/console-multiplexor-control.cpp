@@ -13,12 +13,13 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cctype>
 #include <stdint.h>
 #include <sys/ioctl.h>
-#if defined(__LINUX__) || defined(__linux__)
-#include <linux/vt.h>
-#elif defined(__OpenBSD__)
-#include <dev/wscons/wsdisplay_usl_io.h>
+#include "haswscons.h"
+#if defined(HAS_WSCONS)
+#	include <dev/wscons/wsdisplay_usl_io.h>	// VT/CONSIO ioctls
+#elif defined(__LINUX__) || defined(__linux__)
+#	include <linux/vt.h>
 #else
-#include <sys/consio.h>
+#	include <sys/consio.h>
 #endif
 #include <unistd.h>
 #include "utils.h"
@@ -27,8 +28,10 @@ For copyright and licensing terms, see the file named COPYING.
 #include "InputMessage.h"
 #include "FileDescriptorOwner.h"
 
-static inline
-void 
+namespace {
+
+inline
+void
 WriteInputMessage(
 	const FileDescriptorOwner & input_fd,
 	uint32_t m
@@ -36,7 +39,7 @@ WriteInputMessage(
 	write(input_fd.get(), &m, sizeof m);
 }
 
-static inline
+inline
 bool
 parse_number(
 	const std::string & s,
@@ -51,15 +54,17 @@ parse_number(
 	return true;
 }
 
+}
+
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-console_multiplexor_control [[gnu::noreturn]] ( 
+console_multiplexor_control [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 
@@ -69,32 +74,26 @@ console_multiplexor_control [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{S|N|P|number...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command");
 	}
 
 	FileDescriptorOwner run_dev_fd(open_dir_at(AT_FDCWD, "/run/dev"));
 	if (0 > run_dev_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "/run/dev", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "/run/dev");
 	}
 
 	FileDescriptorOwner dev_fd(open_dir_at(AT_FDCWD, "/dev"));
 	if (0 > dev_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "/dev", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "/dev");
 	}
 
 	for (;;) {
@@ -116,9 +115,7 @@ console_multiplexor_control [[gnu::noreturn]] (
 		if (0 <= vt_fd.get()) {
 			const FileDescriptorOwner input_fd(open_writeexisting_at(vt_fd.get(), "input"));
 			if (0 > input_fd.get()) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, vcname.c_str(), "input", std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, vcname.c_str(), "input");
 			}
 			if ("n" == command || "next" == command)
 				WriteInputMessage(input_fd, MessageForConsumerKey(CONSUMER_KEY_NEXT_TASK, 0));
@@ -131,10 +128,8 @@ console_multiplexor_control [[gnu::noreturn]] (
 			else
 			if (parse_number(command, s))
 				WriteInputMessage(input_fd, MessageForSession(s, 0));
-			else {
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command.c_str(), "Unrecognized command");
-				throw EXIT_FAILURE;
-			}
+			else
+				die_invalid(prog, envs, command.c_str(), "Unrecognized command");
 		} else {
 			if (ENOTDIR == errno) {
 				vt_fd.reset(open_readwriteexisting_at(run_dev_fd.get(), vcname.c_str()));
@@ -143,17 +138,17 @@ console_multiplexor_control [[gnu::noreturn]] (
 				vt_fd.reset(open_readwriteexisting_at(dev_fd.get(), vcname.c_str()));
 			} else
 			{
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, vcname.c_str(), std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, vcname.c_str());
 			}
 			if (0 > vt_fd.get()) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, vcname.c_str(), std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, vcname.c_str());
 			}
 			if ("n" == command || "next" == command) {
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(VT_ACTIVATE) && defined(VT_GETSTATE)
+				struct vt_stat s;
+				if (0 <= ioctl(vt_fd.get(), VT_GETSTATE, &s))
+					ioctl(vt_fd.get(), VT_ACTIVATE, s.v_active + 1);
+#elif defined(VT_ACTIVATE) && defined(VT_GETACTIVE)
 				int index;
 				if (0 <= ioctl(vt_fd.get(), VT_GETACTIVE, &index))
 					ioctl(vt_fd.get(), VT_ACTIVATE, index + 1);
@@ -162,7 +157,11 @@ console_multiplexor_control [[gnu::noreturn]] (
 #endif
 			} else
 			if ("p" == command || "prev" == command) {
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(VT_ACTIVATE) && defined(VT_GETSTATE)
+				struct vt_stat s;
+				if (0 <= ioctl(vt_fd.get(), VT_GETSTATE, &s))
+					ioctl(vt_fd.get(), VT_ACTIVATE, s.v_active - 1);
+#elif defined(VT_ACTIVATE) && defined(VT_GETACTIVE)
 				int index;
 				if (0 <= ioctl(vt_fd.get(), VT_GETACTIVE, &index))
 					ioctl(vt_fd.get(), VT_ACTIVATE, index - 1);
@@ -171,14 +170,20 @@ console_multiplexor_control [[gnu::noreturn]] (
 #endif
 			} else
 			if ("s" == command || "sel" == command)
+#if defined(VT_ACTIVATE)
 				ioctl(vt_fd.get(), VT_ACTIVATE, 1);
+#else
+				;	/// \bug FIXME: Implement sel action
+#endif
 			else
 			if (parse_number(command, s))
+#if defined(VT_ACTIVATE)
 				ioctl(vt_fd.get(), VT_ACTIVATE, s + 1);
-			else {
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command.c_str(), "Unrecognized command");
-				throw EXIT_FAILURE;
-			}
+#else
+				;	/// \bug FIXME: Implement number action
+#endif
+			else
+				die_invalid(prog, envs, command.c_str(), "Unrecognized command");
 		}
 	}
 }

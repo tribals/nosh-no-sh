@@ -4,7 +4,6 @@
 
 [Unit]
 Description=Simple Lightweight Login Manager
-After=ttylogin@ttyv6 ttylogin@tty7
 
 [Service]
 ExecStart=%p -nodaemon

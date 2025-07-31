@@ -11,6 +11,10 @@ For copyright and licensing terms, see the file named COPYING.
 #include <string>
 #include <cstdio>
 
+class TerminalCapabilities;
+struct ProcessEnvironment;
+class ECMA48Output;
+
 namespace popt {
 	struct error {
 		error(const char * a, const char * m) : arg(a), msg(m) {}
@@ -27,7 +31,7 @@ namespace popt {
 	};
 	class processor {
 	public:
-		processor(const char * n, definition & d, std::vector<const char *> & f);
+		processor(const char * n, const ProcessEnvironment & e, definition & d, std::vector<const char *> & f);
 		virtual ~processor() {}
 		virtual const char * next_arg() = 0;
 		void process(bool strictly_options_before_arguments, bool single_dash_long_options = false) {
@@ -62,6 +66,7 @@ namespace popt {
 		void stop() { is_stopped = true; }
 		std::vector<const char *> & file_vector;
 		const char * name;
+		const ProcessEnvironment & envs;
 	protected:
 		int slash;
 		definition & def;
@@ -69,10 +74,10 @@ namespace popt {
 	};
 	template <class InputIterator> class arg_processor : public processor {
 	public:
-		arg_processor(InputIterator b, InputIterator e, const char * n, definition & d, std::vector<const char *> & f) : processor(n, d, f), current(b), end(e) {}
-		const char * next_arg() 
+		arg_processor(InputIterator b, InputIterator e, const char * n, const ProcessEnvironment & envsp, definition & d, std::vector<const char *> & f) : processor(n, envsp, d, f), current(b), end(e) {}
+		const char * next_arg()
 		{
-			if (current >= end) return 0;
+			if (current >= end) return nullptr;
 			return *current++;
 		}
 	protected:
@@ -81,8 +86,8 @@ namespace popt {
 	struct table_definition : public definition {
 	public:
 		table_definition(unsigned c, definition * const * v, const char * d) : definition(), count(c), array(v), description(d) {}
-		virtual void long_usage();
-		virtual void help();
+		virtual void long_usage(ECMA48Output &, bool);
+		virtual void help(ECMA48Output &, bool);
 		virtual ~table_definition();
 	protected:
 		virtual bool execute(processor &, char c);
@@ -121,7 +126,7 @@ namespace popt {
 	};
 	struct simple_named_definition : public named_definition {
 	public:
-		simple_named_definition(char s, const char * l, const char * d) : named_definition(s, l, 0, d) {}
+		simple_named_definition(char s, const char * l, const char * d) : named_definition(s, l, nullptr, d) {}
 		virtual ~simple_named_definition() = 0;
 	protected:
 		virtual void action(processor &) = 0;
@@ -188,6 +193,14 @@ namespace popt {
 		virtual void action(processor &, const char *) = 0;
 		int base;
 	};
+	struct size_definition : public number_definition {
+	public:
+		size_definition(char s, const char * l, const char * a, const char * d, unsigned long & v, int b) : number_definition(s, l, a, d, b), value(v) {}
+		virtual ~size_definition();
+	protected:
+		virtual void action(processor &, const char *);
+		unsigned long & value;
+	};
 	struct unsigned_number_definition : public number_definition {
 	public:
 		unsigned_number_definition(char s, const char * l, const char * a, const char * d, unsigned long & v, int b) : number_definition(s, l, a, d, b), value(v) {}
@@ -231,6 +244,16 @@ namespace popt {
 	protected:
 		virtual void action(processor &, const char *, const char *);
 		list_type & value_list;
+	};
+	struct tui_level_definition : public integral_definition {
+	public:
+		tui_level_definition(char s, const char * l, const char * d) : integral_definition(s, l, a, d), v() {}
+		virtual ~tui_level_definition();
+		const unsigned short & value() const { return v; }
+	protected:
+                static const char a[];
+		virtual void action(processor &, const char *);
+		unsigned short v;
 	};
 }
 

@@ -1,0 +1,34 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Czech keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+## FIXME
+#  042   lshift lshift lshift lshift lshifta lshifta lshift lshift  O
+#  056   lalt   lalta  lalt   lalt   lalt   lalta  lalt   lalt    O
+#  093   ashift ashift ralt   ralt   ralt   ralt   ralt   ralt    O
+## FIXME
+#  130   '+'    '1'    nop    nop    '+'    '1'    nop    nop     O
+#  131   0x011b '2'    nop    nop    0x011b '2'    nop    nop     O
+#  132   0x0161 '3'    nop    nop    0x0161 '3'    nop    nop     O
+#  133   0x010d '4'    nop    nop    0x010d '4'    nop    nop     O
+#  134   0x0159 '5'    nop    nop    0x0159 '5'    nop    nop     O
+#  135   0x017e '6'    nop    nop    0x017e '6'    nop    nop     O
+#  136   0xfd   '7'    nop    nop    0xfd   '7'    nop    nop     O
+#  137   0xe1   '8'    nop    nop    0xe1   '8'    nop    nop     O
+#  138   0xed   '9'    nop    nop    0xed   '9'    nop    nop     O
+#  139   0xe9   '0'    nop    nop    0xe9   '0'    nop    nop     O
+#  140   '='    '%'    dced   dogo   dsla   ddac   nop    nop     O
+#  141   dacu   dcar   drin   dbre   ddot   duml   dcir   nop     O
+#  149   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
+#  154   0xfa   '/'    nop    nop    0xfa   '/'    nop    nop     O
+#  155   ')'    '('    nop    nop    ')'    '('    nop    nop     O
+#  167   0x016f '"'    nop    nop    0x016f '"'    nop    nop     O
+#  168   0xa7   '!'    nop    nop    0xa7   '!'    nop    nop     O
+#  169   '`'    ';'    nop    nop    '`'    ';'    nop    nop     O
+#  171   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
+#  172   'y'    'Y'    em     em     'y'    'Y'    em     em      C
+#  179   ','    '?'    nop    nop    ','    '?'    nop    nop     O
+#  180   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
+#  181   '-'    '_'    us     us     '-'    '_'    us     us      O

@@ -1,6 +1,7 @@
-<title>Demand starting per-user Desktop Bus user services</title>
 <link rel="Up" href="per-user-stuff.html" title="Stuff converted for each user" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Demand starting per-user Desktop Bus user services</title>
+<h1 class="Ruled">
 Demand starting per-user Desktop Bus user services
 </h1>
 
@@ -8,12 +9,12 @@ Demand starting per-user Desktop Bus user services
 Desktop Bus servers communicate with clients via an intermediary "broker" process, which passes messages around and keeps track of registered server "names".
 Clients generally rely upon servers either being explicitly run or started on demand.
 The old way of demand-starting servers, on systems without per-user service managers, was for the broker process to directly spawn the server processes.
-<a href="http://jdebp.eu./Softwares/nosh/avoid-dbus-bus-activation.html">This so-called "bus activation" should be avoided on systems with service management, for several reasons.</a>
+<a href="https://jdebp.uk/Softwares/nosh/avoid-dbus-bus-activation.html">This so-called "bus activation" should be avoided on systems with service management, for several reasons.</a>
 On systems with per-user service managers, <a href="per-user-user-services.html#dbus">the per-user service manager has a definition of the Desktop Bus server</a> and either the broker process tells the service manager when to start it or the user explicitly enables the service to start automatically at startup using the normal service manager mechanisms.
 Or both.
 </p>
 
-<h2 id="how">
+<h2 class="Ruled" id="how">
 How it works
 </h2>
 
@@ -46,7 +47,7 @@ The broker finally answers the connection request from the original client.
 </p></li>
 </ol>
 
-<h2 id="names">
+<h2 class="Ruled" id="names">
 Unified server names
 </h2>
 
@@ -79,7 +80,7 @@ And the systemd people quickly adopted the convention that if the registration n
 The broker gives the helper the name of the server definition file, so it just uses that as-is, and entirely ignores the server definition file contents and its superfluous, pointless, and problem-enabling <code>Name</code> and <code>SystemdService</code> fields.
 </p>
 
-<h2 id="creating">
+<h2 class="Ruled" id="creating">
 Creating more demand-started services of your own
 </h2>
 

@@ -3,14 +3,9 @@
 ## **************************************************************************
 
 [Unit]
-Description=Deferred execution scheduler
 Conflicts=atd
 
 [Service]
-Type=oneshot
-ExecStart=%p -d
-# This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
-Restart=no
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
 
 [Install]

@@ -26,8 +26,8 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 BaseTUI::BaseTUI(
-) :	
-	window(0),
+) :
+	window(nullptr),
 	pending_resize_event(true),
 	refresh_needed(true),
 	update_needed(true),
@@ -91,8 +91,10 @@ BaseTUI::handle_resize_event (
 	if (pending_resize_event) {
 		pending_resize_event = false;
 		struct winsize size;
-		if (0 <= tcgetwinsz_nointr(STDOUT_FILENO, size))
+		if (0 <= tcgetwinsz_nointr(STDOUT_FILENO, size)) {
+			sane(size);
 			resize(size.ws_row, size.ws_col);
+		}
 		refresh_needed = true;
 	}
 }

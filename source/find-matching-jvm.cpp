@@ -25,7 +25,11 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 namespace {
-const char * path[] = { "/usr/local", "/usr", "/" };
+const char * path[] = { "/usr/local", "/usr/pkg", "/usr", "/" };
+const char * etc[] = { "/usr/local/etc", "/etc", "/usr/pkg/etc" };
+const char * lib[] = { "/usr/local/lib", "/usr/pkg/lib", "/usr/lib", "/lib" };
+const std::string javavms("/javavms");
+const std::string jvm("/jvm");
 
 struct JVMVersion {
 	JVMVersion(unsigned vmaj, unsigned vmin) : vmajor(vmaj), vminor(vmin) {}
@@ -34,22 +38,22 @@ struct JVMVersion {
 
 	static bool parse(const std::string &, std::string &, unsigned &, unsigned &);
 	bool operator == (const JVMVersion & o) const { return o.vmajor == vmajor && o.vminor == vminor; }
-}; 
+};
 
 // Java version strings come in 3 forms.  Java 1.8 can be:
 //   openjdk8
 //   linux-oracle-jdk18
 //   jre-8-oracle-x64
 //   java-1.8.0-gcj-4.9-amd64
-bool 
+bool
 JVMVersion::parse(
-	const std::string & s, 
-	std::string & r, 
-	unsigned & vmajor, 
+	const std::string & s,
+	std::string & r,
+	unsigned & vmajor,
 	unsigned & vminor
 ) {
 	std::vector<unsigned> d;
-	unsigned * current(0);
+	unsigned * current(nullptr);
 	for (std::string::const_iterator p(s.begin()), e(s.end()); ; ++p) {
 		if (e == p) {
 			r = std::string();
@@ -57,7 +61,7 @@ JVMVersion::parse(
 		}
 		const char c(*p);
 		if ('.' == c) {
-			current = 0;
+			current = nullptr;
 		} else
 		if (std::isdigit(c)) {
 			if (!current) {
@@ -79,7 +83,7 @@ JVMVersion::parse(
 			vmajor = d[0] / 10U;
 			vminor = d[0] % 10U;
 		}
-	} else 
+	} else
 	{
 		vmajor = d[0];
 		vminor = d[1];
@@ -110,10 +114,10 @@ strip_initial_letters (
 	return std::string();
 }
 
-bool 
+bool
 JVMDetails::parse(
-	const std::string & s, 
-	unsigned & vmajor, 
+	const std::string & s,
+	unsigned & vmajor,
 	unsigned & vminor,
 	bool & foreign,
 	std::string & m
@@ -146,7 +150,7 @@ JVMDetails::parse(
 #endif
 		m = "oracle";
 		return JVMVersion::parse(strip_initial_letters(r), r, vmajor, vminor);
-	} else 
+	} else
 	if (begins_with(s, "java-", r)
 	||  begins_with(s, "jdk-", r)
 	||  begins_with(s, "jre-", r)
@@ -176,11 +180,11 @@ JVMDetails::parse(
 		} else
 			return false;
 		return true;
-	} else 
+	} else
 		return false;
 }
 
-bool 
+bool
 JVMDetails::matches (
 	const std::list<JVMVersion> & versions,
 	const std::list<std::string> & operatingsystems,
@@ -219,7 +223,7 @@ JVMDetails::matches (
 	return true;
 }
 
-bool 
+bool
 JVMDetails::operator < (
 	const JVMDetails & o
 ) const {
@@ -236,7 +240,7 @@ typedef std::list<JVMDetails> JVMDetailsList;
 }
 
 void
-find_matching_jvm ( 
+find_matching_jvm (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -255,20 +259,16 @@ find_matching_jvm (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 	if (envs.query("JAVA_HOME")) return;
 
 	bool done_some(false);
@@ -278,76 +278,74 @@ find_matching_jvm (
 		std::string remainder;
 		unsigned vmajor, vminor;
 		if (!JVMVersion::parse(*i, remainder, vmajor, vminor) || !remainder.empty()) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, i->c_str(), "Invalid Java version.");
-			throw static_cast<int>(EXIT_USAGE);
+			die_invalid_argument(prog, envs, i->c_str(), "Invalid Java version.");
 		}
 		parsed_versions.push_back(JVMVersion(vmajor, vminor));
 	}
 
 	if (!done_some) {
-		const FileStar f(std::fopen("/usr/local/etc/javavms", "r"));
-		if (f) {
-			const std::vector<std::string> java_strings(read_file(f));
-			if (std::ferror(f)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, "/usr/local/etc/javavms", std::strerror(error));
-				throw EXIT_FAILURE;
-			}
-			for (std::vector<std::string>::const_iterator i(java_strings.begin()); i != java_strings.end(); ++i) {
-				const std::string root(dirname_of(dirname_of(*i)));
-				unsigned vmajor, vminor;
-				bool foreign;
-				std::string m;
-				if (!JVMDetails::parse(basename_of(root.c_str()), vmajor, vminor, foreign, m)) continue;
-
-				const JVMDetails one(root, vmajor, vminor, foreign, m);
-				JVMDetailsList::iterator p(std::upper_bound(details.begin(), details.end(), one));
-				details.insert(p, one);
-			}
-			done_some = true;
-		}
-	}
-
-	if (!done_some) {
-		FileDescriptorOwner d(open_dir_at(AT_FDCWD, "/usr/lib/jvm"));
-		if (0 <= d.get()) {
-			const FileDescriptorOwner d2(dup(d.get()));
-			if (0 > d2.get()) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "/usr/lib/jvm", std::strerror(error));
-				throw EXIT_FAILURE;
-			}
-			const DirStar ds(d);
-			if (ds) {
-				for (;;) {
-					const dirent * entry(readdir(ds));
-					if (!entry) break;
-#if defined(_DIRENT_HAVE_D_NAMLEN)
-					if (1 > entry->d_namlen) continue;
-#endif
-					if ('.' == entry->d_name[0]) continue;
-#if defined(_DIRENT_HAVE_D_TYPE)
-					if (DT_DIR != entry->d_type && DT_LNK != entry->d_type) continue;
-#endif
-
-					const std::string name(entry->d_name);
-					std::string subdir;
-
-					if (0 > faccessat(d2.get(), (name + subdir + "/bin/java").c_str(), F_OK, AT_EACCESS)) {
-						subdir = "/jre";
-						if (0 > faccessat(d2.get(), (name + subdir + "/bin/java").c_str(), F_OK, AT_EACCESS)) continue;
-					}
-
+		for (const char * const * i(etc); i < etc + sizeof etc/sizeof *etc; ++i) {
+			const std::string n((*i) + javavms);
+			const FileStar f(std::fopen(n.c_str(), "r"));
+			if (f) {
+				const std::vector<std::string> java_strings(read_file(prog, envs, n.c_str(), f));
+				for (std::vector<std::string>::const_iterator j(java_strings.begin()); j != java_strings.end(); ++j) {
+					const std::string root(dirname_of(dirname_of(*j)));
 					unsigned vmajor, vminor;
 					bool foreign;
 					std::string m;
-					if (!JVMDetails::parse(name, vmajor, vminor, foreign, m)) continue;
+					if (!JVMDetails::parse(basename_of(root.c_str()), vmajor, vminor, foreign, m)) continue;
 
-					const JVMDetails one("/usr/lib/jvm/" + name + subdir, vmajor, vminor, foreign, m);
+					const JVMDetails one(root, vmajor, vminor, foreign, m);
 					JVMDetailsList::iterator p(std::upper_bound(details.begin(), details.end(), one));
 					details.insert(p, one);
 				}
 				done_some = true;
+			}
+		}
+	}
+
+	if (!done_some) {
+		for (const char * const * i(lib); i < lib + sizeof lib/sizeof *lib; ++i) {
+			const std::string n((*i) + jvm);
+			FileDescriptorOwner d(open_dir_at(AT_FDCWD, n.c_str()));
+			if (0 <= d.get()) {
+				const FileDescriptorOwner d2(dup(d.get()));
+				if (0 > d2.get()) {
+					die_errno(prog, envs, n.c_str());
+				}
+				const DirStar ds(d);
+				if (ds) {
+					for (;;) {
+						const dirent * entry(readdir(ds));
+						if (!entry) break;
+#if defined(_DIRENT_HAVE_D_NAMLEN)
+						if (1 > entry->d_namlen) continue;
+#endif
+						if ('.' == entry->d_name[0]) continue;
+#if defined(_DIRENT_HAVE_D_TYPE)
+						if (DT_DIR != entry->d_type && DT_LNK != entry->d_type) continue;
+#endif
+
+						const std::string name(entry->d_name);
+						std::string subdir;
+
+						if (0 > faccessat(d2.get(), (name + subdir + "/bin/java").c_str(), F_OK, AT_EACCESS)) {
+							subdir = "/jre";
+							if (0 > faccessat(d2.get(), (name + subdir + "/bin/java").c_str(), F_OK, AT_EACCESS)) continue;
+						}
+
+						unsigned vmajor, vminor;
+						bool foreign;
+						std::string m;
+						if (!JVMDetails::parse(name, vmajor, vminor, foreign, m)) continue;
+
+						const JVMDetails one(n + "/" + name + subdir, vmajor, vminor, foreign, m);
+						JVMDetailsList::iterator p(std::upper_bound(details.begin(), details.end(), one));
+						details.insert(p, one);
+					}
+					done_some = true;
+				}
 			}
 		}
 	}
@@ -368,21 +366,15 @@ find_matching_jvm (
 		}
 	}
 
-	if (!done_some) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "JAVA_HOME", "No JVMs found.");
-		throw EXIT_FAILURE;
-	}
+	if (!done_some)
+		die_invalid(prog, envs, "JAVA_HOME", "No JVMs found.");
 
 	for (JVMDetailsList::const_reverse_iterator i(details.rbegin()); i != details.rend(); ++i) {
 		if (!i->matches(parsed_versions, operatingsystems, manufacturers)) continue;
-		if (!envs.set("JAVA_HOME", i->fullname.c_str())) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "JAVA_HOME", std::strerror(error));
-			throw EXIT_FAILURE;
-		}
+		if (!envs.set("JAVA_HOME", i->fullname.c_str()))
+			die_errno(prog, envs, "JAVA_HOME");
 		return;
 	}
 
-	std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "JAVA_HOME", "No matching JVMs found.");
-	throw EXIT_FAILURE;
+	die_invalid(prog, envs, "JAVA_HOME", "No matching JVMs found.");
 }

@@ -9,6 +9,7 @@ Description=Clam anti-virus
 EnvironmentDirectory=env
 RuntimeDirectory=%p
 User=%p
+SessionLeader=yes
 ExecStart=clamd ${config:+--config-file "${config}"} --foreground ${flags}
 
 [Install]

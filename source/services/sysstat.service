@@ -11,7 +11,6 @@ Type=oneshot
 EnvironmentDirectory=env
 ExecStart=/usr/lib/%p/sadc -F -L ${OPTIONS} "${DIR:--}"
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

@@ -5,13 +5,13 @@
 [Unit]
 Description=GNOME 3 display manager
 Wants=polkitd.service
-After=ttylogin@ttyv8 ttylogin@tty9
 
 [Service]
+EnvironmentDirectory=env
+BusName=org.gnome.DisplayManager
 ExecStartPre=/usr/share/gdm/generate-config
 ExecRestartPre=/usr/share/gdm/generate-config
 ExecStart=%p
 
 [Install]
-# TODO: This might be better as graphical.
 WantedBy=workstation.target

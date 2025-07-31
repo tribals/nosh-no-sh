@@ -7,6 +7,7 @@ Description=MogileFS storage daemon
 
 [Service]
 User=%p
+SessionLeader=yes
 ExecStart=%p
 Restart=no
 

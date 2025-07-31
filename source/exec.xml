@@ -22,10 +22,10 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>exec</command> 
-<arg choice='opt'>--login</arg> 
-<arg choice='opt'>--clear</arg> 
-<arg choice='opt'>--arg0 <replaceable>string</replaceable></arg> 
+<command>exec</command>
+<arg choice='opt'>--login</arg>
+<arg choice='opt'>--clear</arg>
+<arg choice='opt'>--arg0 <replaceable>string</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -42,7 +42,7 @@ It is a built-in command for <citerefentry><refentrytitle>nosh</refentrytitle><m
 </refsection><refsection><title>Description</title>
 
 <para>
-<command>exec</command> is a chain-loading utility that simply chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>exec</command> is a chain-loading utility that simply chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -52,10 +52,12 @@ It is a built-in command for <citerefentry><refentrytitle>nosh</refentrytitle><m
 <para>
 If the <arg choice='plain'>--clear</arg> command line option is used, <command>exec</command> will clear its environment before chaining.
 Otherwise, it leaves its process state unchanged.
+</para>
+<caution>
 This option is for compatibility with the built-in <citerefentry><refentrytitle>exec</refentrytitle><manvolnum>1</manvolnum></citerefentry> command of shells.
 Avoid its use.
 Instead, use the built-in <citerefentry><refentrytitle>clearenv</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
-</para>
+</caution>
 
 <para>
 The <arg choice='plain'>--arg0</arg> command line option causes it to replace the first element of the argument list that it passes to <replaceable>next-prog</replaceable>, which is otherwise the name of the command in <replaceable>next-prog</replaceable>, with the supplied string.
@@ -68,36 +70,37 @@ This happens after any substitution because of <arg choice='plain'>--arg0</arg>.
 <para>
 <command>exec</command> is in fact a multiple personality program, whose function varies according to what name it is invoked as.
 The alternative names are:
-<command>appendpath</command>, 
-<command>background</command>, 
+<command>appendpath</command>,
+<command>background</command>,
 <command>cd</command>,
 <command>chdir</command>,
-<command>chroot</command>, 
+<command>chdir-home</command>,
+<command>chroot</command>,
 <command>clearenv</command>,
-<command>cyclog</command>, 
+<command>cyclog</command>,
 <command>delegate-control-group-to</command>,
-<command>envdir</command>, 
-<command>envgid</command>, 
-<command>envuidgid</command>, 
+<command>envdir</command>,
+<command>envgid</command>,
+<command>envuidgid</command>,
 <command>erase-machine-id</command>
 <command>export-to-rsyslog</command>,
-<command>false</command>, 
+<command>false</command>,
 <command>fdmove</command>,
 <command>fdredir</command>,
-<command>fifo-listen</command>, 
+<command>fifo-listen</command>,
 <command>follow-log-directories</command>,
-<command>foreground</command>, 
-<command>getuidgid</command>, 
-<command>hardlimit</command>, 
+<command>foreground</command>,
+<command>getuidgid</command>,
+<command>hardlimit</command>,
 <command>klog-read</command>
-<command>line-banner</command>, 
+<command>line-banner</command>,
 <command>local-datagram-socket-listen</command>,
 <command>local-seqpacket-socket-accept</command>,
 <command>local-seqpacket-socket-listen</command>,
 <command>local-stream-socket-accept</command>,
 <command>local-stream-socket-connect</command>,
-<command>local-stream-socket-listen</command>, 
-<command>machineenv</command>, 
+<command>local-stream-socket-listen</command>,
+<command>machineenv</command>,
 <command>make-private-fs</command>,
 <command>make-read-only-fs</command>,
 <command>monitored-fsck</command>,
@@ -106,39 +109,39 @@ The alternative names are:
 <command>netlink-datagram-socket-listen</command>,
 <command>nosh</command>,
 <command>oom-kill-protect</command>,
-<command>pause</command>, 
-<command>pipe</command>, 
+<command>pause</command>,
+<command>pipe</command>,
 <command>plug-and-play-event-handler</command>
-<command>prependpath</command>, 
-<command>printenv</command>, 
+<command>prependpath</command>,
+<command>printenv</command>,
 <command>read-conf</command>,
-<command>recordio</command>, 
+<command>recordio</command>,
 <command>set-control-group-knob</command>,
 <command>set-dynamic-hostname</command>,
 <command>set-mount-object</command>
-<command>setenv</command>, 
-<command>setgid-fromenv</command>, 
+<command>setenv</command>,
+<command>setgid-fromenv</command>,
 <command>setlock</command>,
-<command>setpgrp</command>, 
+<command>setpgrp</command>,
 <command>setsid</command>,
-<command>setsid</command>, 
-<command>setuidgid-fromenv</command>, 
-<command>setuidgid</command>, 
+<command>setsid</command>,
+<command>setuidgid-fromenv</command>,
+<command>setuidgid</command>,
 <command>setup-machine-id</command>
-<command>softlimit</command>, 
+<command>softlimit</command>,
 <command>syslog-read</command>
-<command>tai64n</command>, 
-<command>tai64nlocal</command>, 
+<command>tai64n</command>,
+<command>tai64nlocal</command>,
 <command>tcp-socket-accept</command>,
 <command>tcp-socket-connect</command>,
-<command>tcp-socket-listen</command>, 
+<command>tcp-socket-listen</command>,
 <command>tcpserver</command>
-<command>true</command>, 
-<command>ucspi-socket-rules-check</command>, 
+<command>true</command>,
+<command>ucspi-socket-rules-check</command>,
 <command>udp-socket-connect</command>,
-<command>udp-socket-listen</command>, 
+<command>udp-socket-listen</command>,
 <command>ulimit</command>,
-<command>umask</command>, 
+<command>umask</command>,
 <command>unsetenv</command>,
 <command>unshare</command>,
 <command>userenv</command>,
@@ -165,16 +168,16 @@ Having built-in commands, rather than forcing each individual command to be relo
 </para>
 
 <para>
-However, this is a reasonable trade-off.  
-Most of the built-in commands do very little, and most of their processing when executed as external commands is in fact devoted to the dynamic loader and initializing the runtime libraries.  
-(For example: <citerefentry><refentrytitle>chdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> makes two system calls in the meat of the command.  
-On one Linux system, however, the dynamic loader and runtime libraries make 143 system calls just to load and start the program.  
+However, this is a reasonable trade-off.
+Most of the built-in commands do very little, and most of their processing when executed as external commands is in fact devoted to the dynamic loader and initializing the runtime libraries.
+(For example: <citerefentry><refentrytitle>chdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> makes two system calls in the meat of the command.
+On one Linux system, however, the dynamic loader and runtime libraries make 143 system calls just to load and start the program.
 Other commands have similarly enormous ratios.)
 Having built-in commands eliminates the repeated teardown and re-initialization overheads from the dynamic loader and runtime libraries, reducing the overhead of small commands that individually do little to the same order of magnitude as simple function calls.
 </para>
 
 <para>
-And the commands themselves <replaceable>are</replaceable> short and readily amenable to security audit.  
+And the commands themselves <replaceable>are</replaceable> short and readily amenable to security audit.
 They are highly modular, with almost no coupling between commands; and usually simple.
 </para>
 

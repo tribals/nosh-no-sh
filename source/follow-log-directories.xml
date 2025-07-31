@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>follow-log-directories</command> 
+<command>follow-log-directories</command>
 <arg choice='req'><replaceable>directory</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>

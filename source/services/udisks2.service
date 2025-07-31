@@ -4,10 +4,12 @@
 
 [Unit]
 Description=UDisks2 daemon
+Documentation=https://storaged.org/doc/udisks2-api/latest/
 After=local-syslog.target polkitd.service
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.UDisks2
 ExecStart=/usr/lib/%p/udisksd
 
 [Install]

@@ -24,26 +24,29 @@
 <refsynopsisdiv>
 <cmdsynopsis>
 <command>per-user-manager</command>
-<arg rep='repeat'><replaceable>args</replaceable></arg> 
+<arg rep='repeat'><replaceable>args</replaceable></arg>
 </cmdsynopsis>
 <cmdsynopsis>
 <command>init</command>
-<arg rep='repeat'><replaceable>args</replaceable></arg> 
+<arg rep='repeat'><replaceable>args</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsection><title>Description</title>
 
 <para>
-<command>per-user-manager</command> can be used by individual users to manage non-system-wide, per-user, stuff.  
-It is not meant to be run as process #1, and the system will not operate correctly if it is mis-used as process #1.  
-To manage a system, use <citerefentry><refentrytitle>system-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+<command>per-user-manager</command> can be used by individual users to manage non-system-wide, per-user, stuff.
 The purpose of <command>per-user-manager</command> is to run per-user service management providing an overall control API for it that is similar to that of process #1.
 This permits per-user service manament to be addressed by <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> (when its <arg choice='plain'>--user</arg> command-line option is employed) control subcommands such as <command>halt</command>.
 </para>
 
+<caution>
+<command>per-user-manager</command> is not meant to be run as process #1, and the system will not operate correctly if it is mis-used as process #1.
+To manage a system, use <citerefentry><refentrytitle>system-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</caution>
+
 <para>
-The operation of <command>per-user-manager</command> falls into three parts: 
+The operation of <command>per-user-manager</command> falls into three parts:
 process setup, reaping, and responding to per-user events.
 </para>
 
@@ -139,8 +142,8 @@ Only one instance is spawned at a time.
 <para>
 It spawns an instance of <citerefentry><refentrytitle>cyclog</refentrytitle><manvolnum>1</manvolnum></citerefentry> with its input connected to the read end of a pipe.
 If control groups are available, it is run in its own dedicated <filename>per-user-manager-log.slice</filename> subordinate control group below the system-manager's original own.
-This process is expected to only terminate when the pipe is closed.
-If it terminates otherwise, <command>per-user-manager</command> simply re-spawns it.
+This process is expected to only terminate when the pipe is closed, or the manager explicitly terminates it.
+If it terminates and management is not stopping, <command>per-user-manager</command> simply re-spawns it.
 </para>
 </listitem>
 
@@ -155,7 +158,7 @@ The write end of the aforementioned pipe is connected to the the standard output
 <para>
 The logger is intended to be just for the per-user manager, the service manager, and the service controllers.
 Actual services should be plumbed to their own logging services.
-The logger is told to write its logfiles to <filename>/run/user/<replaceable>$USER</replaceable>/per-user-manager/log</filename>, and to cap their maximum total size at 1MiB.
+The logger is told to write its logfiles to <filename>/var/log/user/<replaceable>$USER</replaceable>/per-user-manager</filename>, or failing that <filename>/run/user/<replaceable>$USER</replaceable>/per-user-manager/log</filename>, and to cap their maximum total size at 1MiB.
 </para>
 
 <para>
@@ -223,9 +226,24 @@ Then exit.
 <para>
 When the <code>exit</code> target is fully active, it is expected to send the <code>SIGRTMIN + 13</code> signal to the per-user manager process.
 In the packaged target definitions, they use the <arg choice='plain'>--force</arg> option to the <command>halt</command> subcommand of <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>8</manvolnum></citerefentry> to do this.
-Do not send these signals directly, as this does not shut down services in order.
 </para>
+<caution>
+Do not send these signals directly, as this does not shut down services in order.
+</caution>
 </listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>SIGRTMIN + 26</code></term>
+<term><code>SIGRTMIN + 27</code></term>
+<term><code>SIGRTMIN + 28</code></term>
+<listitem><para>
+Terminate the logger process with <code>SIGTERM</code>.
+Normally it will be automatically restarted after it terminates.
+This is used to make the logger start up in a different directory, after (for example) <filename>/var/log/user/<replaceable>${USER}</replaceable></filename> has been mounted/created, or before it is unmounted/deleted.
+<code>SIGRTMIN + 26</code> forces the use of the <filename>/run/user/<replaceable>${USER}</replaceable>/per-user-manager/log</filename> directory.
+<code>SIGRTMIN + 27</code> and <code>SIGRTMIN + 28</code> allow the use of (the first successfully accessible of) all potential log directories.
+</para></listitem>
 </varlistentry>
 
 </variablelist>

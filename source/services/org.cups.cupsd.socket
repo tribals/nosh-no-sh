@@ -13,8 +13,8 @@ SocketMode=0666
 #	1. /var/run is not the same socket address as /run .
 #	2. Lots of applications hardwire /var/run .
 ListenStream=/var/run/cups/cups.sock
-ListenStream=[::1]:631
-ListenStream=127.0.0.1:631
+ListenStream=[::1]:ipp
+ListenStream=127.0.0.1:ipp
 
 [Install]
 WantedBy=workstation.target

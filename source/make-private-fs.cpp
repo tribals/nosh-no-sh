@@ -26,10 +26,10 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-make_private_fs ( 
+make_private_fs (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool temp(false), devices(false), homes(false);
@@ -48,14 +48,13 @@ make_private_fs (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 #if defined(__LINUX__) || defined(__linux__)
@@ -76,11 +75,10 @@ make_private_fs (
 
 			// The top-level directory grants no group or world access, so that no unprivileged users from the outside can go poking around in it.
 			const mode_t oldmode1(umask(0077));
-			if (0 == mkdtemp(name)) {
+			if (nullptr == mkdtemp(name)) {
 				const int error(errno);
 				umask(oldmode1);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, error, name);
 			}
 			umask(oldmode1);
 
@@ -90,8 +88,7 @@ make_private_fs (
 			if (0 > mkdir(name, 0777 | S_ISVTX)) {
 				const int error(errno);
 				umask(oldmode2);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, error, name);
 			}
 			umask(oldmode2);
 
@@ -106,9 +103,7 @@ make_private_fs (
 			};
 
 			if (0 > nmount(iov, sizeof iov/sizeof *iov, bind_mount_flags)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, name);
 			}
 		}
 	}
@@ -123,7 +118,7 @@ make_private_fs (
 		static const struct iovec pts[] = {
 			FSTYPE,			MAKE_IOVEC("devpts"),
 			FSPATH,			MAKE_IOVEC("/dev/pts"),
-			MAKE_IOVEC("newinstance"),	{0,0},
+			MAKE_IOVEC("newinstance"),	ZERO_IOVEC(),
 			MAKE_IOVEC("ptmxmode"),	MAKE_IOVEC("0666"),
 			MAKE_IOVEC("mode"),	MAKE_IOVEC("0620"),
 			// Yes, we're hardwiring the GID of the "tty" group to what it conventionally is in Linux distributions.
@@ -143,7 +138,7 @@ make_private_fs (
 
 #define MAKE_DATA(x) # x, const_cast<struct iovec *>(x), sizeof x/sizeof *x
 
-		static const struct api_mount mounts[] = 
+		static const struct api_mount mounts[] =
 		{
 #if defined(__LINUX__) || defined(__linux__)
 			{	MAKE_DATA(dev),		0U,	MS_NOSUID|MS_STRICTATIME|MS_NOEXEC		},
@@ -154,7 +149,7 @@ make_private_fs (
 #endif
 		};
 
-		const static struct api_symlink symlinks[] = 
+		const static struct api_symlink symlinks[] =
 		{
 #if defined(__LINUX__) || defined(__linux__)
 			{	1,	"/dev/ptmx",	"pts/ptmx"		},
@@ -182,11 +177,8 @@ make_private_fs (
 		};
 
 		const FileDescriptorOwner old_dev_fd(open_dir_at(AT_FDCWD, "/dev"));
-		if (0 > old_dev_fd.get()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, "/dev", std::strerror(error));
-			throw EXIT_FAILURE;
-		}
+		if (0 > old_dev_fd.get())
+			die_errno(prog, envs, "/dev");
 		for (const api_mount * i(mounts); (mounts + sizeof mounts/sizeof *mounts) != i; ++i) {
 			const std::string fspath(fspath_from_mount(i->iov, i->ioc));
 			if (!fspath.empty()) {
@@ -197,37 +189,27 @@ make_private_fs (
 				}
 			}
 			if (0 > nmount(i->iov, i->ioc, i->flags)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s: %s\n", prog, "nmount", i->name, std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, "nmount", i->name);
 			}
 		}
 		for (const api_symlink * i(symlinks); (symlinks + sizeof symlinks/sizeof *symlinks) != i; ++i) {
 			for (int force = !!i->force ; ; --force) {
 				if (0 <= symlink(i->target, i->name)) break;
-				const int error(errno);
-				if (!force || EEXIST != error) {
-					std::fprintf(stderr, "%s: FATAL: %s: %s: %s\n", prog, "symlink", i->name, std::strerror(error));
-					throw EXIT_FAILURE;
-				}
+				if (!force || EEXIST != errno)
+					die_errno(prog, envs, "symlink", i->name);
 				unlink(i->name);
 			}
 		}
 		const FileDescriptorOwner new_dev_fd(open_dir_at(AT_FDCWD, "/dev"));
 		if (0 > new_dev_fd.get()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "/dev", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, "/dev");
 		}
 		for (const char ** i(device_files); (device_files + sizeof device_files/sizeof *device_files) != i; ++i) {
 			struct stat s;
 			if (0 > fstatat(old_dev_fd.get(), *i, &s, 0)) continue;
 			if (!S_ISBLK(s.st_mode) && !S_ISCHR(s.st_mode)) continue;
-			if (0 > mknodat(new_dev_fd.get(), *i, s.st_mode, s.st_rdev)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: ERROR: %s: %s: %s\n", prog, "mknod", *i, std::strerror(error));
-				throw EXIT_FAILURE;
-			}
+			if (0 > mknodat(new_dev_fd.get(), *i, s.st_mode, s.st_rdev))
+				die_errno(prog, envs, "mknod", *i);
 		}
 	}
 	if (homes || !hide_directories.empty()) {
@@ -248,11 +230,10 @@ make_private_fs (
 		std::strcpy(name, "/tmp/private-fs.XXXXXX");
 		// The top-level directory grants no group or world access, so that no unprivileged users from the outside can go poking around in it.
 		const mode_t oldmode1(umask(0077));
-		if (0 == mkdtemp(name)) {
+		if (nullptr == mkdtemp(name)) {
 			const int error(errno);
 			umask(oldmode1);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, error, name);
 		}
 		umask(oldmode1);
 
@@ -262,8 +243,7 @@ make_private_fs (
 		if (0 > mkdir(name, 0700)) {
 			const int error(errno);
 			umask(oldmode2);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, error, name);
 		}
 		umask(oldmode2);
 
@@ -280,10 +260,9 @@ make_private_fs (
 
 			if (0 > nmount(iov, sizeof iov/sizeof *iov, bind_mount_flags)) {
 				const int error(errno);
-				if (i->fatal) {
-					std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, i->name, std::strerror(error));
-					throw EXIT_FAILURE;
-				} else
+				if (i->fatal)
+					die_errno(prog, envs, error, i->name);
+				else
 					std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, i->name, std::strerror(error));
 			}
 		}
@@ -299,9 +278,7 @@ make_private_fs (
 			};
 
 			if (0 > nmount(iov, sizeof iov/sizeof *iov, bind_mount_flags)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, i->c_str(), std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, i->c_str());
 			}
 		}
 	}

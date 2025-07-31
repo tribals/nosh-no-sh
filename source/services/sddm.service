@@ -1,0 +1,14 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Simple Desktop display manager
+After=ttylogin@ttyv6 ttylogin@tty7
+
+[Service]
+EnvironmentDirectory=env
+ExecStart=%p
+
+[Install]
+WantedBy=workstation.target

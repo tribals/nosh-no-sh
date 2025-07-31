@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>userenv</command> 
+<command>userenv</command>
 <arg choice='req'><replaceable>args</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>

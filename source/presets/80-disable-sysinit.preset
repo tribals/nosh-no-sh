@@ -7,4 +7,3 @@
 #
 
 disable	sysinit.target
-disable	local-syslog.target

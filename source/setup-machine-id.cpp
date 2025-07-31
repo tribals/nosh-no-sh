@@ -27,7 +27,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-setup_machine_id [[gnu::noreturn]] ( 
+setup_machine_id [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -42,20 +42,16 @@ setup_machine_id [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Unexpected argument(s).");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	using namespace machine_id;
 
@@ -79,11 +75,11 @@ setup_machine_id [[gnu::noreturn]] (
 	}
 
 	umask(0033);
-	write_fallbacks(prog);
+	write_fallbacks(prog, envs);
 	if (rewrite)
-		write_non_volatile(prog);
-	write_volatile_hostid(prog, hostid);
-	write_non_volatile_hostid(prog, hostid);
+		write_non_volatile(prog, envs);
+	write_volatile_hostid(prog, envs, hostid);
+	write_non_volatile_hostid(prog, envs, hostid);
 
 	throw EXIT_SUCCESS;
 }

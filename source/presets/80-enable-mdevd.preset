@@ -1,5 +1,5 @@
 #
-# Enable suckless mdev services
+# Enable mdev dservices
 #
 # This is not a systemd preset.
 # It goes in a special nosh system-manager preset directory.

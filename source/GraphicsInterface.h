@@ -11,44 +11,67 @@ For copyright and licensing terms, see the file named COPYING.
 #include "CharacterCell.h"
 
 class GraphicsInterface {
-protected:
-	struct ScreenBitmap;
-	struct GlyphBitmap;
 public:
+	GraphicsInterface() {}
+	~GraphicsInterface() {}
+
+	typedef unsigned short PixelCoordinate;
+
+	/// \brief the abstract screen bitmap
+	struct ScreenBitmap {
+		ScreenBitmap(GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, unsigned short d) : yres(y), xres(x), depth(d) {}
+		virtual ~ScreenBitmap() = 0;
+
+		virtual void Plot (GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, uint16_t bits, const ColourPair & colour) = 0;
+		virtual void Plot (GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, uint16_t bits, uint16_t mask, const ColourPair colours[2]) = 0;
+		virtual void AlphaBlend (GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, uint16_t bits, const CharacterCell::colour_type & colour) = 0;
+	protected:
+		const GraphicsInterface::PixelCoordinate yres, xres;
+		const unsigned short depth;
+	};
 	typedef ScreenBitmap * ScreenBitmapHandle;
+
+	/// \brief a screen bitmap with at least one whole row of pixels in process memory
+	struct MemoryMappedScreenBitmap :
+		public ScreenBitmap
+	{
+		MemoryMappedScreenBitmap(GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, unsigned short d) : ScreenBitmap(y, x, d) {}
+
+		void Plot (GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, uint16_t bits, const ColourPair & colour);
+		void Plot (GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, uint16_t bits, uint16_t mask, const ColourPair colours[2]);
+		void AlphaBlend (GraphicsInterface::PixelCoordinate y, GraphicsInterface::PixelCoordinate x, uint16_t bits, const CharacterCell::colour_type & colour);
+	protected:
+		virtual void * GetStartOfLine(GraphicsInterface::PixelCoordinate y) = 0;
+	};
+
+	/// \brief the abstract glyph bitmap
+	struct GlyphBitmap {
+		virtual ~GlyphBitmap() = 0;
+		virtual void Plot (std::size_t row, uint16_t bits) = 0;
+		virtual uint16_t Row (std::size_t row) const = 0;
+	};
 	typedef GlyphBitmap * GlyphBitmapHandle;
 
-	GraphicsInterface(void * b, std::size_t z, unsigned short y, unsigned short x, unsigned short s, unsigned short d);
-	~GraphicsInterface();
+	/// \brief a concrete glyph bitmap in system memory
+	struct SystemMemoryGlyphBitmap :
+		public GlyphBitmap
+	{
+		virtual ~SystemMemoryGlyphBitmap() {}
+		uint16_t rows[16];
 
-	ScreenBitmapHandle GetScreenBitmap() { return &screen; }
-
-	void BitBLT(ScreenBitmapHandle, GlyphBitmapHandle, unsigned short y, unsigned short x, const CharacterCell::colour_type & foreground, const CharacterCell::colour_type & background);
-	void BitBLTMask(ScreenBitmapHandle, GlyphBitmapHandle, GlyphBitmapHandle, unsigned short y, unsigned short x, const CharacterCell::colour_type foregrounds[2], const CharacterCell::colour_type backgrounds[2]);
-	void BitBLTAlpha(ScreenBitmapHandle, GlyphBitmapHandle, unsigned short y, unsigned short x, const CharacterCell::colour_type & colour);
-
-	void DeleteGlyphBitmap(GlyphBitmap * handle) { delete handle; }
-	GlyphBitmap * MakeGlyphBitmap();
-
-protected:
-	struct ScreenBitmap {
-		void * const base;
-		const unsigned short yres, xres, stride, depth;
-		ScreenBitmap(void * b, unsigned short y, unsigned short x, unsigned short s, unsigned short d) : base(b), yres(y), xres(x), stride(s), depth(d) {}
-		void Plot (unsigned short y, unsigned short x, uint16_t bits, const CharacterCell::colour_type & foreground, const CharacterCell::colour_type & background);
-		void Plot (unsigned short y, unsigned short x, uint16_t bits, uint16_t mask, const CharacterCell::colour_type foregrounds[2], const CharacterCell::colour_type backgrounds[2]);
-		void AlphaBlend (unsigned short y, unsigned short x, uint16_t bits, const CharacterCell::colour_type & colour);
+		void Plot (std::size_t row, uint16_t bits) { if (row < sizeof rows/sizeof *rows) rows[row] = bits; }
+		uint16_t Row (std::size_t row) const { return row < sizeof rows/sizeof *rows ? rows[row] : 0U; }
 	};
-	struct GlyphBitmap {
-		uint16_t * base;
-		GlyphBitmap(uint16_t * b) : base(b) {}
-		~GlyphBitmap() { delete[] base; }
-		void Plot (std::size_t row, uint16_t bits) { base[row] = bits; }
-		uint16_t Row (std::size_t row) const { return base[row]; }
-	};
-	void * const base;
-	const std::size_t size;
-	ScreenBitmap screen;
+
+	void DeleteGlyphBitmap(GlyphBitmapHandle handle) { delete handle; }
+	GlyphBitmapHandle MakeGlyphBitmap() { return new SystemMemoryGlyphBitmap(); }
+
+	void ApplyAttributesToGlyphBitmap(GlyphBitmapHandle handle, CharacterCell::attribute_type attributes);
+	void PlotGreek(GlyphBitmapHandle handle, uint32_t character);
+
+	void BitBLT(ScreenBitmapHandle, GlyphBitmapHandle, PixelCoordinate y, PixelCoordinate x, const ColourPair & colour);
+	void BitBLTMask(ScreenBitmapHandle, GlyphBitmapHandle, GlyphBitmapHandle, PixelCoordinate y, PixelCoordinate x, const ColourPair colours[2]);
+	void BitBLTAlpha(ScreenBitmapHandle, GlyphBitmapHandle, PixelCoordinate y, PixelCoordinate x, const CharacterCell::colour_type & colour);
 
 };
 

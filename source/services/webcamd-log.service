@@ -7,6 +7,7 @@ Description=Combined logger for webcamd@ services
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog webcamd/
 RestartSec=1

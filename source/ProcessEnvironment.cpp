@@ -12,7 +12,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cstdio>
 
 ProcessEnvironment::ProcessEnvironment(const char * const * envp) :
-	global_environ(envp), 
+	global_environ(envp),
 	cached_data(envp)
 {
 }
@@ -29,21 +29,21 @@ ProcessEnvironment::make_data()
 		d.reserve(s.size() + 1);
 		for (vec::const_iterator i(s.begin()), e(s.end()); i != e; ++i)
 			d.push_back(i->c_str());
-		d.push_back(0);
+		d.push_back(nullptr);
 		cached_data = d.data();
 	}
 }
 
-bool 
+bool
 ProcessEnvironment::clear()
 {
 	m.clear();
-	global_environ = 0;
-	cached_data = 0;
+	global_environ = nullptr;
+	cached_data = nullptr;
 	return true;
 }
 
-bool 
+bool
 ProcessEnvironment::set(const std::string & var, const std::string & val)
 {
 	make_copy();
@@ -54,14 +54,14 @@ ProcessEnvironment::set(const std::string & var, const std::string & val)
 	return true;
 }
 
-bool 
+bool
 ProcessEnvironment::set(const char * cvar, const std::string & val)
 {
 	const std::string var(cvar);
 	return set(var, val);
 }
 
-bool 
+bool
 ProcessEnvironment::set(const char * cvar, const char * cval)
 {
 	const std::string var(cvar);
@@ -75,12 +75,12 @@ ProcessEnvironment::set(const char * cvar, const char * cval)
 	return true;
 }
 
-const char * 
+const char *
 ProcessEnvironment::query(const char * var) const
 {
 	if (global_environ) return std::getenv(var);
 	map::const_iterator i(m.find(var));
-	if (m.end() == i) return 0;
+	if (m.end() == i) return nullptr;
 	return i->second.c_str();
 }
 
@@ -105,7 +105,7 @@ ProcessEnvironment::end()
 	return m.end();
 }
 
-void 
+void
 ProcessEnvironment::make_copy()
 {
 	if (global_environ) {
@@ -116,7 +116,7 @@ ProcessEnvironment::make_copy()
 			} else
 				m.insert(map::value_type(e, ""));
 		}
-		global_environ = 0;
+		global_environ = nullptr;
 	}
-	cached_data = 0;
+	cached_data = nullptr;
 }

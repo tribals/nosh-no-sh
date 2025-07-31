@@ -9,7 +9,6 @@ Description=SSH key generation
 Type=oneshot
 ExecStart=%p keys/
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

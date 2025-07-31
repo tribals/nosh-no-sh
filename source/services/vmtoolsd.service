@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=VMWare guest additions daemon
+Conflicts=chrony.service ntpd.service openntpd.service sntpclock.service systemd-timesyncd.service taiclock.service VBoxService.service
+Before=system-time-synchronized.target
+After=persistent-clock-loaded.target
+Wants=vgauthd
+
+[Service]
+ExecStart=%p
+RestartSec=5
+
+[Install]
+WantedBy=vmware-guest.target

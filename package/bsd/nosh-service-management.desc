@@ -1,1 +1,10 @@
-Service and system management utilities
+ This package provides a complete daemon supervisor and system management toolset.
+ .
+ It includes a system-wide system manager, a per-user user manager, a service manager, along with various control and status utilities.
+ .
+ It supplies systemd unit files for setting up a daemontools-like daemon management system under systemd.
+ Or one can instead run this its system manager as process #1.
+ .
+ It also provides compatibility commands for those familiar with daemontools and daemontools-encore.
+  * svc, svok, svscan, svshow, svstat, svup
+ The shims simply invoke native service management commands.

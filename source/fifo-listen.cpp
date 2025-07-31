@@ -25,7 +25,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-fifo_listen ( 
+fifo_listen (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -33,7 +33,7 @@ fifo_listen (
 	const char * prog(basename_of(args[0]));
 	signed long uid(-1), gid(-1), mode(0600);
 	bool has_uid(false), has_gid(false), has_mode(false);
-	const char * user(0), * group(0);
+	const char * user(nullptr), * group(nullptr);
 	bool systemd_compatibility(false);
 	try {
 		popt::bool_definition systemd_compatibility_option('\0', "systemd-compatibility", "Set the $LISTEN_FDS and $LISTEN_PID environment variables for compatibility with systemd.", systemd_compatibility);
@@ -53,7 +53,7 @@ fifo_listen (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{path} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
@@ -62,13 +62,11 @@ fifo_listen (
 		has_gid = gid_option.is_set();
 		has_mode = mode_option.is_set();
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing listen path name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "listen path name");
 	}
 	const char * listenpath(args.front());
 	args.erase(args.begin());
@@ -82,9 +80,7 @@ fifo_listen (
 #endif
 	if (0 > s) {
 exit_error:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, prog);
 	}
 	if (has_mode) {
 		if (0 > fchmod(s, mode)) goto exit_error;
@@ -93,18 +89,14 @@ exit_error:
 		if (0 > fchown(s, uid, gid)) goto exit_error;
 	} else
 	if (user || group) {
-		struct passwd * u(user ? getpwnam(user) : 0);
-		struct group * g(group ? getgrnam(group) : 0);
+		struct passwd * u(user ? getpwnam(user) : nullptr);
+		struct group * g(group ? getgrnam(group) : nullptr);
 		endgrent();
 		endpwent();
-		if (user && !u) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, user, "No such user");
-			throw EXIT_FAILURE;
-		}
-		if (group && !g) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, group, "No such group");
-			throw EXIT_FAILURE;
-		}
+		if (user && !u)
+			die_invalid(prog, envs, user, "No such user");
+		if (group && !g)
+			die_invalid(prog, envs, group, "No such group");
 		if (0 > fchown(s, u ? u->pw_uid : -1, g ? g->gr_gid : -1)) goto exit_error;
 	}
 

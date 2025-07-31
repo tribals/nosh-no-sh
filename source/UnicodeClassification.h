@@ -11,32 +11,52 @@ For copyright and licensing terms, see the file named COPYING.
 namespace UnicodeCategorization {
 
 extern
-bool 
-IsMarkNonSpacing(uint32_t character);
+bool
+IsMarkNonSpacing(char32_t character);
 
 extern
-bool 
-IsMarkEnclosing(uint32_t character);
+bool
+IsMarkEnclosing(char32_t character);
 
 extern
-bool 
-IsOtherFormat(uint32_t character);
+bool
+IsOtherFormat(char32_t character);
 
 extern
-bool 
-IsWideOrFull(uint32_t character);
+bool
+IsOtherControl(char32_t character);
 
 extern
-unsigned int 
-CombiningClass(uint32_t character);
+bool
+IsOtherSurrogate(char32_t character);
 
 extern
-bool 
-IsDrawing(uint32_t character);
+bool
+IsWideOrFull(char32_t character);
 
 extern
-bool 
-IsHorizontallyRepeatable(uint32_t character);
+unsigned int
+CombiningClass(char32_t character);
+
+extern
+bool
+IsDrawing(char32_t character);
+
+extern
+bool
+IsHorizontallyRepeatable(char32_t character);
+
+extern
+bool
+IsASCII(char32_t character);
+
+extern
+bool
+IsASCIIPrint(char32_t character);
+
+extern
+bool
+IsBMP(char32_t character);
 
 }
 

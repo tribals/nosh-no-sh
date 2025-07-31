@@ -34,9 +34,11 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 bool
-enable_disable ( 
+enable_disable (
 	const char * prog,
 	bool make,
 	const std::string & path,
@@ -106,9 +108,9 @@ enable_disable (
 	return !failed;
 }
 
-static inline
+inline
 bool
-enable_disable ( 
+enable_disable (
 	const char * prog,
 	bool make,
 	const std::string & arg,
@@ -148,11 +150,15 @@ enable_disable (
 	return !failed;
 }
 
+}
+
 /* Preset information *******************************************************
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 bool
 checkyesno (
 	const std::string & s
@@ -169,49 +175,48 @@ checkyesno (
 	return false;
 }
 
-static
 const char *
 default_rcconf_files[] = {
 	"/etc/rc.conf.local",
 	"/etc/rc.conf",
 	"/etc/defaults/rc.conf",
 };
+const char
+amalgamated_rc_conf_file[] = "/etc/system-control/convert/rc.conf";
 
-static
 const char * const *
 rcconf_filev = default_rcconf_files;
-static
 std::size_t
 rcconf_filec = sizeof default_rcconf_files/sizeof *default_rcconf_files;
 
-static inline
+inline
 bool
 scan_rcconf_file (
-	bool & wants,	///< always set to a value
+	bool & wants_enable,	///< only set to a value when true is returned
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const std::string & wanted,
+	const FileStar & f,
 	const std::string & rcconf_file
 ) {
-	FILE * f(std::fopen(rcconf_file.c_str(), "r"));
-	if (!f) return false;
-	std::vector<std::string> env_strings(read_file(prog, rcconf_file.c_str(), f));
+	std::vector<std::string> env_strings(read_file(prog, envs, rcconf_file.c_str(), f));
 	for (std::vector<std::string>::const_iterator j(env_strings.begin()); j != env_strings.end(); ++j) {
 		const std::string & s(*j);
 		const std::string::size_type p(s.find('='));
 		const std::string var(s.substr(0, p));
 		if (var == wanted) {
 			const std::string val(p == std::string::npos ? std::string() : s.substr(p + 1, std::string::npos));
-			wants = checkyesno(val);
+			wants_enable = checkyesno(val);
 			return true;
 		}
 	}
 	return false;
 }
 
-static inline
+inline
 bool	/// \returns setting \retval true explicit \retval false defaulted
 query_rcconf_preset (
-	bool & wants,	///< always set to a value
+	bool & wants_enable,	///< only set to a value when true is returned
 	const char * prog,
 	const ProcessEnvironment & envs,
 	const std::string & name
@@ -223,21 +228,29 @@ query_rcconf_preset (
 		user_rcconf_files[2] = {
 			h + "/.config/rc.conf",
 		};
-		for (const std::string * q(user_rcconf_files); q < user_rcconf_files + sizeof user_rcconf_files/sizeof *user_rcconf_files; ++q)
-			if (scan_rcconf_file(wants, prog, wanted, *q))
+		for (const std::string * q(user_rcconf_files); q < user_rcconf_files + sizeof user_rcconf_files/sizeof *user_rcconf_files; ++q) {
+			const FileStar f(std::fopen(q->c_str(), "r"));
+			if (!f) continue;
+			if (scan_rcconf_file(wants_enable, prog, envs, wanted, f, *q))
 				return true;
+		}
 	} else {
+		if (const FileStar f = std::fopen(amalgamated_rc_conf_file, "r")) {
+			if (scan_rcconf_file(wants_enable, prog, envs, wanted, f, amalgamated_rc_conf_file))
+				return true;
+		} else
 		for (size_t i(0); i < rcconf_filec; ++i) {
 			const std::string rcconf_file(rcconf_filev[i]);
-			if (scan_rcconf_file(wants, prog, wanted, rcconf_file))
+			const FileStar rf(std::fopen(rcconf_file.c_str(), "r"));
+			if (!rf) continue;
+			if (scan_rcconf_file(wants_enable, prog, envs, wanted, rf, rcconf_file))
 				return true;
 		}
 	}
-	wants = false;
 	return false;
 }
 
-static inline
+inline
 bool
 initial_space (
 	const std::string & s
@@ -245,7 +258,7 @@ initial_space (
 	return s.length() > 0 && std::isspace(s[0]);
 }
 
-static inline
+inline
 bool
 wildmat (
 	std::string::const_iterator p,
@@ -266,7 +279,7 @@ wildmat (
 					// Optimize away the recursion in the case where the first remaining pattern character does not match the first attempted name character.
 					if (b != ne && '\\' != *p && '?' != *p && '[' != *p && *b != *p)
 						continue;
-					if (wildmat(p, pe, b, ne)) 
+					if (wildmat(p, pe, b, ne))
 						return true;
 				}
 				return false;
@@ -319,7 +332,7 @@ wildmat (
 	}
 }
 
-static inline
+inline
 bool
 wildmat (
 	const std::string & pattern,
@@ -328,7 +341,7 @@ wildmat (
 	return wildmat(pattern.begin(), pattern.end(), name.begin(), name.end());
 }
 
-static inline
+inline
 bool
 matches (
 	const std::string & pattern,
@@ -358,7 +371,6 @@ matches (
 	}
 }
 
-static
 bool
 scan (
 	const std::string & name,
@@ -389,7 +401,7 @@ scan (
 	return false;
 }
 
-static inline
+inline
 void
 scan_preset_files (
 	std::string & earliest,
@@ -424,71 +436,83 @@ scan_preset_files (
 	}
 }
 
-static
 const char *
 preset_directories[] = {
+	// Administrator-supplied non-systemd presets have the highest precedence.
 	"/usr/local/etc/system-control/presets/",
 	"/etc/system-control/presets/",
-	"/etc/systemd/system-preset/",
 	"/usr/local/share/system-control/presets/",
-	"/usr/local/lib/systemd/system-preset/",
+	// Followed by administrator-supplied systemd presets.
+	"/etc/systemd/system-preset/",
+	"/usr/local/lib/systemd/system-preset/",	// mis-use of lib by systemd
+	// Followed by packaged non-systemd presets (per the NetBSD convention).
+	"/usr/pkg/etc/system-control/presets/",
+	// Followed by operating system supplied non-systemd presets (mixed in with packages on non-BSDs).
 	"/usr/share/system-control/presets/",
-	"/usr/lib/systemd/system-preset/",
-	"/lib/systemd/system-preset/",
+	// Followed by operating system supplied systemd presets (mixed in with packages on non-BSDs).
+	"/usr/lib/systemd/system-preset/",	// mis-use of lib by systemd
+	"/lib/systemd/system-preset/",		// mis-use of lib by systemd
 };
 
-static inline
+inline
 bool	/// \returns setting \retval true explicit \retval false defaulted
 query_systemd_preset (
-	bool & wants,	///< always set to a value
+	bool & wants_enable,	///< only set to a value when true is returned
 	const ProcessEnvironment & envs,
 	const std::string & name,
 	const std::string & suffix
 ) {
-	wants = true;
 	std::string earliest;
 	if (per_user_mode) {
 		const std::string h(effective_user_home_dir(envs));
 		const std::string
-		user_preset_directories[9] = {
+		user_preset_directories[] = {
+			// Administrator-supplied non-systemd presets have the highest precedence.
 			"/usr/local/etc/system-control/user-presets/",
 			"/etc/system-control/user-presets/",
-			"/etc/systemd/user-preset/",
-			h + "/.config/system-control/presets/",
 			"/usr/local/share/system-control/user-presets/",
-			"/usr/local/lib/systemd/user-preset/",
+			// Followed by administrator-supplied systemd presets.
+			"/etc/systemd/user-preset/",
+			"/usr/local/lib/systemd/user-preset/",	// mis-use of lib by systemd
+			// Followed by user-supplied non-systemd presets.
+			h + "/.config/system-control/presets/",
+			// Followed by packaged non-systemd presets (per the NetBSD convention).
+			"/usr/pkg/etc/system-control/user-presets/",
+			// Followed by operating system supplied non-systemd presets (mixed in with packages on non-BSDs).
 			"/usr/share/system-control/user-presets/",
-			"/usr/lib/systemd/user-preset/",
-			"/lib/systemd/user-preset/",
+			// Followed by operating system supplied systemd presets (mixed in with packages on non-BSDs).
+			"/usr/lib/systemd/user-preset/",	// mis-use of lib by systemd
+			"/lib/systemd/user-preset/",		// mis-use of lib by systemd
 		};
 		for (const std::string * q(user_preset_directories); q < user_preset_directories + sizeof user_preset_directories/sizeof *user_preset_directories; ++q)
-			scan_preset_files (earliest, *q, name, suffix, wants);
+			scan_preset_files (earliest, *q, name, suffix, wants_enable);
 	} else {
 		for (size_t i(0); i < sizeof preset_directories/sizeof *preset_directories; ++i)
-			scan_preset_files (earliest, preset_directories[i], name, suffix, wants);
+			scan_preset_files (earliest, preset_directories[i], name, suffix, wants_enable);
 	}
 	return !earliest.empty();
 }
 
-static inline
+inline
 bool	/// \returns setting \retval true explicit \retval false defaulted
 query_ttys_preset (
-	bool & wants,	///< always set to a value
+	bool & wants_enable,	///< always set to a value
 	const std::string & name
 ) {
 	if (!setttyent()) {
-		wants = false;
+		// A missing ttys file causes a default preset of disabled.
+		wants_enable = false;
 		return false;
 	}
 	const struct ttyent *entry(getttynam(name.c_str()));
-	wants = entry && is_on(*entry);
+	wants_enable = entry && is_on(*entry);
 	endttyent();
-	return entry != 0;
+	return entry != nullptr;
 }
 
-static inline
-std::string 
-unescape ( 
+inline
+std::string
+unescape (
 	const std::string & s
 ) {
 	std::string r;
@@ -524,7 +548,7 @@ unescape (
 	return r;
 }
 
-static inline
+inline
 bool
 is_auto (
 	const struct fstab & entry
@@ -533,25 +557,23 @@ is_auto (
 	return !has_option(options, "noauto");
 }
 
-static inline
+inline
 bool	/// \returns setting \retval true explicit \retval false defaulted
 query_fstab_preset (
-	bool & wants,	///< always set to a value
+	bool & wants_enable,	///< only set to a value when true is returned
 	const std::string & escaped_name
 ) {
-	if (!setfsent()) {
-		wants = true;
-		return false;
-	}
+	// A missing fstab does not cause a default preset.
+	if (!setfsent()) return false;
 	const std::string name(unescape(escaped_name));
 	const struct fstab *entry(getfsfile(name.c_str()));
 	if (!entry) entry = getfsspec(name.c_str());
-	wants = entry && is_auto(*entry);
+	if (entry) wants_enable = is_auto(*entry);
 	endfsent();
-	return entry != 0;
+	return entry != nullptr;
 }
 
-static inline
+inline
 bool
 determine_preset (
 	const char * prog,
@@ -564,18 +586,20 @@ determine_preset (
 	const std::string & name,
 	const std::string & suffix
 ) {
-	bool wants(false);
+	bool wants_enable(false);
 	// systemd (and system-manager) settings take precedence over compatibility ones.
-	if (system && query_systemd_preset(wants, envs, prefix + name, suffix))
-		return wants;
+	if (system && query_systemd_preset(wants_enable, envs, prefix + name, suffix))
+		return wants_enable;
 	// The newer BSD rc.conf takes precedence over the older Sixth Edition ttys .
-	if (rcconf && query_rcconf_preset(wants, prog, envs, name))
-		return wants;
-	if (ttys && query_ttys_preset(wants, name))
-		return wants;
-	if (fstab && query_fstab_preset(wants, name))
-		return wants;
-	return wants;
+	if (rcconf && query_rcconf_preset(wants_enable, prog, envs, name))
+		return wants_enable;
+	if (ttys && query_ttys_preset(wants_enable, name))
+		return wants_enable;
+	if (fstab && query_fstab_preset(wants_enable, name))
+		return wants_enable;
+	return wants_enable;
+}
+
 }
 
 /* System control subcommands ***********************************************
@@ -583,7 +607,7 @@ determine_preset (
 */
 
 void
-enable [[gnu::noreturn]] ( 
+enable [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -600,14 +624,13 @@ enable [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{service(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	bool failed(false);
@@ -628,7 +651,7 @@ enable [[gnu::noreturn]] (
 }
 
 void
-disable [[gnu::noreturn]] ( 
+disable [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -645,14 +668,13 @@ disable [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{service(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	bool failed(false);
@@ -673,14 +695,14 @@ disable [[gnu::noreturn]] (
 }
 
 void
-preset [[gnu::noreturn]] ( 
+preset [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	const char * prefix("");
-	const char * rcconf(0);
+	const char * rcconf(nullptr);
 	bool no_rcconf(false), no_system(false), ttys(false), fstab(false), dry_run(false);
 	try {
 		popt::bool_definition user_option('u', "user", "Communicate with the per-user manager.", per_user_mode);
@@ -704,7 +726,7 @@ preset [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{service(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
@@ -714,8 +736,7 @@ preset [[gnu::noreturn]] (
 			rcconf_filec = 1U;
 		}
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	bool failed(false);

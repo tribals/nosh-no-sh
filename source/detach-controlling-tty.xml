@@ -8,7 +8,7 @@
 <refentry id="detach-controlling-tty">
 
 <refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
-<refentrytitle>detach-controlling-tty</refentrytitle>
+<refentrytitle>detach-controlling-terminal</refentrytitle>
 <manvolnum>1</manvolnum>
 <refmiscinfo class="manual">user commands</refmiscinfo>
 <refmiscinfo class="source">nosh</refmiscinfo>
@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>detach-controlling-tty</command> 
+<command>detach-controlling-terminal</command>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -30,11 +30,11 @@
 <refsection><title>Description</title>
 
 <para>
-<command>detach-controlling-tty</command> is a chain-loading utility that attempts to detach itself from its controlling terminal, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>detach-controlling-terminal</command> is a chain-loading utility that attempts to detach itself from its controlling terminal, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
-<replaceable>next-prog</replaceable> may contain its own command line options, which <command>detach-controlling-tty</command> will ignore.
+<replaceable>next-prog</replaceable> may contain its own command line options, which <command>detach-controlling-terminal</command> will ignore.
 </para>
 
 </refsection><refsection><title>Security</title>

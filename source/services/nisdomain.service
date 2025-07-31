@@ -12,7 +12,6 @@ EnvironmentDirectory=env
 # The name for this command that is common to both Linux and the BSDs is "domainname".
 ExecStart=domainname "${name}"
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

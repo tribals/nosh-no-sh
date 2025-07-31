@@ -27,7 +27,7 @@ enum {
 	ENCORE_STATUS_BLOCK_SIZE = 19U,
 	// nosh service manager status
 	EXIT_STATUSES_OFFSET = ENCORE_STATUS_BLOCK_SIZE,
-		EXIT_STATUS_SIZE = 17U,	// a byte code, a 32-bit number, and a TAI64N timestamp
+	EXIT_STATUS_SIZE = 17U,	// a byte code, a 32-bit number, and a TAI64N timestamp
 	STATUS_BLOCK_SIZE = ENCORE_STATUS_BLOCK_SIZE + 4U * EXIT_STATUS_SIZE,
 };
 struct service_manager_rpc_message {

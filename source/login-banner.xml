@@ -29,7 +29,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>login-banner</command> is a chain-loading utility that prints a system banner to its standard output, and then (if successful) chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>login-banner</command> is a chain-loading utility that prints a system banner to its standard output, and then (if successful) chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
 Normally, the <replaceable>next-prog</replaceable> will be (or will eventually chain-load) <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry>, which prints the login prompt(s) after the banner.
 </para>
 
@@ -42,21 +42,11 @@ Normally, the <replaceable>next-prog</replaceable> will be (or will eventually c
 </para>
 
 <para>
-<command>login-banner</command> derives information about the number of users logged on from the <filename>utmp</filename> file.
-The location of the <filename>utmp</filename> file is derived at compile time from a system header when the utility is built from source.
-To override it at runtime, use the <arg>--utmp-filename</arg> option.
-</para>
-
-<para>
-It determines the name of the controlling TTY from the value of the <envar>TTY</envar> environment variable, if present.
-This will be the case if <command>login-banner</command> has been invoked within a chain that has run <citerefentry><refentrytitle>vc-get-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>pty-get-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry>, or an equivalent <citerefentry><refentrytitle>getty</refentrytitle><manvolnum>1</manvolnum></citerefentry> program that sets that variable.
-If absent, the <citerefentry><refentrytitle>ttyname</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function is called.
-</para>
-
-<para>
-With those, and various other, pieces of system information to hand it then displays the contents of <replaceable>template-filename</replaceable> to its standard output.
+With various pieces of system information to hand it displays the contents of <replaceable>template-filename</replaceable> to its standard output.
 The file is displayed as-is, with the exception that a backslash character begins a two-character escape sequence.
 </para>
+
+<refsection><title>Escape sequences</title>
 
 <para>
 The following escape sequences are defined:
@@ -72,79 +62,124 @@ A single backslash.
 </varlistentry>
 
 <varlistentry>
-<term><code>\s</code></term>
+<term><code>\d</code></term>
 <listitem><para>
-The "system" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> function.
-On FreeBSD/TrueOS, the C library allows this to be overridden by a <envar>UNAME_s</envar> environment variable.
+The current date in the local timezone of the process.
 </para></listitem>
 </varlistentry>
 
 <varlistentry>
-<term><code>\S</code></term>
+<term><code>\h</code></term>
 <listitem><para>
-The "pretty system" name, from the <filename>/etc/os-release</filename> file, if available.
-This defaults to the same as <code>\s</code>.
+The "hostname", by default the dynamic hostname obtained from the <citerefentry><refentrytitle>gethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+See <citerefentry><refentrytitle>set-dynamic-hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> for how this is set.
+<command>login-banner</command> allows the value held by the kernel to be overridden by the value of a <envar>HOSTNAME</envar> environment variable (the same convention as <citerefentry><refentrytitle>machineenv</refentrytitle><manvolnum>1</manvolnum></citerefentry>).
 </para></listitem>
 </varlistentry>
 
 <varlistentry>
-<term><code>\n</code></term>
+<term><code>\L</code></term>
 <listitem><para>
-The "node" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> function.
-</para></listitem>
-</varlistentry>
-
-<varlistentry>
-<term><code>\N</code></term>
-<listitem><para>
-The "pretty node" name, from the <filename>/etc/machine-info</filename> file, if available.
-This defaults to the same as <code>\n</code>.
-</para></listitem>
-</varlistentry>
-
-<varlistentry>
-<term><code>\r</code></term>
-<listitem><para>
-The "release" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> function.
-On FreeBSD/TrueOS, the C library allows this to be overridden by a <envar>UNAME_r</envar> environment variable.
-</para></listitem>
-</varlistentry>
-
-<varlistentry>
-<term><code>\v</code></term>
-<listitem><para>
-The "version" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> function.
-On FreeBSD/TrueOS, the C library allows this to be overridden by a <envar>UNAME_v</envar> environment variable.
-</para></listitem>
-</varlistentry>
-
-<varlistentry>
-<term><code>\m</code></term>
-<listitem><para>
-The "machine" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> function.
-On FreeBSD/TrueOS, the C library allows this to be overridden by a <envar>UNAME_m</envar> environment variable.
-</para></listitem>
-</varlistentry>
-
-<varlistentry>
-<term><code>\o</code></term>
-<listitem><para>
-The "domain" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> or the <citerefentry><refentrytitle>getdomainname</refentrytitle><manvolnum>2</manvolnum></citerefentry> function.
-<command>login-banner</command> implements a common (DNS client library) convention of allowing this to be overridden by a <envar>LOCALDOMAIN</envar> environment variable.
+The "location" name, from the <filename>/etc/machine-info</filename> file, if available.
+This defaults to an empty string.
 </para></listitem>
 </varlistentry>
 
 <varlistentry>
 <term><code>\l</code></term>
 <listitem><para>
-The "line", i.e. the basename of the controlling TTY name, derived as aforementioned.
+The "line", i.e. the pathname of the controlling TTY name relative to <filename>/dev</filename>, from the <citerefentry><refentrytitle>ttyname</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function (applied to standard input).
+<command>login-banner</command> allows the value held by the kernel to be overridden by the value of a <envar>TTY</envar> environment variable (the same convention as <citerefentry><refentrytitle>vc-get-terminal</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>pty-allocate</refentrytitle><manvolnum>1</manvolnum></citerefentry>, or an equivalent <citerefentry><refentrytitle>getty</refentrytitle><manvolnum>1</manvolnum></citerefentry> program that sets that variable, and usually the case in TTY login services which chain to <command>login-banner</command> via these).
+</para>
+
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\m</code></term>
+<listitem><para>
+The "machine" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+On FreeBSD, the C library allows the value held by the kernel to be overridden by the value of a <envar>UNAME_m</envar> environment variable.
 </para></listitem>
 </varlistentry>
 
 <varlistentry>
-<term><code>\u</code></term>
+<term><code>\N</code></term>
 <listitem><para>
-The number of users logged on.
+The "pretty" "node" name, from the <filename>/etc/machine-info</filename> file, if available.
+This defaults to the same as <code>\n</code>.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\n</code></term>
+<listitem><para>
+The "node" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+See <citerefentry><refentrytitle>set-dynamic-hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> for how this is set and why in practice it is identical to, and redundant with, the "hostname" from the expansion of <code>\h</code>.
+</para>
+<note>
+Despite the claim in its documentation, on FreeBSD the C library <emphasis>does not</emphasis> allow the value held by the kernel to be overridden by the value of a <envar>UNAME_n</envar> environment variable.
+</note>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\O</code></term>
+<listitem><para>
+The "DNS domain name", derived from the "hostname" by taking it to be (the human-readable form of) a DNS domain name and stripping its first "label".
+<command>login-banner</command> allows the value held by the kernel to be overridden by the value of a <envar>LOCALDOMAIN</envar> environment variable (a common DNS client library convention).
+</para>
+<note>
+See <citerefentry><refentrytitle>set-dynamic-hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> for the bewildering and (self-)contradictory range of ways in which various programs derive the DNS domain name from the hostname.
+</note>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\o</code></term>
+<listitem><para>
+The "NIS domain" name, from the <citerefentry><refentrytitle>getdomainname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+See <citerefentry><refentrytitle>set-dynamic-hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> for how this is set.
+<command>login-banner</command> allows the value held by the kernel to be overridden by the value of a <envar>DOMAINNAME</envar> environment variable (the same convention as <citerefentry><refentrytitle>machineenv</refentrytitle><manvolnum>1</manvolnum></citerefentry>).
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\p</code></term>
+<listitem><para>
+The "deployment" name, from the <filename>/etc/machine-info</filename> file, if available.
+This defaults to an empty string.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\r</code></term>
+<listitem><para>
+The "release" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+On FreeBSD, the C library allows the value held by the kernel to be overridden by the value of a <envar>UNAME_r</envar> environment variable.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\S</code></term>
+<listitem><para>
+The "pretty" "system" name, from the <filename>/etc/os-release</filename> file, if available.
+This defaults to the same as <code>\s</code>.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\s</code></term>
+<listitem><para>
+The "system" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+On FreeBSD, the C library allows the value held by the kernel to be overridden by the value of a <envar>UNAME_s</envar> environment variable.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\t</code></term>
+<listitem><para>
+The current time in the local timezone of the process.
 </para></listitem>
 </varlistentry>
 
@@ -152,30 +187,74 @@ The number of users logged on.
 <term><code>\U</code></term>
 <listitem><para>
 The number of users logged on, followed by a space and the string "users" (or "user" if the number is exactly one).
+See <code>\u</code> for how this information is obtained.
 </para></listitem>
 </varlistentry>
 
 <varlistentry>
-<term><code>\d</code></term>
+<term><code>\u</code></term>
 <listitem><para>
-The current date.
+The number of users logged on.
+</para>
+<para>
+<command>login-banner</command> derives information about the number of users logged on from the <filename>utmp</filename> file.
+The location of the <filename>utmp</filename> file is derived at compile time from a system header when the utility is built from source.
+To override it at runtime, use the <arg>--utmp-filename</arg> option.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>\v</code></term>
+<listitem><para>
+The "version" name, from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+On FreeBSD, the C library allows the value held by the kernel to be overridden by the value of a <envar>UNAME_v</envar> environment variable.
 </para></listitem>
 </varlistentry>
 
 <varlistentry>
-<term><code>\t</code></term>
+<term><code>\z</code></term>
 <listitem><para>
-The current time.
+The local timezone of the process.
 </para></listitem>
 </varlistentry>
 
 </variablelist>
+
+<para>
+All other escape sequences are reserved for future expansion.
+</para>
+
+</refsection>
 
 </refsection><refsection><title>Security</title>
 
 <para>
 The program requires permission to read <filename>utmp</filename> and the template file.
 </para>
+
+</refsection>
+
+<refsection id="COMPATIBILITY" xreflabel="COMPATIBILITY">
+<title>Compatibility</title>
+
+<para>
+The functionality is a rough superset of that for "issue" files provided by other tools that implement the old and superseded "getty" tool:
+</para>
+<itemizedlist>
+<listitem><para>
+Wietse Venema's <citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>1</manvolnum></citerefentry> only understands <code>\d</code>, <code>\l</code>, <code>\m</code>, <code>\n</code>, <code>\o</code>, <code>\r</code>, <code>\S</code>, <code>\s</code>, <code>\t</code>, <code>\U</code>, <code>\u</code>, and <code>\v</code> in the same way.
+It has <code>\4</code>, <code>\6</code>, <code>\b</code>, and <code>\e</code> which are not in <command>login-banner</command>.
+</para></listitem>
+<listitem><para>
+Felix von Leiner's <citerefentry><refentrytitle>fgetty</refentrytitle><manvolnum>1</manvolnum></citerefentry>, Florian La Roche's <citerefentry><refentrytitle>mingetty</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and Nikola Vladov's <citerefentry><refentrytitle>ngetty</refentrytitle><manvolnum>1</manvolnum></citerefentry> only understand <code>\d</code>, <code>\l</code>, <code>\m</code>, <code>\n</code>, <code>\o</code>, <code>\r</code>, <code>\s</code>, <code>\t</code>, <code>\U</code>, <code>\u</code>, and <code>\v</code>.
+</para></listitem>
+<listitem><para>
+Gert Doering's <citerefentry><refentrytitle>mgetty</refentrytitle><manvolnum>1</manvolnum></citerefentry> only understands <code>\m</code> and <code>\s</code> in the same way.
+It has <code>\d</code>, <code>\l</code>, <code>\r</code>, <code>\t</code>, <code>\u</code>, and <code>\v</code> but in upper case rather than lower case.
+And it has <code>\C</code>, <code>\I</code>, <code>\N</code>, <code>\P</code>, <code>\S</code>, and <code>\Y</code> which are not in <command>login-banner</command>, being aliases for other escape sequences, specific to remote serial terminals and dial-up, or U.S.-specific old style date+time formats.
+</para></listitem>
+</itemizedlist>
 
 </refsection><refsection><title>Example</title>
 
@@ -190,10 +269,10 @@ The following <citerefentry><refentrytitle>nosh</refentrytitle><manvolnum>1</man
 </para>
 
 <informalexample><programlisting>#!/bin/nosh
-pty-get-tty
+pty-allocate
 pty-run
 setsid
-open-controlling-tty
+open-controlling-terminal
 login-banner /etc/issue.net
 login</programlisting></informalexample>
 
@@ -203,9 +282,9 @@ This is the <citerefentry><refentrytitle>sh</refentrytitle><manvolnum>1</manvoln
 
 <informalexample><programlisting>#!/bin/sh -e
 exec \
-pty-get-tty \
+pty-allocate \
 pty-run \
-open-controlling-tty \
+open-controlling-terminal \
 login-banner /etc/issue.net \
 login</programlisting></informalexample>
 

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Untested:
+#   \M^?  -- not part of any valid UTF-8 sequence
+#   \M-A  -- not part of any canonical UTF-8 sequence
+#   \M-z
+#   \M-_
+
+(
+printf '%s\t' 'encoded' 'decoded'
+printf '\n'
+for i in '\\040' '\\M-B\\M-^@' '\\M-B\\M-^C' '\\M-B\\M-#' '\\M-B\\240' '\\M-B\\M-!' '\\M-B\\M-:' '\\M-B\\M->' '\\M-B\\M-=' '\\M-B\\M-?' '\\^A' '\\^Z' '\\^a' '\\^z' '\\^[' '\\^\\' '\\^]' '\\^^' '\\^_' '\\^@' '\\^`' '\\^?' '\\a' '\\b' '\\c' '\\d' '\\e' '\\f' '\\g' '\\h' '\\i' '\\j' '\\k' '\\l' '\\m' '\\n' '\\o' '\\p' '\\q' '\\r' '\\s' '\\t' '\\u' '\\v' '\\w' '\\x' '\\y' '\\z'
+do
+	printf '%s\t%b\n' "$i" "$i"
+done
+) | 
+console-flat-table-viewer --header-count 1 --format tabbed

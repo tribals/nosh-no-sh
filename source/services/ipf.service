@@ -8,8 +8,10 @@ Before=server.target networking.target
 
 [Service]
 EnvironmentDirectory=env
-ExecStart=foreground ${program:-%p} -E ; foreground ${program:-%p} -Fa -f "${rules}" "${flags}" ; ${program:-%p} -6 -f "${rules}" "${flags}"
-ExecStopPost=${program:-%p} -D
+ExecStart=%p -E
+ExecStart=%p -Fa -f "${rules}" ${flags}
+ExecStart=%p -6 -f "${rules}" ${flags}
+ExecStopPost=%p -D
 # This is a pseudo-daemon that does not have a running process.
 RemainAfterExit=yes
 Restart=no

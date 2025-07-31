@@ -1,0 +1,33 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Dutch keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  003   '2'    '"'    nul    nul    '2'    '"'    nul    nul     O
+  005   '4'    '$'    nop    nop    0xbc   '$'    nop    nop     O
+  006   '5'    '%'    nop    nop    0xbd   '%'    nop    nop     O
+  007   '6'    '&'    rs     rs     0xbe   '^'    rs     rs      O
+  008   '7'    '_'    nop    nop    0xa3   '&'    nop    nop     O
+  009   '8'    '('    nop    nop    '{'    '*'    nop    nop     O
+  010   '9'    ')'    nop    nop    '}'    '('    nop    nop     O
+  011   '0'    '''    nop    nop    0xbf   ')'    nop    nop     O
+  012   '/'    '?'    us     us     '\'    '?'    us     us      O
+  013   drin   dtil   nop    nop    dced   dtil   nop    nop     O
+  019   'r'    'R'    dc2    dc2    0xb6   0xb6   dc2    dc2     C
+  026   duml   dcir   esc    esc    '['    dcir   esc    esc     O
+  027   '*'    '|'    gs     gs     ']'    0xa6   gs     gs      O
+  031   's'    'S'    dc3    dc3    0xdf   0xdf   dc3    dc3     C
+  039   '+'    0xb1   nop    nop    '+'    0xb1   nop    nop     O
+  040   dacu   dgra   nop    nop    '''    '"'    nop    nop     O
+  041   '@'    '~'    nop    nop    0xac   '~'    nop    nop     O
+  043   '<'    '>'    fs     fs     0xa6   0xa6   fs     fs      O
+  044   'z'    'Z'    sub    sub    0xab   0xab   sub    sub     C
+  045   'x'    'X'    can    can    0xbb   0xbb   can    can     C
+  046   'c'    'C'    etx    etx    0xa2   0xa2   etx    etx     C
+  050   'm'    'M'    cr     cr     0xb5   0xb5   cr     cr      C
+  051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
+  052   '.'    ':'    nop    nop    0xb7   ':'    nop    nop     O
+  053   '-'    '='    nop    nop    '-'    '='    nop    nop     O
+  057   ' '    ' '    nop    nop    ' '    ' '    susp   ' '     O
+  086   ']'    '['    nop    nop    '|'    '|'    nop    nop     O

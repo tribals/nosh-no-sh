@@ -13,9 +13,9 @@ read_rc() { clearenv read-conf rc.conf printenv "$1" ; }
 get_var1() { read_rc "$1" || true ; }
 get_var2() { read_rc ftpproxy_"$1" || read_rc ftpproxy_"$2" || true ; }
 
-r="/var/local/sv"
-s="/etc/service-bundles/services"
-e="--no-systemd-quirks --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --local-bundle"
 
 redo-ifchange rc.conf "ftp-proxy@.service"
 
@@ -29,7 +29,7 @@ for dev in `get_var2 instances instance`
 do
 	service="ftp-proxy@${dev}"
 
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	mkdir -p -m 0755 "$r/${service}/service/env"
 	rm -f -- "$r/${service}/log"
 	ln -s -- "../../../sv/cyclog@ftp-proxy" "$r/${service}/log"

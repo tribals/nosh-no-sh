@@ -1,0 +1,12 @@
+telinit	emergency
+telinit	halt
+telinit	haltsys
+telinit	init
+telinit	initctl-read
+telinit	normal
+telinit	powercycle
+telinit	poweroff
+telinit	reboot
+telinit	rescue
+telinit	runlevel
+telinit	shutdown

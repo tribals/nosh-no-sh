@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>getuidgid</command> 
+<command>getuidgid</command>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -30,7 +30,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>getuidgid</command> is a chain-loading utility that retrieves the current process's effective UID and GID and supplementary group ID list, placing them into environment variables (<envar>UID</envar>, <envar>GID</envar>, and <envar>GIDLIST</envar>), and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>getuidgid</command> is a chain-loading utility that retrieves the current process's effective UID and GID and supplementary group ID list, placing them into environment variables (<envar>UID</envar>, <envar>GID</envar>, and <envar>GIDLIST</envar>), and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>

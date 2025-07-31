@@ -35,7 +35,7 @@ It does not apply to user-space virtual terminals or to real terminals.
 </para>
 
 <para>
-Conventionally, TUI login services for all terminals are enabled and disabled in the usual way.
+Conventionally, in the absence of <command>ttylogin-starter</command>, TUI login services for all terminals are enabled and disabled in the usual way; and started as a consequence of being wanted by the <command>multi-user</command> target.
 The external configuration file import subsystem will <command>preset</command> all relevant <code>ttylogin@.service</code> services, using the <citerefentry><refentrytitle>ttys</refentrytitle><manvolnum>5</manvolnum></citerefentry> database (and any presets) to determine whether a TUI login service is enabled or disabled, as explained in <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 </para>
 
@@ -75,6 +75,21 @@ If the services do not exist, it makes no attempt to create them.
 Currently, no provision is made for excluding kernel virtual terminals that are used by X servers or by <citerefentry><refentrytitle>console-fb-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 <command>ttylogin-starter</command> should not be used in conjunction with either of those, and instead the normal service enable/disable mechanism should be employed.
 </para>
+
+</refsection>
+
+<refsection><title>See also</title>
+
+<variablelist>
+<varlistentry>
+<term><citerefentry><refentrytitle>linux-vt</refentrytitle><manvolnum>4</manvolnum></citerefentry></term>
+<listitem>
+<para>
+Kernel virtual terminal switching on Linux
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
 
 </refsection>
 

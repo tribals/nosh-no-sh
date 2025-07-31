@@ -1,7 +1,7 @@
 # shell post-upgrade function library for Debian
 # vim: set filetype=sh:
-old_escape() { system-control escape --alt-escape --no-ext-escape -- "$@" ; }
-escape() { system-control escape --alt-escape -- "$@" ; }
+old_escape() { system-control escape --format old-alt -- "$@" ; }
+pwescape() { system-control escape --format account -- "$@" ; }
 add_user() { 
 	if ! getent passwd "$1" > /dev/null 
 	then
@@ -33,8 +33,8 @@ add_group() {
 }
 add_log() { 
 	install -d -m 0750 /var/log/sv/"$2"
-	setfacl -m g:adm:rx /var/log/sv/"$2" || true
-	setfacl -m u:"$1":rwx /var/log/sv/"$2" || true
+	setfacl -m g:adm:rx /var/log/sv/"$2" || :
+	setfacl -m u:"$1":rwx /var/log/sv/"$2" || :
 }
 rename_user() {
 	if getent passwd "$1$3" > /dev/null 
@@ -43,9 +43,17 @@ rename_user() {
 		usermod -l "$2$3" "$1$3"
 	fi
 }
+rename_group() {
+	if getent group "$1$3" > /dev/null 
+	then
+		printf 1>&2 "Renaming group: %s to %s\n" "$1$3" "$2$3"
+		groupmod -l "$2$3" "$1$3"
+	fi
+}
 try_restart() {
 	for i
 	do
+		# In theory this can operate foreign daemontools-style service managers.
 		if system-control is-loaded "$i" && 
 		   system-control is-active "$i"
 		then
@@ -60,7 +68,7 @@ rename_logfile_owning_user() {
 	then
 		return
 	fi
-	local npwescaped="`escape "$1"`"
+	local npwescaped="`pwescape "$1"`"
 	if test _"${opwescaped}" = _"${npwescaped}"
 	then
 		return
@@ -69,13 +77,13 @@ rename_logfile_owning_user() {
 	sleep 0.1	# To give the log service a chance to stop and try restarting
 	rename_user "${opwescaped}" "${npwescaped}" -log
 }
-rename_non_logfile_owning_user() {
+fixup_user_account_name() {
 	local opwescaped="`old_escape "$1"`"
 	if ! getent passwd "${opwescaped}" > /dev/null 
 	then
 		return
 	fi
-	local npwescaped="`escape "$1"`"
+	local npwescaped="`pwescape "$1"`"
 	if test _"${opwescaped}" = _"${npwescaped}"
 	then
 		return
@@ -86,39 +94,59 @@ service_with_dedicated_logger() {
 	if test -z "${nosh_run_package}"
 	then
 		rename_logfile_owning_user "$1"
-		local pwescaped="`escape "$1"`"
-		add_user "$pwescaped"-log
-		add_log "$pwescaped"-log "$1"
+		local pwescaped="`pwescape "$1"`-log"
+		add_user "$pwescaped"
+		add_log "$pwescaped" "$1"
 	else
 		try_restart "$1.service" "cyclog@$1.service"
 	fi
 }
-login_service_with_dedicated_logger() {
+prefixed_service_with_dedicated_logger() {
 	if test -z "${nosh_run_package}"
 	then
-		rename_logfile_owning_user "ttylogin@$1"
-		local pwescaped="`escape "ttylogin@$1"`"
-		add_user "$pwescaped"-log
-		add_log "$pwescaped"-log "ttylogin@$1"
+		rename_logfile_owning_user "$1$2"
+		local pwescaped="`pwescape "$1$2"`-log"
+		add_user "$pwescaped"
+		add_log "$pwescaped" "$1$2"
 	else
-		try_restart "ttylogin@$1.service" "cyclog@ttylogin@$1.service"
+		system-control preset --prefix "$1" "$2.service"
+		system-control preset --prefix "cyclog@$1" "$2.service"
+		start_up "cyclog@$1$2.service" "$1$2.service"
 	fi
 }
-ktty_login_service_with_dedicated_logger() {
-	case "`uname`" in
-	OpenBSD)	ktty=ttyC; break ;;
-	Linux)		ktty=tty; break ;;
-	*)		ktty=ttyv; break ;;
-	esac
-	login_service_with_dedicated_logger "${ktty}$1"
+tty_service_with_dedicated_logger() {
+	if test -z "${nosh_run_package}"
+	then
+		rename_logfile_owning_user "$1$2"
+		local pwescaped="`pwescape "$1$2"`-log"
+		add_user "$pwescaped"
+		add_log "$pwescaped" "$1$2"
+	else
+		try_restart "$1$2.service" "cyclog@$1$2.service"
+	fi
+}
+login_service_with_dedicated_logger() {
+        tty_service_with_dedicated_logger "ttylogin@" "$1"
+}
+kvt_login_service_with_dedicated_logger() {
+	tty_service_with_dedicated_logger "ttylogin@" "tty$1"
+}
+kvt_realizer_service_with_dedicated_logger() {
+	prefixed_service_with_dedicated_logger "console-kvt-realizer@" "tty$1"
+}
+serial_tty_login_service_with_dedicated_logger() {
+	tty_service_with_dedicated_logger "agetty@" "ttyS$1"
+}
+serial_tty_callout_service_with_dedicated_logger() {
+	prefixed_service_with_dedicated_logger "ttycallout@" "ttyS$1"
 }
 socket_with_dedicated_logger() {
 	if test -z "${nosh_run_package}"
 	then
 		rename_logfile_owning_user "$1"
-		local pwescaped="`escape "$1"`"
-		add_user "$pwescaped"-log
-		add_log "$pwescaped"-log "$1"
+		local pwescaped="`pwescape "$1"`-log"
+		add_user "$pwescaped"
+		add_log "$pwescaped" "$1"
 	else
 		try_restart "$1.socket" "cyclog@$1.socket"
 	fi
@@ -127,9 +155,9 @@ timer_with_dedicated_logger() {
 	if test -z "${nosh_run_package}"
 	then
 		rename_logfile_owning_user "$1"
-		local pwescaped="`escape "$1"`"
-		add_user "$pwescaped"-log
-		add_log "$pwescaped"-log "$1"
+		local pwescaped="`pwescape "$1"`-log"
+		add_user "$pwescaped"
+		add_log "$pwescaped" "$1"
 	else
 		try_restart "$1.timer" "cyclog@$1.timer"
 	fi
@@ -157,9 +185,9 @@ fan_in_logger() {
 	if test -z "${nosh_run_package}"
 	then
 		rename_logfile_owning_user "$1"
-		local pwescaped="`escape "$1"`"
-		add_user "$pwescaped"-log
-		add_log "$pwescaped"-log "$1"
+		local pwescaped="`pwescape "$1"-log`"
+		add_user "$pwescaped"
+		add_log "$pwescaped" "$1"
 	else
 		try_restart "$1-log.service"
 	fi
@@ -171,47 +199,44 @@ logfile_owning_user() {
 	if test -z "${nosh_run_package}"
 	then
 		rename_logfile_owning_user "$1"
-		local pwescaped="`escape "$1"`"
-		add_user "$pwescaped"-log
+		local pwescaped="`pwescape "$1"`-log"
+		add_user "$pwescaped"
 	fi
 }
 file_owning_user() {
 	if test -z "${nosh_run_package}"
 	then
-		rename_non_logfile_owning_user "$1"
-		local pwescaped="`escape "$1"`"
+		fixup_user_account_name "$1"
+		local pwescaped="`pwescape "$1"`"
 		add_user "$pwescaped" "$2"
 	fi
 }
 non_file_owning_user() {
 	if test -z "${nosh_run_package}"
 	then
-		rename_non_logfile_owning_user "$1" ""
-		local pwescaped="`escape "$1"`"
+		fixup_user_account_name "$1" ""
+		local pwescaped="`pwescape "$1"`"
 		add_user "$pwescaped"
 	fi
 }
 user_vt_user() {
 	if test -z "${nosh_run_package}"
 	then
-		local pwescaped="`escape user-vt-"$1"`"
+		local pwescaped="`pwescape user-vt-"$1"`"
 		add_user "$pwescaped"
 	fi
 }
 user_vt_group() {
 	if test -z "${nosh_run_package}"
 	then
-		local pwescaped="`escape user-vt-"$1"`"
+		local pwescaped="`pwescape user-vt-"$1"`"
 		add_group "$pwescaped"
 	fi
 }
 user_tty() {
 	if test -z "${nosh_run_package}"
 	then
-		if ! grep -q "^$1\>" /etc/ttys 
-		then
-			 printf >> /etc/ttys "%s\t\"%s\"\t%s\t%s\t%s\n" "$1" "/bin/exec foreground pause ; false" "xterm" "on" "secure"
-		fi
+		grep -q "^$1\>" /etc/ttys || printf >> /etc/ttys "%s\t\"%s\"\t%s\t%s\t%s\n" "$1" "/bin/exec foreground pause ; false" "linux-16color" "on" "secure"
 	fi
 }
 directory() {

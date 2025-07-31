@@ -1,0 +1,29 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and ABNT2 keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  002   '1'    '!'    nop    nop    0xb9   '!'    nop    nop     O
+  003   '2'    '@'    nul    nul    0xb2   '@'    nul    nul     O
+  004   '3'    '#'    nop    nop    0xb3   '#'    nop    nop     O
+  005   '4'    '$'    nop    nop    0xa3   '$'    nop    nop     O
+  006   '5'    '%'    nop    nop    0xa2   '%'    nop    nop     O
+  007   '6'    duml   rs     rs     0xac   duml   rs     rs      O
+  008   '7'    '&'    nop    nop    '7'    '&'    nop    nop     O
+  010   '9'    '('    nop    nop    '9'    '('    nop    nop     O
+  011   '0'    ')'    nop    nop    '0'    ')'    nop    nop     O
+  012   '-'    '_'    us     us     '-'    '_'    us     us      O
+  013   '='    '+'    nop    nop    0xa7   '+'    nop    nop     O
+  018   'e'    'E'    enq    enq    'e'    'E'    enq    enq     C
+  026   dacu   dgra   nop    nop    dacu   dgra   nop    nop     O
+  027   '['    '{'    esc    esc    0xaa   '{'    esc    esc     O
+  039   0xe7   0xc7   nop    nop    0xe7   0xc7   nop    nop     C
+  040   dtil   dcir   nop    nop    dtil   dcir   nop    nop     O
+  041   '''    '"'    nop    nop    '''    '"'    nop    nop     O
+  043   ']'    '}'    gs     gs     0xba   '}'    gs     gs      O
+  053   ';'    ':'    nop    nop    ';'    ':'    nop    nop     O
+  083   del    ','    ','    ','    ','    ','    boot   boot    N
+  086   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
+  115   '/'    '?'    nop    nop    0xb0   '?'    nop    nop     O
+  126   '.'    '.'    '.'    '.'    '.'    '.'    '.'    '.'     N

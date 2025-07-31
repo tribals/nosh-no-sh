@@ -1,1 +1,2 @@
-OpenRC scripts for running the nosh service manager and daemontools service scanner
+ This package provides init.d scripts for running the nosh service manager and daemontools service scanner under OpenRC, instead of running the nosh system manager.
+ It disables the nosh sysinit.target, on the basis that OpenRC is doing that part of the work.

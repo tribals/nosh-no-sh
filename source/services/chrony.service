@@ -4,9 +4,9 @@
 
 [Unit]
 Description=Chrony NTP daemon
-Conflicts=ntpd.service systemd-timesyncd.service openntpd.service VBoxService.service
-Before=time-sync.target
-Wants=time-sync.target
+Conflicts=ntpd.service openntpd.service sntpclock.service systemd-timesyncd.service taiclock.service VBoxService.service vmtoolsd.service
+Before=system-time-synchronized.target
+After=persistent-clock-loaded.target
 
 [Service]
 ExecStart=%pd -d

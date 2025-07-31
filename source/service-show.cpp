@@ -28,7 +28,8 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static
+namespace {
+
 std::string
 to_json_string (
 	const std::string & s
@@ -43,7 +44,6 @@ to_json_string (
 	return "\"" + r + "\"";
 }
 
-static
 std::string
 to_ini_string (
 	const std::string & s,
@@ -71,11 +71,10 @@ to_ini_string (
 	return q + r + q;
 }
 
-static bool json(false);
-static char inner_comma(' ');
-static char outer_comma(' ');
+bool json(false);
+char inner_comma(' ');
+char outer_comma(' ');
 
-static
 void
 write_document_start()
 {
@@ -85,7 +84,6 @@ write_document_start()
 	}
 }
 
-static
 void
 write_document_end()
 {
@@ -93,7 +91,6 @@ write_document_end()
 		std::fputs("}\n", stdout);
 }
 
-static
 void
 write_section_start(
 	const char * name
@@ -106,7 +103,6 @@ write_section_start(
 		std::fprintf(stdout, "[%s]\n", name);
 }
 
-static
 void
 write_section_end()
 {
@@ -116,7 +112,6 @@ write_section_end()
 		std::fputc('\n', stdout);
 }
 
-static
 void
 write_boolean_value(
 	const char * name,
@@ -129,7 +124,6 @@ write_boolean_value(
 		std::fprintf(stdout, "%s=%s\n", name, value ? "yes" : "no");
 }
 
-static
 void
 write_string_value(
 	const char * name,
@@ -142,7 +136,6 @@ write_string_value(
 		std::fprintf(stdout, "%s=%s\n", name, to_ini_string(value, false).c_str());
 }
 
-static
 void
 write_numeric_int_value(
 	const std::string & name,
@@ -155,7 +148,6 @@ write_numeric_int_value(
 		std::fprintf(stdout, "%s=%d\n", name.c_str(), value);
 }
 
-static
 void
 write_numeric_int_value(
 	const char * name,
@@ -168,7 +160,6 @@ write_numeric_int_value(
 		std::fprintf(stdout, "%s=%d\n", name, value);
 }
 
-static
 void
 write_numeric_uint64_value(
 	const std::string & name,
@@ -181,7 +172,6 @@ write_numeric_uint64_value(
 		std::fprintf(stdout, "%s=%" PRIu64 "\n", name.c_str(), value);
 }
 
-static
 void
 write_numeric_uint64_value(
 	const char * name,
@@ -194,7 +184,6 @@ write_numeric_uint64_value(
 		std::fprintf(stdout, "%s=%" PRIu64 "\n", name, value);
 }
 
-static
 const char * const
 status_event[4] = {
 	"Start",
@@ -203,7 +192,7 @@ status_event[4] = {
 	"Stop",
 };
 
-static inline
+inline
 const char *
 state_of (
 	char c
@@ -221,7 +210,6 @@ state_of (
 
 typedef std::list<std::string> Relations;
 
-static
 Relations
 get_relations (
 	int bundle_dir_fd,
@@ -258,7 +246,6 @@ get_relations (
 	return r;
 }
 
-static
 void
 write_string_array(
 	const char * name,
@@ -286,7 +273,6 @@ write_string_array(
 		std::fprintf(stdout, "\n");
 }
 
-static
 std::string
 get_log (
 	int bundle_dir_fd
@@ -298,6 +284,8 @@ get_log (
 	const int l(readlinkat(bundle_dir_fd, "log", buf.data(), s.st_size));
 	if (0 > l) return std::string();
 	return std::string(buf.data(), l);
+}
+
 }
 
 /* Main function ************************************************************
@@ -320,18 +308,16 @@ service_show [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{directory}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing directory name(s).");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "directory name(s)");
 	}
 
 	write_document_start();

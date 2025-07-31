@@ -22,8 +22,8 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>monitored-fsck</command> 
-<arg choice='req'><replaceable>args</replaceable></arg> 
+<command>monitored-fsck</command>
+<arg choice='req'><replaceable>args</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 

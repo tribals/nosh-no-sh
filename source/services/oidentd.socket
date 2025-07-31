@@ -6,7 +6,7 @@
 Description=IDENT protocol (RFC 1413) socket
 
 [Socket]
-ListenStream=113
+ListenStream=auth
 Accept=yes
 
 [Install]

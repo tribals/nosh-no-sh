@@ -9,10 +9,10 @@ Description=Listening socket for the SunRPC port mapping daemon
 ListenStream=%t/%p.sock
 # The program cannot itself cope with dual-stack listening sockets.
 BindIPv6Only=ipv6-only
-ListenStream=0.0.0.0:111
-ListenDatagram=0.0.0.0:111
-ListenStream=[::]:111
-ListenDatagram=[::]:111
+ListenStream=0.0.0.0:sunrpc
+ListenDatagram=0.0.0.0:sunrpc
+ListenStream=[::]:sunrpc
+ListenDatagram=[::]:sunrpc
 
 [Install]
 WantedBy=server.target

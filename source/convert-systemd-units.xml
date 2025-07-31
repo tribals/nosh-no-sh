@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="convert-systemd-units">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>convert-systemd-units</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">administrator commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>convert-systemd-units</refname>
+<refpurpose>convert systemd unit files into native service bundles</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>system-control</command>
+<arg choice="req">convert-systemd-units</arg>
+<arg choice='opt'>--bundle-root <replaceable>root</replaceable></arg>
+<arg choice='opt'>--escape-format <replaceable>escfmt</replaceable></arg>
+<arg choice='opt'>--etc-bundle</arg>
+<arg choice='opt'>--local-bundle</arg>
+<arg choice='opt'>--supervise-in-run</arg>
+<arg choice='opt'>--escape-instance</arg>
+<arg choice='opt'>--escape-prefix</arg>
+<arg choice='opt'>--no-systemd-quirks</arg>
+<arg choice='opt'>--no-generation-comment</arg>
+<group choice='req'>
+<arg choice='plain'><replaceable>name</replaceable>.target</arg>
+<arg choice='plain'><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.target</arg>
+<arg choice='plain'><replaceable>name</replaceable>.socket</arg>
+<arg choice='plain'><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.socket</arg>
+<arg choice='plain'><replaceable>name</replaceable>.timer</arg>
+<arg choice='plain'><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.timer</arg>
+<arg choice='plain'><replaceable>name</replaceable>.service</arg>
+<arg choice='plain'><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.service</arg>
+</group>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Note</title>
+
+<para>
+This is generally only accessible as a subcommand of <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+It is referred to without qualification in this manual for simplicity.
+</para>
+
+</refsection>
+
+<refsection><title>Description</title>
+
+<para>
+This subcommand of <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> takes some systemd unit files and generates from them a service bundle in the current directory (or in the <arg choice='plain'><replaceable>root</replaceable></arg> directory if the <arg choice='plain'>--bundle-root</arg> command-line option is used) that contains scripts, dependencies, and autoboot dependency configuration information.
+The bundle is not enabled by the conversion process, but can be started and enabled as it stands, with the <command>start</command> and <command>preset</command> subcommands, just like any other service bundle.
+</para>
+
+<refsection><title>Service, socket, timer, and target units</title>
+
+<para>
+The systemd unit files are determined from the argument.
+They comprise the main unit file and a collection of snippet files in a related subdirectory whose contents are applied on top of it before conversion.
+</para>
+<itemizedlist>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>.service</filename> is specified, then that service unit file is converted into a service bundle directory named <filename><replaceable>name</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.service</filename> is specified, then the <filename><replaceable>name</replaceable>@.service</filename> service unit file is converted using <replaceable>parameter</replaceable> for parameter substitution into a service bundle directory named <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>@.service.d/<replaceable>snippet</replaceable>.conf</filename> and <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>.target</filename> is specified, then that target unit file is converted into a target bundle directory named <filename><replaceable>name</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>.target.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.target</filename> is specified, then the <filename><replaceable>name</replaceable>@.target</filename> target unit file is converted using <replaceable>parameter</replaceable> for parameter substitution into a target bundle directory named <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>@.target.d/<replaceable>snippet</replaceable>.conf</filename> and <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.target.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>.timer</filename> is specified, then it is combined with a <filename><replaceable>name</replaceable>.service</filename> service unit file to make a service bundle directory named <filename><replaceable>name</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>.timer.d/<replaceable>snippet</replaceable>.conf</filename> and <filename><replaceable>name</replaceable>.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.timer</filename> is specified, then the <filename><replaceable>name</replaceable>@.timer</filename> timer unit file is combined with a <filename><replaceable>name</replaceable>.service</filename> service unit file and converted using <replaceable>parameter</replaceable> for parameter substitution into a service bundle directory named <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>@.timer.d/<replaceable>snippet</replaceable>.conf</filename>, <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.timer.d/<replaceable>snippet</replaceable>.conf</filename>, and <filename><replaceable>name</replaceable>.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>.socket</filename> is specified, and it has <code>Accept=true</code>, then it is combined with a <filename><replaceable>name</replaceable>@.service</filename> service unit file to make a service bundle directory named <filename><replaceable>name</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>.socket.d/<replaceable>snippet</replaceable>.conf</filename> and <filename><replaceable>name</replaceable>@.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>.socket</filename> is specified, and it has <code>Accept=false</code>, then it is combined with a <filename><replaceable>name</replaceable>.service</filename> service unit file to make a service bundle directory named <filename><replaceable>name</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>.socket.d/<replaceable>snippet</replaceable>.conf</filename> and <filename><replaceable>name</replaceable>.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.socket</filename> is specified, and it has <code>Accept=true</code>, then the <filename><replaceable>name</replaceable>@.socket</filename> socket unit file is combined with a <filename><replaceable>name</replaceable>@.service</filename> service unit file and converted using <replaceable>parameter</replaceable> for parameter substitution into a service bundle directory named <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>@.socket.d/<replaceable>snippet</replaceable>.conf</filename>, <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.socket.d/<replaceable>snippet</replaceable>.conf</filename>, and <filename><replaceable>name</replaceable>@.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+If <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.socket</filename> is specified, and it has <code>Accept=false</code>, then the <filename><replaceable>name</replaceable>@.socket</filename> socket unit file is combined with a <filename><replaceable>name</replaceable>.service</filename> service unit file and converted using <replaceable>parameter</replaceable> for parameter substitution into a service bundle directory named <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>/</filename>.
+Snippet files are in <filename><replaceable>name</replaceable>@.socket.d/<replaceable>snippet</replaceable>.conf</filename>, <filename><replaceable>name</replaceable>@<replaceable>parameter</replaceable>.socket.d/<replaceable>snippet</replaceable>.conf</filename>, and <filename><replaceable>name</replaceable>.service.d/<replaceable>snippet</replaceable>.conf</filename>.
+</para>
+</listitem>
+</itemizedlist>
+
+<para>
+Files found upon opening to be other than regular files are errors.
+</para>
+
+<para>
+<replaceable>snippet</replaceable> files that begin with a dot are skipped, and not opened, per the usual convention.
+There is no defined ordering for snippet files relative to one another.
+The snippet subdirectory is required to be in the same location as the associated unit files.
+</para>
+
+<para>
+Unit files can reference other services.
+The assumption is that all service and target bundles are under one common <arg choice='plain'><replaceable>root</replaceable></arg> in umbrella <filename>service</filename> and <filename>target</filename> subdirectories; so dependencies and orderings can be relative pathnames.
+The <arg choice='plain'>--local-bundle</arg> option changes this assumption, such that service and target bundles are assumed to not be reachable with relative pathnames, and absolute pathnames to subdirectories of <filename>/var/service-bundles/services/</filename> and <filename>/etc/service-bundles/targets/</filename> are used.
+The <arg choice='plain'>--supervise-in-run</arg> option handles the case for special early bootstrap service bundles that live in <filename>/etc/service-bundles/services/</filename>, defaulting the bundle to be marked as an <code>EarlySupervise</code> bundle whose <filename>supervise/</filename> directory lives in a tmpfs.
+</para>
+
+<refsection><title>Escaping</title>
+
+<para>
+The systemd dual escaped+unescaped forms are available in parameter substitution.
+</para>
+<para>
+Normally <replaceable>parameter</replaceable> is taken to be the escaped form and is unescaped during parameter substitution.
+This is generally used where <replaceable>parameter</replaceable> represents something in the filesystem, but has had to be pre-escaped in order to result in a service name without pathname components.
+If the <arg choice='plain'>--escape-instance</arg> option is used, then <replaceable>parameter</replaceable> is instead taken to be the original, unescaped, form and will be escaped into its service name form.
+</para>
+<para>
+Normally <replaceable>name</replaceable> is taken to be the escaped form and is unescaped during parameter substitution.
+If the <arg choice='plain'>--escape-prefix</arg> option is used, then <replaceable>name</replaceable> is instead taken to be the unescaped form and will be escaped into its service name form.
+</para>
+<para>
+The <arg choice='plain'>--escape-format</arg> option controls the escaping algorithm, according to the value of <replaceable>escfmt</replaceable>:
+</para>
+<variablelist>
+<varlistentry>
+<term><code>systemd</code></term>
+<listitem><para>
+This is the default escaping algorithm if no escaping algorithm is specified, and is the conventional systemd one that escapes <filename>/</filename> and <filename>-</filename>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>account</code></term>
+<listitem><para>
+This is an alternative algorithm where the escaped form is suitable for an account name in the system account database.
+It is usually paired with the <arg choice='plain'>--escape-instance</arg> option, where the <replaceable>parameter</replaceable> is both an unescaped account name and a name of something in the filesystem (e.g. a log directory to go with that account).
+It is usually paired with the <arg choice='plain'>--escape-prefix</arg> option, where the <replaceable>name</replaceable> is both an unescaped account name and a name of something in the filesystem (e.g. a command name).
+</para><para>
+On most systems this algorithm is similar to the <code>systemd</code> algorithm except that it escapes <filename>/</filename>, <filename>\</filename>, <filename>,</filename>, <filename>:</filename>, and <filename>@</filename>.
+(e.g. <filename>ossec@agentd-log</filename> is converted to <code>ossec_aagentd-log</code>.)
+</para><para>
+If the escaped form would be over the allowable length for a system account name, a method that truncates to initial letters and uses a base-36 encoded DJBT33 hash of the rest is used instead.
+For most operating systems, where <code>L_cuserid</code> and <citerefentry><refentrytitle>cuserid</refentrytitle><manvolnum>3</manvolnum></citerefentry> are relics and the account database in fact has no account name field length limit, because it is a Berkeley DB file, this will not be the case.
+</para></listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+</refsection>
+<refsection id="SYSTEMDCONVERSIONLIMITS" xreflabel="SYSTEMDCONVERSIONLIMITS">
+<title>The limits of automated convertability</title>
+
+<para>
+Conversion of every possible systemd unit file to a service bundle requires a human being.
+This subcommand converts systemd units that fall within certain bounds, which (given that most services are fairly simple) should be the majority of systemd units in existence.
+These bounds are:
+</para>
+
+<itemizedlist>
+
+<listitem>
+<para>
+The service must be a simple, forking, oneshot, or dbus service.
+Notify services are not converted.
+For best results, avoid having forking services in the first place, and change them into simple services wherever possible.
+<citerefentry><refentrytitle>service-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry> has no dealings with a Desktop Bus, so dbus services are treated as simple services.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Only TCP, UDP, local domain datagram, local domain stream, local domain sequential packet, FIFO, and netlink datagram sockets are converted.
+The <filename>run</filename>/<filename>service</filename> script makes use of <citerefentry><refentrytitle>udp-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>tcp-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>local-datagram-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>local-stream-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>local-seqpacket-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>fifo-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>netlink-datagram-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>tcp-socket-accept</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>local-stream-socket-accept</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>local-seqpacket-socket-accept</refentrytitle><manvolnum>1</manvolnum></citerefentry> to spawn services, either to listen to the accepting socket or to respond on connecting sockets.
+</para>
+</listitem>
+
+<listitem>
+
+<para>
+Some of the more esoteric mechanisms, and any undocumented settings, in systemd are not converted.
+The converter will print a warning for any setting in the unit files that it does not use for conversion.
+These will include:
+</para>
+
+<itemizedlist>
+
+<listitem>
+<para>
+Specialized options for conditionally enabling the service, such as <code>conditionpathexists</code> and <code>conditiondirectorynotempty</code>, are not converted.
+These are almost always in practice used to make services run on specific platforms and not on others, or dependent from the presence of installed packages, and should be replaced with hooks into the <command>preset</command> mechanism.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Other highly specialized options that even systemd recommends against, such as <code>fsckpassno</code>, are not converted.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Specialized options for TTY management, such as <code>standardinput=tty-force</code>, are not converted.
+Instead of these, employ the <citerefentry><refentrytitle>vc-get-terminal</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>open-controlling-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and related utilities in the <filename>run</filename> script.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Only the <code>SIGHUP</code> substitute for <code>SIGTERM</code> via <code>killsignal</code> is converted.
+In practice, this is the primary use case in services that are interactive login shells.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Linux-only mechanisms such as <code>capabilityboundingset</code> and I/O scheduling are not converted.
+This is merely down to a lack of known chaining commands for manipulating those mechanisms.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</listitem>
+
+<listitem>
+<para>
+Attempts to use <code>%m</code> are intentionally ignored.
+Conversion does not necessarily happen on the machine where the service bundle will actually end up being used, and hardwiring machine IDs into service bundles creates a problem with bundle portability.
+Machine IDs should be obtained at runtime with <citerefentry><refentrytitle>machineenv</refentrytitle><manvolnum>7</manvolnum></citerefentry>, and careful thought should be given to whether the service should even be employing a machine ID at all.
+See <citerefentry><refentrytitle>machine-id</refentrytitle><manvolnum>7</manvolnum></citerefentry>.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</refsection>
+<refsection id="QUIRKS" xreflabel="QUIRKS">
+<title>Ideal and quirks mode</title>
+
+<para>
+Import can operate in either "ideal" mode or "quirks" mode.
+The default is quirks mode, which is the better mode for real systemd unit files.
+It replicates several quirks of systemd:
+</para>
+
+<itemizedlist>
+<listitem><para>
+It was undocumented for a long time that systemd always sets the <envar>HOME</envar>, <envar>USER</envar>, and <envar>LOGNAME</envar> environment variables whenever a <code>User=</code> directive says to change the user account.
+To this, quirks mode adds the <envar>SHELL</envar> environment variable, even though systemd has not customarily implicitly set that variable too.
+Ideal mode does not set these environment variables implicitly, since dedicated user accounts for running services do not necessarily have home directories and suchlike.
+</para></listitem>
+<listitem><para>
+A <code>User=</code> directive specifies setting all of the supplementary groups for a user account in addition to its primary group.
+The daemontools convention is to just set the primary group when switching to the dedicated unprivileged account for a service, which is the case in ideal mode.
+</para></listitem>
+<listitem><para>
+It's not documented, but systemd always changes directory when it starts a service.
+It explicitly changes to the root directory when no <code>WorkingDirectory=</code> directive is given.
+The daemontools convention is for services to be run in their service directories, which is the case in ideal mode.
+A small number of d&#xe6;mons have been found to rely upon the undocumented systemd behaviour of being in the root directory.
+</para></listitem>
+<listitem><para>
+A fair few directives can occur in both a socket unit or its associated service unit.
+</para></listitem>
+<listitem><para>
+The default behaviour in systemd in the absence of a <code>Restart=</code> directive is to never auto-restart a service.
+The daemontools convention is for services to always auto-restart, this having been the norm since the 1990s; and this is the default in ideal mode.
+</para></listitem>
+<listitem><para>
+For an <code>Accept=no</code> (i.e. listening) socket service, systemd implicitly applies any redirection that is applied to standard output to standard error as well.
+So (say) <code>StandardOutput=socket</code> attaches both standard output and standard error to the listening socket.
+This coupling is usually not what one wants.
+The UCSPI and daemontools norm is for standard error to be independent from standard output and to require its own explicit redirection, which is the case in ideal mode.
+</para></listitem>
+<listitem><para>
+When one is using <code>StandardInput=tty</code>, systemd requires that standard output and error be explicitly directed to the terminal device.
+Usually, terminal login services being a very common example of this, one wants all three directed to a terminal.
+In ideal mode, the redirection of standard input implies redirecting standard output and error as well.
+(Standard error can be retained at its original place with the <code>StandardError=log</code> extension.)
+</para></listitem>
+</itemizedlist>
+
+<para>
+The <arg choice='plain'>--no-systemd-quirks</arg> command line option turns off these systemd quirks and sets "ideal" mode.
+Alternatively, one can turn off some quirks with various unit file directives:
+</para>
+
+<itemizedlist>
+<listitem><para>
+The <code>systemdWorkingDirectory=</code> setting (defaulting to <code>true</code> in quirks mode) if <code>false</code> causes the generated bundle to not bother changing directory to the root.
+Set this on services and targets where the d&#xe6;mon program is happy to run in the <filename>service</filename> directory.
+</para></listitem>
+<listitem><para>
+The <code>systemdUserEnvironment=</code> setting (defaulting to <code>true</code> in quirks mode) if <code>false</code> causes the generated bundle to not bother setting the user environment variables.
+Set this on services and targets where the d&#xe6;mon program has no need for the <envar>HOME</envar>, <envar>USER</envar>, <envar>LOGNAME</envar>, or <envar>SHELL</envar> environment variables.
+This is the case for most d&#xe6;mon programs.
+</para></listitem>
+<listitem><para>
+The <code>systemdUserGroups=</code> setting (defaulting to <code>true</code> in quirks mode) if <code>false</code> causes the generated bundle to not bother setting the suplementary user groups.
+Set this on services and targets where the d&#xe6;mon program has no need for supplementary group access.
+This is the case for almost all d&#xe6;mon programs.
+</para></listitem>
+</itemizedlist>
+
+</refsection>
+<refsection id="SYSTEMDEXTENSIONS" xreflabel="SYSTEMDEXTENSIONS">
+<title>Extensions to the systemd unit syntax</title>
+
+<para>
+There are several extensions to the systemd unit specification provided by the conversion process, to allow a unit file to specify things that systemd doesn't have but that service bundles have:
+</para>
+
+<itemizedlist>
+<listitem><para>
+The <code>ExecStart=</code> setting does not require that the program be named with an absolute pathname, which systemd requires with a very limited set of exceptions.
+Generated <filename>run</filename> scripts will use <citerefentry><refentrytitle>nosh</refentrytitle><manvolnum>1</manvolnum></citerefentry>, which searches the <envar>PATH</envar>.
+(systemd does not search <envar>PATH</envar>, and only searches in a fixed, hardwired, set of directories.)
+This makes it possible, for example, for a single service unit file to just say <code>ExecStart=cupsd</code> without needing to have two different unit files, one saying <code>ExecStart=/usr/sbin/cupsd</code> for Linux systems and one saying <code>ExecStart=/usr/local/sbin/cupsd</code> for BSD systems.
+</para></listitem>
+<listitem><para>
+The <code>LimitMemory=</code> setting translates to the <arg choice='plain'>-m</arg> option of <citerefentry><refentrytitle>softlimit</refentrytitle><manvolnum>1</manvolnum></citerefentry>, for setting multiple "memory" resource limits in one go.
+</para></listitem>
+<listitem><para>
+The <code>MachineEnvironment=</code> setting (defaulting to <code>false</code>) if <code>true</code> causes the generated bundle to set the machine environment variables with <citerefentry><refentrytitle>machineenv</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>EnvironmentAppendPath=</code> setting acts like <code>Environment</code> except that the specified environment variables are augmented with <citerefentry><refentrytitle>appendpath</refentrytitle><manvolnum>1</manvolnum></citerefentry> rather than replaced with <citerefentry><refentrytitle>setenv</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>EnvironmentDirectory=</code> setting specifies a directory to be read by <citerefentry><refentrytitle>envdir</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+Set this on a service that is configured via an <filename>envdir</filename> environment directory.
+</para></listitem>
+<listitem><para>
+The <code>FullEnvironmentDirectory=</code> setting specifies that the <arg choice='plain'>--full</arg> command line option to <citerefentry><refentrytitle>envdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> be applied when reading the environment directory.
+(This is not usually applicable.)
+</para></listitem>
+<listitem><para>
+The <code>EnvironmentUserOnly=</code> setting (defaulting to <code>false</code>) if <code>true</code> causes the generated bundle to call <citerefentry><refentrytitle>envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry> but not <citerefentry><refentrytitle>setuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+Set this on a service where the main d&#xe6;mon program changes its own process UID and GID, but expects to be told via environment variables what UID and GID to run as.
+</para></listitem>
+<listitem><para>
+The <code>EarlySupervise=</code> setting (defaulting to <code>true</code> for "etc" bundles and <code>false</code> for others) if <code>true</code> causes the generated bundle to use a <filename>supervise</filename> directory in <filename>/run/service-bundles/early-supervise/</filename>.
+This is for avoiding access to <filename>/var</filename> before it is mounted, during the bootstrap process, and is mainly used for "sysinit" services and system targets that are in <filename>/etc</filename>.
+</para></listitem>
+<listitem><para>
+The <code>StoppedBy=</code> setting defines a <filename>stopped-by</filename> relationship to other services, stored in the generated bundle.
+This is the inverse of the <filename>conflicts</filename> relationship.
+By default, unless the <code>DefaultDependencies=false</code> setting is used, services are stopped by the "shutdown" target in addition to anything specified in this setting.
+</para></listitem>
+<listitem><para>
+The <code>JailID=</code> setting specifies the ID of a jail in which to run the service, as if by <citerefentry><refentrytitle>jexec</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>FIB=</code> setting specifies the FIB number (routing table number) for the service, as if by <citerefentry><refentrytitle>setfib</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>ProcessGroupLeader=</code> setting (defaulting to <code>false</code>) if <code>true</code> causes the generated bundle to run the d&#xe6;mon as a process group leader with <citerefentry><refentrytitle>setpgrp</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>SessionLeader=</code> setting (defaulting to <code>false</code>) if <code>true</code> causes the generated bundle to run the d&#xe6;mon as a session leader with <citerefentry><refentrytitle>setsid</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>TTYPrompt=</code> setting (defaulting to <code>false</code>) if <code>true</code> causes the generated bundle to invoke <citerefentry><refentrytitle>login-prompt</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>TTYType=</code> setting (defaulting to <code>true</code> in quirks mode) if <code>false</code> causes the generated bundle to not also set the <envar><citerefentry><refentrytitle>TERM</refentrytitle><manvolnum>7</manvolnum></citerefentry></envar> environment variable when the <code>TTYPath=</code> setting is used.
+</para></listitem>
+<listitem><para>
+The <code>BannerLine=</code> setting causes the generated bundle to invoke <citerefentry><refentrytitle>line-banner</refentrytitle><manvolnum>1</manvolnum></citerefentry> to write the specified banner line before d&#xe6;mon invocation.
+</para></listitem>
+<listitem><para>
+The <code>BannerFile=</code> setting causes the generated bundle to invoke <citerefentry><refentrytitle>login-banner</refentrytitle><manvolnum>1</manvolnum></citerefentry> to process the specified banner file(s) before d&#xe6;mon invocation.
+</para></listitem>
+<listitem><para>
+The <code>ExecRestartPre=</code> setting allows one to specify extra commands to be run in the (automatically generated) <filename>restart</filename> script.
+</para></listitem>
+<listitem><para>
+The <code>UCSPIRules=</code> setting (defaulting to <code>false</code>) applies <citerefentry><refentrytitle>ucspi-socket-rules-check</refentrytitle><manvolnum>1</manvolnum></citerefentry> to all accepted connections.
+The <code>LogUCSPIRules=</code> setting (defaulting to <code>false</code>) causes <citerefentry><refentrytitle>ucspi-socket-rules-check</refentrytitle><manvolnum>1</manvolnum></citerefentry> to print information about access failures.
+</para></listitem>
+<listitem><para>
+The <code>NUMAInterleave=</code>, <code>NUMAMemBind=</code>, <code>NUMACPUNodeBind=</code>, <code>NUMAPhysCPUBind=</code>, <code>NUMALocalAlloc=</code>, and <code>NUMAPreferred=</code> settings cause the generated bundle to invoke <citerefentry><refentrytitle>numactl</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>JVMVersions=</code>, <code>JVMOperatingSystems=</code>, and <code>JVMManufacturers=</code> settings cause the generated bundle to invoke <citerefentry><refentrytitle>find-matching-jvm</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+Each setting's value is a space-separated list, which is turned into zero or more equivalent command-line options.
+</para></listitem>
+<listitem><para>
+The <code>JVMDefault=</code> setting (defaulting to <code>false</code>) if <code>true</code> causes the generated bundle to invoke <citerefentry><refentrytitle>find-default-jvm</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
+The <code>StandardError=log</code> setting prevents <code>StandardInput=tty</code> from redirecting standard error.
+</para></listitem>
+<listitem><para>
+The <code>RuntimeDirectoryOwner=<replaceable>user</replaceable></code> and <code>RuntimeDirectoryGroup=<replaceable>group</replaceable></code> settings specify the owning user and group of the runtime directory.
+</para></listitem>
+<listitem><para>
+The <code>AfterMountsFor=<replaceable>directories</replaceable></code> setting defines an <filename>after</filename> relationship to the <filename>mount@</filename> services for each <replaceable>directory</replaceable> and its parents up to but not including the root directory, stored in the generated bundle.
+</para></listitem>
+<listitem><para>
+The <code>WantsMountsFor=<replaceable>directories</replaceable></code> setting defines an <filename>wants</filename> relationship to the <filename>mount@</filename> services for each <replaceable>directory</replaceable> and its parents up to but not including the root directory, stored in the generated bundle.
+</para></listitem>
+</itemizedlist>
+
+</refsection>
+
+</refsection><refsection><title>See also</title>
+
+<variablelist>
+<varlistentry>
+<term><citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<listitem><para>
+service bundles, and other subcommands
+</para></listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection id="FurtherReading" xreflabel="FurtherReading">
+<title>Further reading</title>
+<itemizedlist>
+<listitem><para>
+<ulink url="https://jdebp.uk/Softwares/nosh/worked-example.html"><citetitle>A real-world worked example of setting up and running a service with nosh</citetitle></ulink>
+</para></listitem>
+<listitem><para>
+<ulink url="https://skarnet.org/software/s6/unit-conversion.html"><citetitle>How to convert systemd unit files to an s6 installation</citetitle></ulink>
+</para></listitem>
+<listitem><para>
+<ulink url="converting-systemd-units.html"><citetitle>Converting systemd units</citetitle> in the nosh Guide</ulink>
+</para></listitem>
+</itemizedlist>
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

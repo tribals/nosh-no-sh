@@ -19,9 +19,9 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>read-conf</command> 
-<arg choice='opt'>--oknofile</arg> 
-<arg choice='req'><replaceable>filename</replaceable></arg> 
+<command>read-conf</command>
+<arg choice='opt'>--oknofile</arg>
+<arg choice='req'><replaceable>filename</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -29,7 +29,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>read-conf</command> reads the file <replaceable>filename</replaceable>, constructing a sequence of environment variable assignments, and then attempts to chain load <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>read-conf</command> reads the file <replaceable>filename</replaceable>, constructing a sequence of environment variable assignments, and then attempts to chain load <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 Unless the <arg choice='opt'>--oknofile</arg> command line option is given, then a failure to open the file for reading is a fatal error.
 With that option, the failure will be ignored and <replaceable>next-prog</replaceable> chain loaded.
 </para>
@@ -43,36 +43,38 @@ Variable, command, brace, and parameter substitution are generally not used and 
 </para>
 
 <para>
-Each assignment, once read, is split at the first equals character into a variable name and its value.  
+Each assignment, once read, is split at the first equals character into a variable name and its value.
 <command>read-conf</command> sets the environment variable named to the value given.
 </para>
 
-<para>
-Note that assigning an empty value to a variable is not the same as unsetting the variable.
-</para>
+<note>
+Assigning an empty value to a variable is not the same as unsetting the variable.
+</note>
 
 <para>
 If either the variable name or its value contain an equals character, counter-intuitive things will happen to the environment.
 </para>
 
-</refsection><refsection><title>File lexing</title>
+</refsection>
+
+<refsection><title>File lexing</title>
 
 <para>
-Assignments are normally separated by one or more whitespace characters.  
+Assignments are normally separated by one or more whitespace characters.
 Pairs of quotation mark characters will prevent whitespace from being treated specially, and the quoted sequence of characters, which can include newlines, will form part of one assignment, concatenated with whatever quoted or unquoted sequences precede or follow it.
 </para>
 
 <para>
 Inside a double-quotation mark delimited sequence of characters:
 A slash followed by a newline is discarded entirely.
-A slash followed by any other character is that character.  
+A slash followed by any other character is that character.
 This allows one to provide literal slashes and quotation marks.
 </para>
 
 <para>
 In a non-quotation mark delimited sequence of characters:
 A slash followed by a newline is discarded entirely.
-A slash followed by any other character is that character.  
+A slash followed by any other character is that character.
 This allows one to provide literal slashes, hashes, and quotation marks.
 A hash at the start of a sequence is a line comment, that is discarded along with everything that follows it up to and including the end of the line.
 </para>
@@ -92,14 +94,41 @@ SHELL=/"bin"/'sh'	# All one value.
 greeting="Hello there!"
 </programlisting>
 
-</refsection></refsection><refsection><title>Bugs</title>
+</refsection>
+
+</refsection>
+
+<refsection><title>Examples</title>
+
+<informalexample>
+<para>
+This handy shell function reads system information from some conventional information files, that are defined to contain simple variable assignments without shell expansions or substitutions.
+It takes advantage of the fact that these are all built-in commands (c.f. <citerefentry><refentrytitle>exec</refentrytitle><manvolnum>1</manvolnum></citerefentry>) to completely clear the environment including <envar>PATH</envar> before reading the information files into it.
+</para>
+<literallayout>
+read_os () {
+        if test -r /etc/os-release
+        then
+                clearenv setenv "$1" "$2" read-conf /etc/os-release printenv "$1"
+        else
+                clearenv setenv "$1" "$2" read-conf /usr/lib/os-release printenv "$1"
+        fi
+}
+</literallayout>
+</informalexample>
+
+</refsection>
+
+<refsection><title>Bugs</title>
 
 <para>
 As of version 1.34 this program no longer employs the GNU C library nor the BSD C library for environment variable handling.
 The previously documented workaround for those libraries' having memory leaks in their <citerefentry><refentrytitle>setenv</refentrytitle><manvolnum>3</manvolnum></citerefentry> and <citerefentry><refentrytitle>clearenv</refentrytitle><manvolnum>3</manvolnum></citerefentry> functions, is therefore no longer necessary.
 </para>
 
-</refsection><refsection><title>See also</title>
+</refsection>
+
+<refsection><title>See also</title>
 
 <itemizedlist>
 <listitem><para>

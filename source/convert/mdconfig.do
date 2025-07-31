@@ -17,7 +17,7 @@ get_var2() { read_rc mdconfig_"$1"_"$2" || read_rc mdconfig_"$2" || true ; }
 parse_config() {
 	file=''
 	kind=''
-	set -- `getopt f:t:s: "$@"`
+	set -- `getopt f:t:s:o: "$@"`
 	while test $# -gt 0
 	do
 		case "$1" in
@@ -31,7 +31,7 @@ parse_config() {
 }
 
 r="/etc/service-bundles/services"
-e="--no-systemd-quirks --etc-bundle --bundle-root"
+e="--no-systemd-quirks --etc-bundle --supervise-in-run"
 
 redo-ifchange rc.conf /etc/fstab mdconfig@.service newfs@.service populate_md@.service
 
@@ -67,7 +67,7 @@ do
 
 	mdconfig_service="mdconfig@${dev}"
 
-	system-control convert-systemd-units $e "$r/" "./${mdconfig_service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${mdconfig_service}.service"
 	mkdir -p -m 0755 "$r/${mdconfig_service}/service/env"
 	rm -f -- "$r/${mdconfig_service}/log"
 	ln -s -- "../sysinit-log" "$r/${mdconfig_service}/log"
@@ -82,7 +82,7 @@ do
 		while test "${directory}" != '/'
 		do
 			directory="`dirname \"${directory}\"`"
-			dir="`echo \"${directory}\" | tr '/' '-'`"
+			dir="`system-control escape -- \"${directory}\"`"
 			rm -f -- "$r/${mdconfig_service}/after/mount@${dir}"
 			ln -s -- "../../mount@${dir}" "$r/${mdconfig_service}/after/"
 		done
@@ -118,7 +118,7 @@ do
 	swap|malloc)
 		newfs_service="newfs@${dev}"
 
-		system-control convert-systemd-units $e "$r/" "./${newfs_service}.service"
+		system-control convert-systemd-units $e --bundle-root "$r/" "./${newfs_service}.service"
 		mkdir -p -m 0755 "$r/${newfs_service}/service/env"
 		rm -f -- "$r/${newfs_service}/log"
 		ln -s -- "../sysinit-log" "$r/${newfs_service}/log"
@@ -148,24 +148,23 @@ do
 	# One minor difference with deferring to /etc/fstab is that it, not rc.conf, controls whether an fsck@ service bundle is enabled.
 	# So remember not to set an fsck pass number on non-vnode and uzip-compressed vnode memory disc devices.
 
-	if mnt="`system-control get-mount-where -- \"/dev/${md}\"`"
+	if mnt="`system-control get-mount-where -- \"/dev/${md}\" 2>/dev/null`"
 	then
+		dir="`system-control escape -- \"${mnt}\"`"
+
 		case "${kind}" in
 		swap|malloc)
-			directory="${mnt}"
-			while test "${directory}" != '/'
-			do
-				dir="`echo \"${directory}\" | tr '/' '-'`"
+			if test "${mnt}" != '/'
+			then
 				rm -f -- "$r/${newfs_service}/before/mount@${dir}"
 				ln -s -- "../../mount@${dir}" "$r/${newfs_service}/before/"
-				directory="`dirname \"${directory}\"`"
-			done
+			fi
 			;;
 		esac
 
-		populate_service="populate_md@`echo ${mnt}|sed -e 's:/:-:g'`"
+		populate_service="populate_md@${dir}"
 
-		system-control convert-systemd-units $e "$r/" "./${populate_service}.service"
+		system-control convert-systemd-units $e --bundle-root "$r/" "./${populate_service}.service"
 		mkdir -p -m 0755 "$r/${populate_service}/service/env"
 		rm -f -- "$r/${populate_service}/log"
 		ln -s -- "../sysinit-log" "$r/${populate_service}/log"

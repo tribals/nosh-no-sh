@@ -42,9 +42,9 @@ It ignores <arg rep='repeat'>args</arg> but supports the standard <arg choice='p
 <command>false</command> will exit with a zero exit status if the standard <arg choice='plain'>--help</arg> or <arg choice='plain'>--usage</arg> options are used.
 </para>
 
-<para>
+<caution>
 Do not rely upon <command>false</command> using any particular non-zero value.
-</para>
+</caution>
 
 </refsection><refsection><title>Security</title>
 

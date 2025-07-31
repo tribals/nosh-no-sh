@@ -1,0 +1,17 @@
+#
+# Explicitly enable basic services and targets.
+#
+# This is not a systemd preset.  
+# It goes in a special nosh system-manager preset directory.
+# It is used by the nosh-run-{trueos,freebsd}-{desktop,server}-base packages in order to enable certain mandatory basics without which a system simply won't work.
+#
+
+# Ordinary services
+enable	freebsd-install-finish.service
+enable	trueos-install-finish.service
+enable	freebsd-update-finish.service
+enable	trueos-update-finish.service
+
+# Sysinit services
+enable	devd-log.service
+enable	devd.service

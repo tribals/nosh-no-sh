@@ -9,6 +9,7 @@ Wants=polkitd.service
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.PackageKit
 ExecStart=/usr/lib/%p/%pd
 
 [Install]

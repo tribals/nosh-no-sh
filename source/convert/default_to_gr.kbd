@@ -1,0 +1,58 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Greek keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  002   '1'    '!'    0xb2   0xb3   '1'    '!'    0xb2   0xb3    O
+  004   '3'    '#'    0xa9   0xa9   '3'    '#'    0xa9   0xa9    O
+  005   '4'    '$'    0xa3   0xa3   '4'    '$'    0xa3   0xa3    O
+  006   '5'    '%'    0xa7   0xa7   '5'    '%'    0xa7   0xa7    O
+  008   '7'    '&'    0x2018 0x2018 '7'    '&'    0x2018 0x2018  O
+  009   '8'    '*'    0x2019 0x2019 '8'    '*'    0x2019 0x2019  O
+  010   '9'    '('    0xab   0xab   '9'    '('    0xab   0xab    O
+  011   '0'    ')'    0xbb   0xbb   '0'    ')'    0xbb   0xbb    O
+  013   '='    '+'    0xb1   0xb1   '='    '+'    0xb1   0xb1    O
+  040   '''    '"'    0xb0   0xb0   '''    '"'    0xb0   0xb0    O
+  041   '`'    '~'    0xa6   0xbd   '`'    '~'    0xa6   0xbd    O
+  042   lshift lshift lshift lshift lshifta lshifta lshift lshift  O
+  051   ','    '<'    0xad   0xad   ','    '<'    0xad   0xad    O
+  052   '.'    '>'    0x2015 0x2015 '.'    '>'    0x2015 0x2015  O
+  053   '/'    '?'    0xac   0xac   '/'    '?'    0xac   0xac    O
+  054   rshift rshift rshift rshift rshifta rshifta rshift rshift  O
+  056   lalt   lalta  lalt   lalt   lalt   lalta  lalt   lalt    O
+  057   ' '    ' '    nul    0xa0   ' '    ' '    susp   0xa0    O
+  093   ashift ashift ralt   ralt   ralt   ralt   ralt   ralt    O
+## FIXME
+#  144   ';'    ':'    dc1    dc1    ';'    ':'    dc1    dc1     C
+#  145   0x03c2 0xb7   etb    etb    0x03c2 0xb7   etb    etb     C
+#  146   0x03b5 0x0395 enq    enq    0x03b5 0x0395 enq    enq     C
+#  147   0x03c1 0x03a1 dc2    dc2    0x03c1 0x03a1 dc2    dc2     C
+#  148   0x03c4 0x03a4 dc4    dc4    0x03c4 0x03a4 dc4    dc4     C
+#  149   0x03c5 0x03a5 em     em     0x03c5 0x03a5 em     em      C
+#  150   0x03b8 0x0398 nak    nak    0x03b8 0x0398 nak    nak     C
+#  151   0x03b9 0x0399 ht     ht     0x03b9 0x0399 ht     ht      C
+#  152   0x03bf 0x039f si     si     0x03bf 0x039f si     si      C
+#  153   0x03c0 0x03a0 dle    dle    0x03c0 0x03a0 dle    dle     C
+#  158   0x03b1 0x0391 soh    soh    0x03b1 0x0391 soh    soh     C
+#  159   0x03c3 0x03a3 dc3    dc3    0x03c3 0x03a3 dc3    dc3     C
+#  160   0x03b4 0x0394 eot    eot    0x03b4 0x0394 eot    eot     C
+#  161   0x03c6 0x03a6 ack    ack    0x03c6 0x03a6 ack    ack     C
+#  162   0x03b3 0x0393 bel    bel    0x03b3 0x0393 bel    bel     C
+#  163   0x03b7 0x0397 bs     bs     0x03b7 0x0397 bs     bs      C
+#  164   0x03be 0x039e nl     nl     0x03be 0x039e nl     nl      C
+#  165   0x03ba 0x039a vt     vt     0x03ba 0x039a vt     vt      C
+#  166   0x03bb 0x039b ff     ff     0x03bb 0x039b ff     ff      C
+#  167   dacu   ddia   ddac   nop    dacu   ddia   ddac   nop     O
+#  168   '''    '"'    0xb0   0xb0   '''    '"'    0xb0   0xb0    O
+#  169   '`'    '~'    0xa6   0xbd   '`'    '~'    0xa6   0xbd    O
+#  172   0x03b6 0x0396 sub    sub    0x03b6 0x0396 sub    sub     C
+#  173   0x03c7 0x03a7 can    can    0x03c7 0x03a7 can    can     C
+#  174   0x03c8 0x03a8 etx    etx    0x03c8 0x03a8 etx    etx     C
+#  175   0x03c9 0x03a9 syn    syn    0x03c9 0x03a9 syn    syn     C
+#  176   0x03b2 0x0392 stx    stx    0x03b2 0x0392 stx    stx     C
+#  177   0x03bd 0x039d so     so     0x03bc 0x039c so     so      C
+#  178   0x03bc 0x039c cr     cr     0x03bb 0x039b cr     cr      C
+#  179   ','    '<'    0xad   0xad   ','    '<'    0xad   0xad    O
+#  180   '.'    '>'    0x2015 0x2015 '.'    '>'    0x2015 0x2015  O
+#  181   '/'    '?'    0xac   0xac   '/'    '?'    0xac   0xac    O

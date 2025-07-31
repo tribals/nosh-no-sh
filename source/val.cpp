@@ -11,9 +11,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-unsigned 
-val ( 
-	const std::string & s 
+unsigned
+val (
+	const std::string & s
 ) {
 	unsigned v = 0;
 	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p) {

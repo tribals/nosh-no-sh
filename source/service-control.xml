@@ -18,7 +18,7 @@
 <refnamediv>
 <refname>service-control</refname>
 <refname>svc</refname>
-<refpurpose>control services through their supervision directory API</refpurpose> 
+<refpurpose>control services through their supervision directory API</refpurpose>
 </refnamediv>
 
 <refsynopsisdiv>
@@ -38,7 +38,7 @@
 
 <para>
 <command>service-control</command> sends a series of control commands to services that are being managed by <citerefentry><refentrytitle>service-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>, runit's <citerefentry><refentrytitle>runsv</refentrytitle><manvolnum>1</manvolnum></citerefentry>, s6's <citerefentry><refentrytitle>s6-supervise</refentrytitle><manvolnum>1</manvolnum></citerefentry>, daemontools' <citerefentry><refentrytitle>supervise</refentrytitle><manvolnum>1</manvolnum></citerefentry>, or daemontools-encore's <citerefentry><refentrytitle>supervise</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-Each of the <replaceable>directories</replaceable> is either a supervise directory (see <citerefentry><refentrytitle>service-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>) itself or a directory with a supervise directory named <filename>supervise</filename> within it.
+Each of the <replaceable>directories</replaceable> is either a supervise directory (see <citerefentry><refentrytitle>service-bundle</refentrytitle><manvolnum>5</manvolnum></citerefentry>) itself or a directory with a supervise directory named <filename>supervise</filename> within it.
 </para>
 
 <para>
@@ -169,6 +169,11 @@ Send a 'q' command to send a SIGQUIT signal to the service.
 
 </listitem></varlistentry>
 <varlistentry><term><arg>--usr1</arg></term><listitem>
+
+<para>
+Send a '0' command to send a null signal to the service.
+(This command will not be recognized by daemontools' <citerefentry><refentrytitle>supervise</refentrytitle><manvolnum>1</manvolnum></citerefentry>, by runit's <citerefentry><refentrytitle>runsv</refentrytitle><manvolnum>1</manvolnum></citerefentry>, or by s6's <citerefentry><refentrytitle>s6-supervise</refentrytitle><manvolnum>1</manvolnum></citerefentry>.)
+</para>
 
 <para>
 Send a '1' command to send a SIGUSR1 signal to the service.

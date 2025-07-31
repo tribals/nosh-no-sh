@@ -17,7 +17,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-userenv ( 
+userenv (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment &

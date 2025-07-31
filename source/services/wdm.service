@@ -1,0 +1,15 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=WINGs display manager
+After=ttylogin@ttyv8 ttylogin@tty9
+
+[Service]
+EnvironmentDirectory=env
+ExecStartPre=sh -c 'grep -qs '^auto-update-wmlist' /etc/X11/%p/%p.options && update_%p_wmlist'
+ExecStart=%p -nodaemon
+
+[Install]
+WantedBy=workstation.target

@@ -1,18 +1,19 @@
-<title>Importing systemd unit files</title>
 <link rel="Up" href="external-formats.html" title="External formats" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Importing systemd unit files</title>
+<h1 class="Ruled">
 Importing systemd unit files
 </h1>
 
 <p>
-The native mechanism for this system is the service bundle.
+The native mechanism for this system is the service bundle (for details, see the <a href="commands/service-bundle.xml"><code>service-bundle</code></a> manual).
 One can, however, import systemd unit files.
 The <code>system-control convert-systemd-units</code> command takes systemd unit files and converts them to a service bundle directory.
 This conversion program allows software packagers to quickly construct a service bundle if they already have systemd unit files for a service.
 (It also allows system administrators to do this in the case that software packagers have not.)
 </p>
 
-<h2>
+<h2 class="Ruled">
 What can be imported
 </h2>
 
@@ -40,7 +41,7 @@ There are a few restrictions (summarized here, for details, see the <a href="com
 These cover a large number of unit files, in practice.
 </p>
 
-<h2>
+<h2 class="Ruled">
 What import does
 </h2>
 

@@ -1,1 +1,16 @@
-Virtual terminal, pseudo-terminal, and TUI login tools
+ This package provides tools for creating and using pseudo-terminals and virtual consoles.
+ .
+ Included here are tools for terminal login, full screen TUI and dumb printer-terminal style:
+  * login-envuidgid, open-controlling-terminal, ttylogin-starter, login-monitor-active
+  * list-logins
+  * login-banner, login-process, login-prompt
+ .
+ Also present are commands for pseudo-terminals and virtual consoles and their associated I/O devices:
+  * console-terminal-emulator, console-multiplexor, console-multiplexor-control, console-input-method, console-input-method-control, console-control-sequence
+  * console-termio-realizer, console-fb-realizer, console-evdev-realizer, console=ps2-mouse-realizer, console-kvt-realizer
+  * vc-get-terminal, vc-reset-terminal
+  * framebuffer-dump
+ .
+ And commands for pseudo-terminals and the old Network Virtual Terminal:
+  * pty-get-tty, pty-run
+  * nvt-client

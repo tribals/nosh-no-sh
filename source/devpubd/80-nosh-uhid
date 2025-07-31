@@ -1,0 +1,71 @@
+#!/bin/sh -
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+# Linkage from devpubd to various services for HIDs.
+
+# Mice spin up one thing, controlled by -run- package presets:
+#  * Instances of the new console-wscons-realizer that feed mice to user-space VTs.
+
+# Keyboards spin up one thing, controlled by -run- package presets:
+#  * Instances of the new console-wscons-realizer that feed keyboards to user-space VTs.
+
+# Generic USB devices spin up one thing, controlled by -run- package presets:
+#  * Instances of the new console-ugen-hid-realizer that feed Generic USB to user-space VTs.
+
+# USB HID devices spin up one thing, controlled by -run- package presets:
+#  * Instances of the new console-uhid-realizer that feed USB HID to user-space VTs.
+
+attach() {
+	case "$1" in
+	uhid[0-9]*)
+		/etc/service-bundles/generators/generate "$1" console-uhid-realizer 
+		/etc/service-bundles/generators/spin-up "$1" console-uhid-realizer 
+		;;
+	wsmouse[0-9]*)
+		/etc/service-bundles/generators/generate "$1" console-wscons-realizer 
+		/etc/service-bundles/generators/spin-up "$1" console-wscons-realizer 
+		;;
+	wskbd[0-9]*)
+		/etc/service-bundles/generators/generate "$1" console-wscons-realizer
+		/etc/service-bundles/generators/spin-up "$1" console-wscons-realizer
+		;;
+	ugen[0-9]*.[0-9]*)
+		/etc/service-bundles/generators/generate "$1" console-ugen-hid-realizer
+		/etc/service-bundles/generators/spin-up "$1" console-ugen-hid-realizer
+		;;
+	esac
+}
+
+detach() {
+	case "$1" in
+	uhid[0-9]*)
+		/etc/service-bundles/generators/spin-down "$1" console-uhid-realizer 
+		;;
+	wsmouse[0-9]*)
+		/etc/service-bundles/generators/spin-down "$1" console-wscons-realizer 
+		;;
+	wskbd[0-9]*)
+		/etc/service-bundles/generators/spin-down "$1" console-wscons-realizer
+		;;
+	ugen[0-9]*.[0-9]*)
+		/etc/service-bundles/generators/spin-down "$1" console-ugen-hid-realizer
+		;;
+	esac
+}
+
+
+cd /run/service-bundles || return 1
+
+e="$1"
+shift
+
+case "${e}" in
+device-attach)
+	attach "$@"
+	;;
+device-detach)
+	detach "$@"
+	;;
+esac

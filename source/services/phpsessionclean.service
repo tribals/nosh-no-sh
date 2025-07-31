@@ -5,6 +5,6 @@
 [Unit]
 
 [Service]
-Type=oneshot
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
 
 [Install]

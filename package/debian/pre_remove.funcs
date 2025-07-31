@@ -1,6 +1,6 @@
 # shell pre-deinstall function library for Debian
 # vim: set filetype=sh:
-escape() { system-control escape --alt-escape -- "$@" ; }
+pwescape() { system-control escape --format account -- "$@" ; }
 del_user() { 
 	if getent passwd "$1" > /dev/null 
 	then
@@ -19,6 +19,7 @@ shut_down() {
 	for i
 	do
 		system-control disable "$i"
+		# In theory this can operate foreign daemontools-style service managers.
 		if system-control is-loaded "$i"
 		then
 			system-control unload-when-stopped "$i"
@@ -38,21 +39,33 @@ service_with_dedicated_logger() {
 		shut_down "$1.service" "cyclog@$1.service"
 	fi
 }
-login_service_with_dedicated_logger() {
+prefixed_service_with_dedicated_logger() {
 	if test -z "${nosh_run_package}"
 	then
 		:
 	else
-		shut_down "ttylogin@$1.service" "cyclog@ttylogin@$1.service"
+		shut_down "$1$2.service" "cyclog@$1$2.service"
 	fi
 }
-ktty_login_service_with_dedicated_logger() {
-	case "`uname`" in
-	OpenBSD)	ktty=ttyC; break ;;
-	Linux)		ktty=tty; break ;;
-	*)		ktty=ttyv; break ;;
-	esac
-	login_service_with_dedicated_logger "${ktty}$1"
+tty_service_with_dedicated_logger() {
+	if test -z "${nosh_run_package}"
+	then
+		:
+	else
+		shut_down "$1$2.service" "cyclog@$1$2.service"
+	fi
+}
+login_service_with_dedicated_logger() {
+        tty_service_with_dedicated_logger "ttylogin@" "$1"
+}
+kvt_login_service_with_dedicated_logger() {
+	tty_service_with_dedicated_logger "ttylogin@" "tty$1"
+}
+kvt_realizer_service_with_dedicated_logger() {
+	prefixed_service_with_dedicated_logger "console-kvt-realizer@" "tty$1"
+}
+serial_tty_login_service_with_dedicated_logger() {
+	tty_service_with_dedicated_logger "agetty@" "ttyS$1"
 }
 socket_with_dedicated_logger() {
 	if test -z "${nosh_run_package}"
@@ -121,7 +134,7 @@ file_owning_user() {
 non_file_owning_user() {
 	if test -z "${nosh_run_package}"
 	then
-                local pwescaped="`escape "$1"`"
+                local pwescaped="`pwescape "$1"`"
                 del_user "$pwescaped"
         else
                 :

@@ -34,7 +34,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>time-env-add</command> looks up the value of the <envar><replaceable>var</replaceable></envar> environment variable, parses it to yield a TAI64N time, adds <replaceable>offset</replaceable> to that time, sets the environment variable to the revised time, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>time-env-add</command> looks up the value of the <envar><replaceable>var</replaceable></envar> environment variable, parses it to yield a TAI64N time, adds <replaceable>offset</replaceable> to that time, sets the environment variable to the revised time, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -81,7 +81,6 @@ milliseconds
 <term><code>seconds</code></term>
 <listitem><para>
 seconds
-</para><para>
 </para></listitem>
 </varlistentry>
 <varlistentry>
@@ -315,7 +314,7 @@ Thus, in stark contrast to the default mode behaviour:
 <refsection><title>gnu <command>date</command></title>
 
 <para>
-The <arg choice='plain'>--gnu-compatibility</arg> command-line option invokes a mode that is a subset of the systemd compatibility mode, that is compatible with the GNU implementation of the <citerefentry><refentrytitle>date</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.  
+The <arg choice='plain'>--gnu-compatibility</arg> command-line option invokes a mode that is a subset of the systemd compatibility mode, that is compatible with the GNU implementation of the <citerefentry><refentrytitle>date</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
 This mode is mostly the same as systemd compatibility mode, except that it does not use systemd's definitions of the minute and larger units but instead uses the calendar units.
 Thus in a "right" timezone, in agreement with the default mode behaviour and in contrast with the systemd mode behaviour:
 </para>

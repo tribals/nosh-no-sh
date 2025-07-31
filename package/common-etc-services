@@ -1,4 +1,5 @@
 dmesg
+convert_varrun
 emergency-login@console
 monitor-fsck-progress
 hostname

@@ -17,7 +17,7 @@ tolower (
 	const std::string & s
 ) {
 	std::string r;
-	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p) 
+	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p)
 		r += std::tolower(*p);
 	return r;
 }

@@ -17,6 +17,11 @@ For copyright and licensing terms, see the file named COPYING.
 #include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFlyBSD__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
+#include <time.h>
 #include "utils.h"
 //#include "tai64utils.h"
 #include "ProcessEnvironment.h"
@@ -32,8 +37,10 @@ struct NullableTAI64N {
 	void reset() { v = false; }
 	void zero() { v = true; s = 0; n = 0; }
 	void today(const ProcessEnvironment &);
-	void now(const ProcessEnvironment &);
+	void realtime(const ProcessEnvironment &);
 	void boot(const ProcessEnvironment &);
+	void monotonic(const ProcessEnvironment &);
+	void uptime(const ProcessEnvironment &);
 	bool is_null() const { return !v; }
 	uint_fast64_t query_seconds() const { return s; }
 	uint_fast32_t query_nanoseconds() const { return n; }
@@ -46,6 +53,35 @@ protected:
 	uint_least64_t s;
 	uint_least32_t n;
 };
+
+#if !defined(__FreeBSD__) && !defined(__DragonFlyBSD__)
+inline
+void
+minusequals(
+	timespec & v,
+	const timespec & s
+) {
+	// Assume both operands are normalized, and avoid complexity here.
+	v.tv_sec -= s.tv_sec;
+	if (v.tv_nsec < s.tv_nsec) {
+		// Borrow from the seconds column.
+		--v.tv_sec;
+		v.tv_nsec += 1000000000UL;
+	}
+	v.tv_nsec -= s.tv_nsec;
+}
+#endif
+
+// Use these always, just in case the platform has copied them from FreeBSD.
+#if !defined(CLOCK_MONOTONIC_PRECISE)
+#define CLOCK_MONOTONIC_PRECISE CLOCK_MONOTONIC
+#endif
+#if !defined(CLOCK_REALTIME_FAST)
+#define CLOCK_REALTIME_FAST CLOCK_REALTIME
+#endif
+#if !defined(CLOCK_UPTIME_PRECISE)
+#define CLOCK_UPTIME_PRECISE CLOCK_UPTIME
+#endif
 }
 
 void
@@ -88,7 +124,7 @@ NullableTAI64N::set(
 }
 
 void
-NullableTAI64N::now(
+NullableTAI64N::realtime(
 	const ProcessEnvironment & envs
 ) {
 	timespec realtime;
@@ -100,29 +136,71 @@ void
 NullableTAI64N::boot(
 	const ProcessEnvironment & envs
 ) {
-	timespec realtime;
-	clock_gettime(CLOCK_REALTIME, &realtime);
+	timespec boottime;
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFlyBSD__)
+	// boottime is directly accessible.
+	static const int kern_boottime_oid[2] = {CTL_KERN, KERN_BOOTTIME};
+	std::size_t len = sizeof boottime;
+	sysctl(kern_boottime_oid, sizeof kern_boottime_oid/sizeof *kern_boottime_oid, &boottime, &len, nullptr, 0);
+#else
+	// boottime = realtime - uptime
 	timespec uptime;
 #if defined(__LINUX__) || defined(__linux__)
 	clock_gettime(CLOCK_BOOTTIME, &uptime);
 #else
 	clock_gettime(CLOCK_UPTIME, &uptime);
 #endif
-	realtime.tv_sec -= uptime.tv_sec;
-	if (realtime.tv_nsec < uptime.tv_nsec) {
-		// Borrow from the seconds column.
-		--realtime.tv_sec;
-		realtime.tv_nsec += 1000000000UL;
-	}
-	realtime.tv_nsec -= uptime.tv_nsec;
-	set(envs, realtime);
+	// This is reduced precision, down to 1 timer tick.
+	// But excessive precision here gives a false sense of accuracy.
+	// The thread could sleep for an arbitrarily long time at this point.
+	clock_gettime(CLOCK_REALTIME_FAST, &boottime);
+	minusequals(boottime, uptime);
+#endif
+	set(envs, boottime);
+}
+
+void
+NullableTAI64N::monotonic(
+	const ProcessEnvironment & envs
+) {
+	timespec monotonictime;
+	clock_gettime(CLOCK_MONOTONIC_PRECISE, &monotonictime);
+	set(envs, monotonictime);
+}
+
+void
+NullableTAI64N::uptime(
+	const ProcessEnvironment & envs
+) {
+	timespec uptime;
+#if defined(__NetBSD__)
+	// boottime is directly accessible; uptime is not (sic!).
+	timespec boottime;
+	static const int kern_boottime_oid[2] = {CTL_KERN, KERN_BOOTTIME};
+	std::size_t len = sizeof boottime;
+	sysctl(kern_boottime_oid, sizeof kern_boottime_oid/sizeof *kern_boottime_oid, &boottime, &len, nullptr, 0);
+	// This is reduced precision, down to 1 timer tick.
+	// But excessive precision here gives a false sense of accuracy.
+	// The thread could sleep for an arbitrarily long time at this point.
+	clock_gettime(CLOCK_REALTIME_FAST, &uptime);
+	// tutime = realtime - boottime
+	minusequals(uptime, boottime);
+#else
+#if defined(__LINUX__) || defined(__linux__)
+	clock_gettime(CLOCK_BOOTTIME, &uptime);
+#else
+	// Use this just in case the platform has copied this from FreeBSD.
+	clock_gettime(CLOCK_UPTIME_PRECISE, &uptime);
+#endif
+#endif
+	set(envs, uptime);
 }
 
 namespace {
 
-inline 
-int 
-x2d ( int c ) 
+inline
+int
+x2d ( int c )
 {
 	if (std::isdigit(c)) return c - '0';
 	if (std::isalpha(c)) {
@@ -176,7 +254,7 @@ invalid_timestamp:
 			r.set_seconds(convert(t, 16U));
 			if (l >= 24U) {
 				r.set_nanoseconds(convert(t + 16U, 8U));
-				if (r.query_nanoseconds() >= 1000000000UL) 
+				if (r.query_nanoseconds() >= 1000000000UL)
 					goto invalid_timestamp;
 			}
 			return;
@@ -234,14 +312,11 @@ invalid_timestamp:
 			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "This operating system's API does not report creation times.", e);
 			throw static_cast<int>(EXIT_PERMANENT_FAILURE);
 #else
-			if (!e[1]) {
-				std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing filename");
-				throw static_cast<int>(EXIT_PERMANENT_FAILURE);
-			}
+			if (!e[1]) die_missing_expression(prog, envs);
 			struct stat b;
 			if (0 > stat(e + 1, &b)) {
-				const int error(errno);
-				if (ENOENT != error) {
+				if (ENOENT != errno) {
+					const int error(errno);
 					std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e + 1, std::strerror(error));
 					throw static_cast<int>(EXIT_PERMANENT_FAILURE);
 				}
@@ -253,7 +328,7 @@ invalid_timestamp:
 #endif
 		} else
 		if ('i' == *e) {
-			struct tm tm = { 0 };
+			struct tm tm = {};
 			tm.tm_isdst = -1;
 			const char * end(strptime(e + 1, "%FT%T %z", &tm));
 			if (!end || *end)
@@ -266,7 +341,7 @@ invalid_timestamp:
 			return;
 		} else
 		if ('D' == *e) {
-			const std::time_t now(std::time(0));
+			const std::time_t now(std::time(nullptr));
 			struct tm tm;
 			localtime_r(&now, &tm);
 			const char * end(strptime(e + 1, "%F", &tm));
@@ -282,7 +357,7 @@ invalid_timestamp:
 			return;
 		} else
 		if ('T' == *e) {
-			const std::time_t now(std::time(0));
+			const std::time_t now(std::time(nullptr));
 			struct tm tm;
 			localtime_r(&now, &tm);
 			const char * end(strptime(e + 1, "%T", &tm));
@@ -297,8 +372,10 @@ invalid_timestamp:
 			r.set(envs, std::mktime(&tm), 0);
 			return;
 		} else
-		if (!std::strcmp("now", e)) {
-			r.now(envs);
+		if (!std::strcmp("now", e)
+		||  !std::strcmp("realtime", e)
+		) {
+			r.realtime(envs);
 			return;
 		} else
 		if (!std::strcmp("today", e)) {
@@ -317,6 +394,14 @@ invalid_timestamp:
 		||  !std::strcmp("startup", e)
 		) {
 			r.boot(envs);
+			return;
+		} else
+		if (!std::strcmp("monotonic", e)) {
+			r.monotonic(envs);
+			return;
+		} else
+		if (!std::strcmp("uptime", e)) {
+			r.uptime(envs);
 			return;
 		} else
 		{
@@ -453,7 +538,7 @@ get_unit(const char * & s)
 */
 
 void
-time_print_tai64n [[gnu::noreturn]] ( 
+time_print_tai64n [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -461,32 +546,25 @@ time_print_tai64n [[gnu::noreturn]] (
 	const char * prog(basename_of(args[0]));
 	bool no_newline(false);
 	try {
-		popt::bool_definition no_newline_option('n', 0, "Do not print a newline.", no_newline);
+		popt::bool_definition no_newline_option('n', nullptr, "Do not print a newline.", no_newline);
 		popt::definition * top_table[] = {
 			&no_newline_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{expression}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing expression.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_expression(prog, envs);
 	const char * expr(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	std::setlocale(LC_TIME, "");
 
@@ -503,7 +581,7 @@ time_print_tai64n [[gnu::noreturn]] (
 }
 
 void
-time_env_set ( 
+time_env_set (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -515,25 +593,18 @@ time_env_set (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing variable name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
 	const char * var(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing expression.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_expression(prog, envs);
 	const char * expr(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
@@ -546,7 +617,7 @@ time_env_set (
 }
 
 void
-time_env_set_if_earlier ( 
+time_env_set_if_earlier (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -558,25 +629,18 @@ time_env_set_if_earlier (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing variable name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
 	const char * var(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing expression.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_expression(prog, envs);
 	const char * expr(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
@@ -595,12 +659,12 @@ time_env_set_if_earlier (
 		return;
 	}
 
-	// right is non-null and earlier than left.
+	// right is non-null and either left is null or right is earlier than left.
 	set(envs, var, tr);
 }
 
 void
-time_env_unset_if_later ( 
+time_env_set_if_later (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -612,25 +676,113 @@ time_env_unset_if_later (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing variable name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
 	const char * var(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing expression.");
-		throw static_cast<int>(EXIT_USAGE);
+	if (args.empty()) die_missing_expression(prog, envs);
+	const char * expr(args.front());
+	args.erase(args.begin());
+	next_prog = arg0_of(args);
+
+	std::setlocale(LC_TIME, "");
+
+	NullableTAI64N tr;
+	evaluate_time_expression(prog, envs, expr, tr);
+	if (tr.is_null()) return;
+
+	NullableTAI64N tl;
+	evaluate_time_expression(prog, envs, envs.query(var), tl);
+	if (!tl.is_null()
+	&&  ((tl.query_seconds() > tr.query_seconds()) || ((tl.query_seconds() == tr.query_seconds()) && (tl.query_nanoseconds() >= tr.query_nanoseconds())))
+	) {
+		return;
 	}
+
+	// right is non-null and either left is null or right is later than left.
+	set(envs, var, tr);
+}
+
+void
+time_env_unset_if_earlier (
+	const char * & next_prog,
+	std::vector<const char *> & args,
+	ProcessEnvironment & envs
+) {
+	const char * prog(basename_of(args[0]));
+	try {
+		popt::definition * top_table[] = {
+		};
+		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
+
+		std::vector<const char *> new_args;
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
+		p.process(true /* strictly options before arguments */);
+		args = new_args;
+		next_prog = arg0_of(args);
+		if (p.stopped()) throw EXIT_SUCCESS;
+	} catch (const popt::error & e) {
+		die(prog, envs, e);
+	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
+	const char * var(args.front());
+	args.erase(args.begin());
+	if (args.empty()) die_missing_expression(prog, envs);
+	const char * expr(args.front());
+	args.erase(args.begin());
+	next_prog = arg0_of(args);
+
+	std::setlocale(LC_TIME, "");
+
+	NullableTAI64N tr;
+	evaluate_time_expression(prog, envs, expr, tr);
+	if (tr.is_null()) return;
+
+	NullableTAI64N tl;
+	evaluate_time_expression(prog, envs, envs.query(var), tl);
+	if (tl.is_null()
+	||  (tl.query_seconds() < tr.query_seconds())
+	||  ((tl.query_seconds() == tr.query_seconds()) && (tl.query_nanoseconds() < tr.query_nanoseconds()))
+	) {
+		return;
+	}
+
+	// right is non-null and earlier than left.
+	envs.unset(var);
+}
+
+void
+time_env_unset_if_null_or_later (
+	const char * & next_prog,
+	std::vector<const char *> & args,
+	ProcessEnvironment & envs
+) {
+	const char * prog(basename_of(args[0]));
+	try {
+		popt::definition * top_table[] = {
+		};
+		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
+
+		std::vector<const char *> new_args;
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
+		p.process(true /* strictly options before arguments */);
+		args = new_args;
+		next_prog = arg0_of(args);
+		if (p.stopped()) throw EXIT_SUCCESS;
+	} catch (const popt::error & e) {
+		die(prog, envs, e);
+	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
+	const char * var(args.front());
+	args.erase(args.begin());
+	if (args.empty()) die_missing_expression(prog, envs);
 	const char * expr(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
@@ -655,7 +807,55 @@ time_env_unset_if_later (
 }
 
 void
-time_env_add ( 
+time_env_unset_if_later (
+	const char * & next_prog,
+	std::vector<const char *> & args,
+	ProcessEnvironment & envs
+) {
+	const char * prog(basename_of(args[0]));
+	try {
+		popt::definition * top_table[] = {
+		};
+		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
+
+		std::vector<const char *> new_args;
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
+		p.process(true /* strictly options before arguments */);
+		args = new_args;
+		next_prog = arg0_of(args);
+		if (p.stopped()) throw EXIT_SUCCESS;
+	} catch (const popt::error & e) {
+		die(prog, envs, e);
+	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
+	const char * var(args.front());
+	args.erase(args.begin());
+	if (args.empty()) die_missing_expression(prog, envs);
+	const char * expr(args.front());
+	args.erase(args.begin());
+	next_prog = arg0_of(args);
+
+	std::setlocale(LC_TIME, "");
+
+	NullableTAI64N tr;
+	evaluate_time_expression(prog, envs, expr, tr);
+	if (tr.is_null()) return;
+
+	NullableTAI64N tl;
+	evaluate_time_expression(prog, envs, envs.query(var), tl);
+	if (tl.is_null()
+	||  (tl.query_seconds() > tr.query_seconds())
+	||  ((tl.query_seconds() == tr.query_seconds()) && (tl.query_nanoseconds() >= tr.query_nanoseconds()))
+	) {
+		return;
+	}
+
+	// right is non-null and later than left.
+	envs.unset(var);
+}
+
+void
+time_env_add (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -672,25 +872,18 @@ time_env_add (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{variable} {expression}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing variable name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_variable_name(prog, envs);
 	const char * var(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing expression.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_expression(prog, envs);
 	const char * expr(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
@@ -701,7 +894,7 @@ time_env_add (
 	evaluate_time_expression(prog, envs, envs.query(var), t);
 	if (t.is_null())
 		envs.unset(var);
-	else 
+	else
 	if (systemd_bugs || gnu_bugs) {
 		// Operate in terms of a broken down calendar time comprising a tm and nano.
 		TimeTAndLeap z(tai64_to_time(envs, t.query_seconds()));
@@ -817,7 +1010,7 @@ time_env_add (
 }
 
 void
-time_pause_until ( 
+time_pause_until (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -829,19 +1022,15 @@ time_pause_until (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{expression}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing expression.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_expression(prog, envs);
 	const char * expr(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
@@ -862,7 +1051,7 @@ time_pause_until (
 	} else
 	for (;;) {
 		NullableTAI64N n;
-		n.now(envs);
+		n.realtime(envs);
 		if (n.query_seconds() > t.query_seconds()) break;	// The time has passed.
 		uint_fast64_t s(t.query_seconds() - n.query_seconds());
 		if (86400U <= s)
@@ -886,7 +1075,7 @@ time_pause_until (
 			} else
 				i.tv_nsec = t.query_nanoseconds() - n.query_nanoseconds();
 			i.tv_sec = s;
-			nanosleep(&i, 0);
+			nanosleep(&i, nullptr);
 		}
 	}
 }

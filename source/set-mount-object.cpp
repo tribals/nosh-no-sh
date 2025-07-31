@@ -20,14 +20,14 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-set_mount_object 
+set_mount_object
 #if !defined(__LINUX__) && !defined(__linux__)
-	[[gnu::noreturn]] 
+	[[gnu::noreturn]]
 #endif
-( 
+(
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool recursive(false);
@@ -39,25 +39,22 @@ set_mount_object
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{state} {dir} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing mount object state.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "mount object state");
 	}
 	const char * state(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing mount object directory.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "mount object directory");
 	}
 	const char * dir(args.front());
 	args.erase(args.begin());
@@ -78,12 +75,9 @@ set_mount_object
 	else
 	if (0 == std::strcmp("private", state))
 		flags |= MS_PRIVATE;
-	else 
+	else
 #endif
-	{
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, state, "Bad state.");
-		throw EXIT_FAILURE;
-	}
+		die_invalid(prog, envs, state, "Bad state.");
 
 	struct iovec iov[] = {
 		FROM,			MAKE_IOVEC(""),
@@ -91,9 +85,6 @@ set_mount_object
 		FSTYPE,			MAKE_IOVEC(""),
 	};
 
-	if (0 > nmount(iov, sizeof iov/sizeof *iov, flags)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, dir, std::strerror(error));
-		throw EXIT_FAILURE;
-	}
+	if (0 > nmount(iov, sizeof iov/sizeof *iov, flags))
+		die_errno(prog, envs, dir);
 }

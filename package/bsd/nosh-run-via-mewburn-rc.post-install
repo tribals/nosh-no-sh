@@ -6,9 +6,15 @@ system-control preset static-networking.target
 system-control preset remote-fs.target remote-fs-pre.target
 
 # Preset and start Mewburn rc services
-sysrc service_manager_enable=YES
-sysrc service_manager_svscan_enable=YES
-sysrc system_control_normal_enable=YES
+if sysrc="`command -v sysrc`"
+then
+	# FreeBSD style, with "_enable" suffixes.
+	sysrc service_manager_enable=YES
+	sysrc service_manager_svscan_enable=YES
+	sysrc system_control_normal_enable=YES
+else
+	echo 1>&2 "WARNING: No sysrc on this system; /etc/rc.conf has not been automatically updated."
+fi
 /usr/sbin/service service-manager start
 /usr/sbin/service service-manager-svscan start
 /usr/sbin/service system-control-normal start

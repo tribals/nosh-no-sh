@@ -19,12 +19,13 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>clearenv</command> 
-<arg choice='opt'>--keep-path</arg> 
-<arg choice='opt'>--keep-user</arg> 
-<arg choice='opt'>--keep-shell</arg> 
-<arg choice='opt'>--keep-term</arg> 
-<arg choice='opt'>--keep-locale</arg> 
+<command>clearenv</command>
+<arg choice='opt'>--keep-path</arg>
+<arg choice='opt'>--keep-user</arg>
+<arg choice='opt'>--keep-shell</arg>
+<arg choice='opt'>--keep-term</arg>
+<arg choice='opt'>--keep-locale</arg>
+<arg choice='opt'>--keep-uid</arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -32,8 +33,8 @@
 <refsection><title>Description</title>
 
 <para>
-<command>clearenv</command> is a chain-loading utility that clears the entire environment 
-and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>clearenv</command> is a chain-loading utility that clears the entire environment
+and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -42,8 +43,9 @@ and then chain loads to <replaceable>next-prog</replaceable> with the <citerefen
 
 <para>
 When the <arg choice='plain'>--keep-path</arg> command line option is used, <command>clearenv</command> will not clear the <envar>PATH</envar> and <envar>LD_LIBRARY_PATH</envar> environment variables.
-When the <arg choice='plain'>--keep-locale</arg> option is used, it will not clear the environment variables used by the GNU C Library for locale settings, namely <envar>LANG</envar>, <envar>LC_ALL</envar>, <envar>LC_COLLATE</envar>. <envar>LC_CTYPE</envar>, <envar>LC_MESSAGES</envar>, <envar>LC_MONETARY</envar>, <envar>LC_NUMERIC</envar>, and <envar>LC_TIME</envar>.
-Similarly <arg choice='plain'>--keep-shell</arg> stops the clearing of <envar>SHELL</envar>; <arg choice='plain'>--keep-term</arg> stops the clearing of <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry>, <envar>COLORTERM</envar>, <envar>XTERM_VERSION</envar>, <envar>VTE_VERSION</envar>, and <envar>TTY</envar>; and <arg choice='plain'>--keep-user</arg> stops the clearing of <envar>HOME</envar>, <envar>USER</envar>, and <envar>LOGNAME</envar>.
+When the <arg choice='plain'>--keep-locale</arg> option is used, it will not clear the environment variables used by the GNU C Library for locale settings, namely <envar>LANG</envar>, <envar>LC_ALL</envar>, <envar>LC_COLLATE</envar>, <envar>LC_CTYPE</envar>, <envar>LC_MESSAGES</envar>, <envar>LC_MONETARY</envar>, <envar>LC_NUMERIC</envar>, and <envar>LC_TIME</envar>.
+When the <arg choice='plain'>--keep-uid</arg> option is used, it will not clear the environment variables used by <citerefentry><refentrytitle>getuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>login-envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry> to pass user and group IDs; namely <envar>UID</envar>, <envar>GID</envar>, and <envar>GIDLIST</envar>.
+Similarly <arg choice='plain'>--keep-shell</arg> stops the clearing of <envar>SHELL</envar>, <envar>SHLVL</envar>, and <envar>ENV</envar>; <arg choice='plain'>--keep-term</arg> stops the clearing of <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry>, <envar>TERMPATH</envar>, <envar>TERMINFO</envar>, <envar>TERMINFO_DIRS</envar>, <envar>COLORTERM</envar>, <envar>XTERM_VERSION</envar>, <envar>VTE_VERSION</envar>, and <envar>TTY</envar>; and <arg choice='plain'>--keep-user</arg> stops the clearing of <envar>HOME</envar>, <envar>USER</envar>, and <envar>LOGNAME</envar>.
 </para>
 
 </refsection><refsection><title>Bugs</title>
@@ -70,7 +72,8 @@ The previously documented workaround for those libraries' having memory leaks in
 </para></listitem>
 </itemizedlist>
 
-</refsection><refsection><title>Author</title>
+</refsection>
+<refsection><title>Author</title>
 <para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
 </refsection>
 

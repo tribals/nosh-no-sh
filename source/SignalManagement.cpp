@@ -12,7 +12,7 @@ For copyright and licensing terms, see the file named COPYING.
 static void sig_ignore (int) {}
 
 ReserveSignalsForKQueue::ReserveSignalsForKQueue(
-	int signo, 
+	int signo,
 	...
 ) {
 #if defined(__LINUX__) || defined(__linux__)
@@ -31,12 +31,36 @@ ReserveSignalsForKQueue::ReserveSignalsForKQueue(
 ReserveSignalsForKQueue::~ReserveSignalsForKQueue()
 {
 #if defined(__LINUX__) || defined(__linux__)
-	sigprocmask(SIG_SETMASK, &original, 0);
+	sigprocmask(SIG_SETMASK, &original, nullptr);
+#endif
+}
+
+TemporarilyUnblockSignals::TemporarilyUnblockSignals(
+	int signo,
+	...
+) {
+#if defined(__LINUX__) || defined(__linux__)
+	sigset_t unmasked_signals;
+	sigemptyset(&unmasked_signals);
+	va_list l;
+	for ( va_start(l, signo); signo > 0; signo = va_arg(l, int) )
+		sigaddset(&unmasked_signals, signo);
+	va_end(l);
+	sigprocmask(SIG_UNBLOCK, &unmasked_signals, &original);
+#else
+	static_cast<void>(signo);	// silence compiler warning
+#endif
+}
+
+TemporarilyUnblockSignals::~TemporarilyUnblockSignals()
+{
+#if defined(__LINUX__) || defined(__linux__)
+	sigprocmask(SIG_SETMASK, &original, nullptr);
 #endif
 }
 
 PreventDefaultForFatalSignals::PreventDefaultForFatalSignals(
-	int signo, 
+	int signo,
 	...
 ) {
 	sigemptyset(&signals);
@@ -47,7 +71,7 @@ PreventDefaultForFatalSignals::PreventDefaultForFatalSignals(
 	va_list l;
 	for ( va_start(l, signo); signo > 0; signo = va_arg(l, int) ) {
 		sigaddset(&signals, signo);
-		sigaction(signo,&sa,NULL);
+		sigaction(signo,&sa,nullptr);
 	}
 	va_end(l);
 }
@@ -65,6 +89,16 @@ PreventDefaultForFatalSignals::~PreventDefaultForFatalSignals()
 #endif
 	{
 		if (sigismember(&signals, signo))
-			sigaction(signo,&sa,NULL);
+			sigaction(signo,&sa,nullptr);
 	}
+}
+
+void
+auto_reap_children()
+{
+	struct sigaction sa;
+	sa.sa_flags=0;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler=SIG_IGN;
+	sigaction(SIGCHLD,&sa,nullptr);
 }

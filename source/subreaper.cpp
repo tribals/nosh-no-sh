@@ -30,11 +30,11 @@ subreaper (
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
 	if (on) {
 #	if defined(PROC_REAP_ACQUIRE)
-		return procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, 0);
+		return procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, nullptr);
 #	endif
 	} else {
 #	if defined(PROC_REAP_RELEASE)
-		return procctl(P_PID, getpid(), PROC_REAP_RELEASE, 0);
+		return procctl(P_PID, getpid(), PROC_REAP_RELEASE, nullptr);
 #	endif
 	}
 	return errno = ENOSYS, -1;

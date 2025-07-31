@@ -11,6 +11,7 @@ After=owserver.socket
 [Service]
 EnvironmentDirectory=env
 User=%p
+SessionLeader=yes
 ExecStart=%p --foreground ${flags}
 
 [Install]

@@ -1,1 +1,4 @@
-Replacements for Desktop Bus utilities
+ This package provides shims for Desktop Bus utilities.
+  * dbus-daemon-launch-helper
+ .
+ The shims replace the Desktop Bus utilities with improved tooling that works more universally.

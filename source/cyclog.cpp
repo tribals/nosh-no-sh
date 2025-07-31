@@ -5,6 +5,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #define __STDC_FORMAT_MACROS
 #include <vector>
+#include <memory>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -21,6 +22,8 @@ For copyright and licensing terms, see the file named COPYING.
 #include "fdutils.h"
 #include "popt.h"
 #include "SignalManagement.h"
+#include "FileDescriptorOwner.h"
+#include "DirStar.h"
 
 static uint64_t margin(512);
 static uint64_t max_file_size (0x00ffffffULL);	// 16MiB.  Any larger and we start giving tools like "tail" fits.
@@ -30,7 +33,9 @@ static uint64_t max_total_size(0x3fffffffULL);	// 1GiB
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 bool
 is_current (
 	const dirent & e
@@ -42,7 +47,7 @@ is_current (
 #endif
 }
 
-static inline
+inline
 bool
 is_old (
 	const dirent & e
@@ -61,48 +66,39 @@ is_old (
 	return true;
 }
 
+}
+
 /* Loggers ******************************************************************
 // **************************************************************************
 */
 
 namespace {
 struct logger {
-	logger(const char * n, int df, int lf, const ProcessEnvironment & e) : 
-		next(first), 
-		prevnext(&first), 
+	logger(const char * n, int df, int lf, const ProcessEnvironment & e) :
 		dir_name(n),
-		dir_fd(df), 
-		lock_fd(lf), 
+		dir_fd(df),
+		lock_fd(lf),
 		current_fd(-1),
 		bol(true),
 		off(0),
 		envs(e)
-	{ 
-		if (first) first->prevnext = &next; 
-		first = this; 
+	{
 	}
-	~logger() 
-	{ 
-		close("current");
-		if (prevnext) *prevnext = next; 
-		if (next) next->prevnext = prevnext; 
-		prevnext = &next; 
-		next = 0; 
-		::close(lock_fd);
-		::close(dir_fd);
+	~logger()
+	{
+		flush_and_synch_and_close("current");
 	}
-
-	static logger * first;
-	logger * next, **prevnext;
 
 	void start ();
 	void flush();
 	void rotate();
 	void put (char c);
+	bool pending() const { return off > 0U; }
 
 protected:
 	const char * dir_name;
-	int dir_fd, lock_fd, current_fd;
+	const FileDescriptorOwner dir_fd, lock_fd;
+	FileDescriptorOwner current_fd;
 	bool bol;
 	uint64_t current_size;
 	char buf[4096];
@@ -110,16 +106,29 @@ protected:
 	const ProcessEnvironment & envs;
 
 	void close(const char * name);
-	void flush_and_close(const char * name);
+	void flush_and_synch_and_close(const char * name);
+	void synch_and_close(const char * name);
 	void pause (const char * s, const char * n);
 	bool need_rotate();
 	void cap_total_size();
 	int unlink_oldest_file();
 	void write (const char *, std::size_t);
 };
+
+typedef std::list<std::shared_ptr<logger>> loglist;
+
+inline
+bool
+any_pending(
+	const loglist & loggers
+) {
+	for (loglist::const_iterator l(loggers.begin()), e(loggers.end()); l != e; ++l)
+		if ((*l)->pending())
+			return true;
+	return false;
 }
 
-logger * logger::first(0);
+}
 
 void logger::pause (const char * s, const char * n) {
 	const int error(errno);
@@ -128,25 +137,29 @@ void logger::pause (const char * s, const char * n) {
 }
 
 void logger::close(const char * name) {
-	if (0 <= current_fd) {
-		while (0 > ::close(current_fd)) pause("closing",name);
-		current_fd = -1;
+	if (0 <= current_fd.get()) {
+		while (0 > ::close(current_fd.get())) pause("closing",name);
+		current_fd.reset(-1);
 	}
 }
 
-void logger::flush_and_close(const char * name) {
-	if (0 <= current_fd) {
-		flush();
-		while (0 > fsync(current_fd)) pause("syncing",name);
-		while (0 > fchmod(current_fd, 0744)) pause("fchmod",name);
+void logger::synch_and_close(const char * name) {
+	if (0 <= current_fd.get()) {
+		while (0 > fsync(current_fd.get())) pause("syncing",name);
+		while (0 > fchmod(current_fd.get(), 0744)) pause("fchmod 0744",name);
 	}
 	close(name);
 }
 
+void logger::flush_and_synch_and_close(const char * name) {
+	flush();
+	synch_and_close(name);
+}
+
 void logger::flush() {
-	if (0 <= current_fd) {
+	if (0 <= current_fd.get()) {
 		while (off > 0) {
-			const int n(::write(current_fd, buf, off));
+			const int n(::write(current_fd.get(), buf, off));
 			if (0 >= n) {
 				pause("flushing", "current");
 				continue;
@@ -158,7 +171,7 @@ void logger::flush() {
 }
 
 bool logger::need_rotate() {
-	return (bol ? current_size + margin : current_size) >= max_file_size; 
+	return (bol ? current_size + margin : current_size) >= max_file_size;
 }
 
 int 	/// \returns state of the log directory
@@ -166,12 +179,12 @@ int 	/// \returns state of the log directory
 	/// \retval 0 The directory is still oversize and requires another pass.
 	/// \retval 1 The directory has been fully size capped.
 logger::unlink_oldest_file() {
-	const int scan_dir_fd(dup(dir_fd));
-	if (0 > scan_dir_fd) return -1;
-	DIR * scan_dir(fdopendir(scan_dir_fd));
+	FileDescriptorOwner scan_dir_fd(dup(dir_fd.get()));
+	if (0 > scan_dir_fd.get()) return -1;
+	DirStar scan_dir(scan_dir_fd);
 	if (!scan_dir) {
 		const int error(errno);
-		::close(dir_fd);
+		scan_dir_fd.reset(-1);
 		errno = error;
 		return -1;
 	}
@@ -185,7 +198,7 @@ logger::unlink_oldest_file() {
 		if (!entry) {
 			const int error(errno);
 			if (error) {
-				closedir(scan_dir);
+				scan_dir.release();
 				errno = error;
 				return -1 ;
 			}
@@ -196,9 +209,9 @@ logger::unlink_oldest_file() {
 #endif
 		if (is_current(*entry)) {
 			struct stat s;
-			if (0 > fstatat(dir_fd, entry->d_name, &s, 0)) {
+			if (0 > fstatat(dir_fd.get(), entry->d_name, &s, 0)) {
 				const int error(errno);
-				closedir(scan_dir);
+				scan_dir.release();
 				errno = error;
 				return -1;
 			}
@@ -206,9 +219,9 @@ logger::unlink_oldest_file() {
 		} else
 		if (is_old(*entry)) {
 			struct stat s;
-			if (0 > fstatat(dir_fd, entry->d_name, &s, 0)) {
+			if (0 > fstatat(dir_fd.get(), entry->d_name, &s, 0)) {
 				const int error(errno);
-				closedir(scan_dir);
+				scan_dir.release();
 				errno = error;
 				return -1;
 			}
@@ -220,11 +233,11 @@ logger::unlink_oldest_file() {
 			seen_old = true;
 		}
 	}
-	closedir(scan_dir);
+	scan_dir.release();
 	if (!seen_old) return 1;
 	if (total > max_total_size) {
 		std::fprintf(stderr, "Removed  %s/%s to reclaim %"  PRIu64 " bytes\n", dir_name, earliest_old, reclaim);
-		unlinkat(dir_fd, earliest_old, 0);
+		unlinkat(dir_fd.get(), earliest_old, 0);
 		total -= reclaim;
 	}
 	return total <= max_total_size;
@@ -240,45 +253,45 @@ void logger::cap_total_size() {
 }
 
 void logger::rotate() {
-	if (0 <= current_fd) {
+	if (0 <= current_fd.get()) {
 		timespec now;
 		clock_gettime(CLOCK_REALTIME, &now);
 		const uint64_t secs(time_to_tai64(envs, TimeTAndLeap(now.tv_sec, false)));
 		const uint32_t nano(now.tv_nsec);
 
-		char * name_u(0);
+		char * name_u(nullptr);
 		asprintf(&name_u, "@%016" PRIx64 "%08" PRIx32 ".u", secs, nano);
-		while (0 > renameat(dir_fd, "current", dir_fd, name_u)) pause("renaming","current");
-		std::fprintf(stderr, "Flushing   %s/%s.\n", dir_name, name_u);
+		while (0 > renameat(dir_fd.get(), "current", dir_fd.get(), name_u)) pause("renaming","current");
+		std::fprintf(stderr, "Synching   %s/%s.\n", dir_name, name_u);
 
-		flush_and_close(name_u);
+		synch_and_close(name_u);
 
-		char * name_s(0);
+		char * name_s(nullptr);
 		asprintf(&name_s, "@%016" PRIx64 "%08" PRIx32 ".s", secs, nano);
-		while (0 > renameat(dir_fd, name_u, dir_fd, name_s)) pause("renaming",name_u);
+		while (0 > renameat(dir_fd.get(), name_u, dir_fd.get(), name_s)) pause("renaming",name_u);
 		std::fprintf(stderr, "Closed     %s/%s.\n", dir_name, name_s);
 
 		free(name_s);
 		free(name_u);
 	}
 	cap_total_size();
-	if (0 > current_fd) {
+	if (0 > current_fd.get()) {
 corrupted_current:
 		for (;;) {
-			current_fd = open_readwritecreate_at(dir_fd, "current", 0744);
-			if (0 <= current_fd) break;
+			current_fd.reset(open_readwritecreate_at(dir_fd.get(), "current", 0744));
+			if (0 <= current_fd.get()) break;
 			pause("opening", "current");
 		}
 		struct stat s;
-		if (0 > fstat(current_fd, &s) || !(s.st_mode & 0100)) {
+		if (0 > fstat(current_fd.get(), &s) || !(s.st_mode & 0100)) {
 			timespec now;
 			clock_gettime(CLOCK_REALTIME, &now);
 			const uint64_t secs(time_to_tai64(envs, TimeTAndLeap(now.tv_sec, false)));
 			const uint32_t nano(now.tv_nsec);
 
-			char * name_u(0);
+			char * name_u(nullptr);
 			asprintf(&name_u, "@%016" PRIx64 "%08" PRIx32 ".u", secs, nano);
-			while (0 > renameat(dir_fd, "current", dir_fd, name_u)) pause("renaming","current");
+			while (0 > renameat(dir_fd.get(), "current", dir_fd.get(), name_u)) pause("renaming","current");
 			std::fprintf(stderr, "Recovering %s/%s.\n", dir_name, name_u);
 
 			close(name_u);
@@ -287,9 +300,9 @@ corrupted_current:
 
 			goto corrupted_current;
 		}
-		while (0 > fchmod(current_fd, 0644)) pause("fchmod","current");
+		while (0 > fchmod(current_fd.get(), 0644)) pause("fchmod 0644","current");
 		for (;;) {
-			const off_t o(lseek(current_fd, 0, SEEK_END));
+			const off_t o(lseek(current_fd.get(), 0, SEEK_END));
 			if (0 <= o) {
 				current_size = o;
 				break;
@@ -298,7 +311,7 @@ corrupted_current:
 		}
 		if (current_size > 0) {
 			char last;
-			const int rc(pread(current_fd, &last, sizeof last, current_size - 1));
+			const int rc(pread(current_fd.get(), &last, sizeof last, current_size - 1));
 			if (rc > 0) {
 				bol = '\n' == last;
 			}
@@ -355,9 +368,9 @@ cyclog [[gnu::noreturn]] (
 	const char * prog(basename_of(args[0]));
 	try {
 		unsigned long mts(max_total_size), mfs(max_file_size), m(margin);
-		popt::unsigned_number_definition max_total_size_option('\0', "max-total-size", "bytes", "Specify the maximum total size of all log files.", mts, 0);
-		popt::unsigned_number_definition max_file_size_option('\0', "max-file-size", "bytes", "Specify the maximum file size of a log files.", mfs, 0);
-		popt::unsigned_number_definition margin_option('\0', "margin", "bytes", "Specify the margin for line ends at the end of a log files.", m, 0);
+		popt::size_definition max_total_size_option('\0', "max-total-size", "bytes", "Specify the maximum total size of all log files.", mts, 0);
+		popt::size_definition max_file_size_option('\0', "max-file-size", "bytes", "Specify the maximum file size of a log files.", mfs, 0);
+		popt::size_definition margin_option('\0', "margin", "bytes", "Specify the margin for line ends at the end of a log files.", m, 0);
 		popt::definition * top_table[] = {
 			&max_total_size_option,
 			&max_file_size_option,
@@ -366,7 +379,7 @@ cyclog [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{log(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
@@ -377,29 +390,25 @@ cyclog [[gnu::noreturn]] (
 		max_file_size = mfs;
 		margin = m;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing log directory name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "log directory name");
 	}
 
+	loglist loggers;
 	for (std::vector<const char *>::const_iterator i(args.begin()); i != args.end(); ++i) {
 		const char * name(*i);
 		const int dir_fd(open_dir_at(AT_FDCWD, name));
 		if (0 > dir_fd) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, name);
 		}
 		const int lock_fd(open_lockfile_at(dir_fd, "lock"));
 		if (0 > lock_fd) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s/lock: %s\n", prog, name, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, name);
 		}
 		logger *l(new logger(name, dir_fd, lock_fd, envs));
+		loggers.push_back(std::shared_ptr<logger>(l));
 		l->start();
 	}
 
@@ -408,61 +417,63 @@ cyclog [[gnu::noreturn]] (
 
 	const int queue(kqueue());
 	if (0 > queue) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 
-	struct kevent p[16];
-	{
-		std::size_t index(0);
-		set_event(&p[index++], STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGQUIT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		if (0 > kevent(queue, p, index, 0, 0, 0)) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
-		}
-	}
+	std::vector<struct kevent> ip;
+	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGQUIT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	char buf[4096];
-	bool pending(false);
+	bool terminate_requested(false);
 	struct timespec zero = { 0, 0 };
 	for (;;) {
-		const int rc(kevent(queue, 0, 0, p, sizeof p/sizeof *p, pending ? &zero : 0));
+		const bool pending(any_pending(loggers));
+		if (terminate_requested && !pending) break;
+		struct kevent p[16];
+		const int rc(kevent(queue, ip.data(), ip.size(), p, sizeof p/sizeof *p, pending ? &zero : nullptr));
+		ip.clear();
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+			if (EINTR == errno) continue;
+			die_errno(prog, envs, "kevent");
 		} else
 		if (0 == rc) {
-			for (logger * l(logger::first); l; l = l->next) 
-				l->flush();
-			pending = false;
+			for (loglist::const_iterator l(loggers.begin()), e(loggers.end()); l != e; ++l)
+				(*l)->flush();
 		} else
 		for (size_t i(0); i < static_cast<size_t>(rc); ++i) {
 			if (EVFILT_READ == p[i].filter && STDIN_FILENO == p[i].ident) {
+				if (EV_EOF & p[i].flags) {
+				input_eof:
+					std::fprintf(stderr, "%s: INFO: %s\n", prog, "Input EOF.");
+					terminate_requested = true;
+					continue;
+				}
+				if (EV_ERROR & p[i].flags) {
+					std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(p[i].data));
+				input_error:
+					terminate_requested = true;
+					continue;
+				}
 				const ssize_t rd(read(STDIN_FILENO, buf, sizeof buf));
 				if (0 > rd) {
-					const int error(errno);
-					if (EINTR != error) {
+					if (EINTR != errno) {
+						const int error(errno);
 						std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-						goto terminated;
+						goto input_error;
 					}
-				} else if (0 == rd)
-					goto terminated;
-				pending = true;
+				} else if (0 == rd) 
+					goto input_eof;
 				for (ssize_t j(0); j < rd; ++j) {
 					const char c(buf[j]);
-					for (logger * l(logger::first); l; l = l->next) 
-						l->put(c);
+					for (loglist::const_iterator l(loggers.begin()), e(loggers.end()); l != e; ++l)
+						(*l)->put(c);
 				}
 			} else
 			if (EVFILT_SIGNAL == p[i].filter) {
@@ -473,23 +484,23 @@ cyclog [[gnu::noreturn]] (
 					case SIGPIPE:
 					case SIGQUIT:
 						std::fprintf(stderr, "%s: INFO: %s\n", prog, "Terminated.");
-						goto terminated;
+						terminate_requested = true;
+						break;
 					case SIGALRM:
 						std::fprintf(stderr, "%s: INFO: %s\n", prog, "Forced log rotation.");
-						for (logger * l(logger::first); l; l = l->next)
-							l->rotate();
+						for (loglist::const_iterator l(loggers.begin()), e(loggers.end()); l != e; ++l)
+							(*l)->rotate();
 						break;
 					case SIGTSTP:
 						std::fprintf(stderr, "%s: INFO: %s\n", prog, "Paused.");
 						raise(SIGSTOP);
+						break;
+					case SIGCONT:
 						std::fprintf(stderr, "%s: INFO: %s\n", prog, "Continued.");
 						break;
 			       }
 			}
 		}
 	}
-terminated:
-	while (logger * l = logger::first)
-		delete l;
 	throw EXIT_SUCCESS;
 }

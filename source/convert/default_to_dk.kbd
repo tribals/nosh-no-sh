@@ -1,0 +1,27 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Danish keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
+  004   '3'    '#'    nop    nop    0x9e   '#'    nop    nop     O
+  005   '4'    0xa4   nop    nop    '$'    0xa4   nop    nop     O
+  007   '6'    '&'    nop    nop    '6'    '&'    nop    nop     O
+  008   '7'    '/'    nop    nop    '{'    '/'    nop    nop     O
+  009   '8'    '('    esc    esc    '['    '('    esc    esc     O
+  010   '9'    ')'    gs     gs     ']'    ')'    gs     gs      O
+  011   '0'    '='    nop    nop    '}'    '='    nop    nop     O
+  012   '+'    '?'    nop    nop    '+'    '?'    nop    nop     O
+  013   '''    '`'    nop    nop    '|'    '`'    nop    nop     O
+  018   'e'    'E'    enq    enq    0x20ac 'E'    enq    enq     C
+  026   0xe5   0xc5   nop    nop    0x86   0x8f   nop    nop     C
+  027   '"'    '^'    rs     rs     '~'    '^'    rs     rs      O
+  039   0xe6   0xc6   nop    nop    0x91   0x92   nop    nop     C
+  040   0xf8   0xd8   nop    nop    0x9b   0x9d   nop    nop     C
+  041   0xbd   0xa7   nop    nop    0xbd   0xa7   nop    nop     O
+  043   '''    '*'    nop    nop    '''    '*'    nop    nop     O
+  051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
+  052   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
+  053   '-'    '_'    us     us     '-'    '_'    us     us      O
+  086   '<'    '>'    fs     fs     '\'    '>'    fs     fs      O

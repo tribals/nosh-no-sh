@@ -19,9 +19,18 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>fdredir</command> 
-<arg choice='req'><replaceable>fd</replaceable></arg> 
-<arg choice='req'><replaceable>name</replaceable></arg> 
+<command>fdredir</command>
+<arg choice='req'><replaceable>fd</replaceable></arg>
+<arg choice='opt'>--non-blocking</arg>
+<arg choice='opt'>--mode <replaceable>mode</replaceable></arg>
+<arg choice='opt'>--read</arg>
+<arg choice='opt'>--write</arg>
+<arg choice='opt'>--write-noclobber</arg>
+<arg choice='opt'>--append</arg>
+<arg choice='opt'>--append-noclobber</arg>
+<arg choice='opt'>--update</arg>
+<arg choice='opt'>--directory</arg>
+<arg choice='req'><replaceable>name</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -29,7 +38,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>fdredir</command> is a chain-loading utility that opens the file <replaceable>name</replaceable> as the file descriptor <replaceable>fd</replaceable> (closing that descriptor if it is already open) and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>fdredir</command> is a chain-loading utility that opens the file <replaceable>name</replaceable> as the file descriptor <replaceable>fd</replaceable> (closing that descriptor if it is already open) and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -54,7 +63,7 @@ Blocking mode is restored because most shell-level utilities do not expect to in
 </listitem>
 </varlistentry>
 <varlistentry>
-<term><arg>--mode</arg></term><listitem>
+<term><arg>--mode <replaceable>mode</replaceable></arg></term><listitem>
 
 <para>
 Specify the (numeric) permissions to use when creating a file.
@@ -67,7 +76,7 @@ These are of course subject to the process' file creation mask as set by <citere
 <term><arg>--read</arg></term><listitem>
 
 <para>
-Open the file in input mode.  
+Open the file in input mode.
 If the file does not exist, <command>fdredir</command> will fail.
 If the file exists it will be opened for read-only access.
 </para>
@@ -148,7 +157,7 @@ This requires appropriate operating system kernel support, and on some systems, 
 
 <para>
 In all cases, opening the file will not affect the process's controlling TTY, if it has one.
-(For that, see <citerefentry><refentrytitle>open-controlling-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry>.)
+(For that, see <citerefentry><refentrytitle>open-controlling-terminal</refentrytitle><manvolnum>1</manvolnum></citerefentry>.)
 Nor will it set synchronous mode or (which would be silly given what <command>fdredir</command> does) mark
 the file descriptor as close-on-exec.
 </para>

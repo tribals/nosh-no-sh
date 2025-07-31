@@ -21,7 +21,7 @@ esac
 
 convert_hostname() {
 	local f h
-	for f in /etc/HOSTNAME /etc/hostname
+	for f in /etc/HOSTNAME /etc/hostname /etc/myname
 	do
 		if ! test -r "$f"
 		then
@@ -54,7 +54,7 @@ convert_hostname() {
 
 find_dotconf_files() { 
 	local d
-	for d in /etc /usr/local/etc /share /usr/share /usr/local/share /lib /usr/lib /usr/local/lib
+	for d in /usr/local/etc /etc /usr/pkg/etc /share /usr/local/share /usr/share /usr/pkg/share /usr/local/lib /lib /usr/lib /usr/pkg/lib
 	do 
 		test ! -d "$d/$1" || ( 
 			cd "$d/$1" && find -maxdepth 1 -name '*.conf' -a \( -type l -o -type f \)
@@ -109,7 +109,7 @@ find_named_fonts() {
 	(
 		if cd /usr/share/consolefonts/ 2>/dev/null
 		then
-			redo-ifchange /usr/share/consolefonts/ 
+			redo-ifchange /usr/share/consolefonts/
 			for i
 			do
 				find . -name "${i}".psf.gz
@@ -117,7 +117,7 @@ find_named_fonts() {
 		fi
 		if cd /usr/share/syscons/fonts/ 2>/dev/null
 		then
-			redo-ifchange /usr/share/syscons/fonts/ 
+			redo-ifchange /usr/share/syscons/fonts/
 			for i
 			do
 				find . -name "${i}".fnt
@@ -125,7 +125,15 @@ find_named_fonts() {
 		fi
 		if cd /usr/share/vt/fonts/ 2>/dev/null
 		then
-			redo-ifchange /usr/share/vt/fonts/ 
+			redo-ifchange /usr/share/vt/fonts/
+			for i
+			do
+				find . -name "${i}".fnt
+			done
+		fi
+		if cd /usr/local/share/fonts/vt/ 2>/dev/null
+		then
+			redo-ifchange /usr/local/share/fonts/vt/
 			for i
 			do
 				find . -name "${i}".fnt
@@ -141,17 +149,22 @@ find_matching_fonts() {
 	(
 		if cd /usr/share/consolefonts/ 2>/dev/null
 		then
-			redo-ifchange /usr/share/consolefonts/ 
+			redo-ifchange /usr/share/consolefonts/
 			find . -name "Uni*-${face:-*}${size:-*}".psf.gz
 		fi
 		if cd /usr/share/syscons/fonts/ 2>/dev/null
 		then
-			redo-ifchange /usr/share/syscons/fonts/ 
+			redo-ifchange /usr/share/syscons/fonts/
 			find . -name "Uni*-${face:-*}${size:-*}".fnt
 		fi
 		if cd /usr/share/vt/fonts/ 2>/dev/null
 		then
-			redo-ifchange /usr/share/vt/fonts/ 
+			redo-ifchange /usr/share/vt/fonts/
+			find . -name "Uni*-${face:-*}${size:-*}".fnt
+		fi
+		if cd /usr/local/share/fonts/vt/ 2>/dev/null
+		then
+			redo-ifchange /usr/local/share/fonts/vt/
 			find . -name "Uni*-${face:-*}${size:-*}".fnt
 		fi
 	) | 
@@ -414,6 +427,42 @@ convert_debian_network_interfaces() {
 	awk -f debian-interfaces.awk
 }
 
+convert_openbsd_hostname() {
+	redo-ifchange openbsd-hostname.awk
+	find /etc -maxdepth 1 -name 'hostname.*' -a \( -type l -o -type f \) |
+	while read -r file
+	do
+		redo-ifchange "${file}"
+		printf "# Converted from %s:\n" "${file}"
+		awk -f openbsd-hostname.awk -v iface="${file##/etc/hostname.}" "${file}"
+	done
+	printf 'network_interfaces="'
+	find /etc -maxdepth 1 -name 'hostname.*' -a \( -type l -o -type f \) |
+	while read -r file
+	do
+		printf "%s " "${file##/etc/hostname.}"
+	done
+	printf '"\n'
+}
+
+convert_netbsd_ifconfig() {
+	redo-ifchange openbsd-hostname.awk
+	find /etc -maxdepth 1 -name 'ifconfig.*' -a \( -type l -o -type f \) |
+	while read -r file
+	do
+		redo-ifchange "${file}"
+		printf "# Converted from %s:\n" "${file}"
+		awk -f openbsd-hostname.awk -v iface="${file##/etc/ifconfig.}" "${file}"
+	done
+	printf 'network_interfaces="'
+	find /etc -maxdepth 1 -name 'ifconfig.*' -a \( -type l -o -type f \) |
+	while read -r file
+	do
+		printf "%s " "${file##/etc/ifconfig.}"
+	done
+	printf '"\n'
+}
+
 convert_longhand() {
 	if test -e "${default_rc}"
 	then
@@ -439,7 +488,7 @@ convert_longhand() {
 	else
 		if test -e "${default_rc}"
 		then
-			rc_conf_files="`read_variable \"${default_rc}\" rc_conf_files`"
+			rc_conf_files="`read_optional_variable \"${default_rc}\" rc_conf_files /etc/rc.conf`"
 		else
 			rc_conf_files="/etc/rc.conf"
 		fi
@@ -473,39 +522,6 @@ convert_longhand() {
 	fi
 }
 
-convert_freenas() {
-	#####
-	# Stuff that can be overriden by explicit lines in rc.conf comes first.
-
-	convert_hostname
-	convert_debian_network_interfaces
-
-	# In order, so that systemd overrides kbd overrides Debian.
-	convert_debian_console_settings
-	convert_linux_kbdconf_console_settings
-	convert_linux_defkbd_console_settings
-	convert_systemd_console_settings
-
-	#####
-	# Now rc.conf itself.
-
-	convert_longhand
-
-	#####
-	# Now for stuff that always overrides rc.conf .
-
-	redo-ifchange "${freenas_db}"
-
-	# TODO: There are a lot more settings in the FreeNAS database to import.
-
-	sqlite3 "${freenas_db}" "SELECT tun_var,tun_value FROM system_tunable WHERE tun_enabled = 1 AND tun_type = 'rc' ORDER BY id" |
-	while read -r var val
-	do
-		# FIXME: This is a poor man's quoting mechanism, and isn't robust.
-		printf "%s=\"%s\"" "${var}" "${val}"
-	done
-}
-
 find_dhcp_client() {
 	local m
 	if m="`command -v dhclient 2>&1`"
@@ -532,6 +548,44 @@ find_autoipd() {
 	then
 		printf "autoipd_program=%s\n" "${m}"
 	fi
+}
+
+## **************************************************************************
+## Principal conversion top-level routines
+
+convert_freenas() {
+	#####
+	# Stuff that can be overriden by explicit lines in rc.conf comes first.
+
+	convert_hostname
+	convert_openbsd_hostname
+	convert_netbsd_ifconfig
+	convert_debian_network_interfaces
+
+	# In order, so that systemd overrides kbd overrides Debian.
+	convert_debian_console_settings
+	convert_linux_kbdconf_console_settings
+	convert_linux_defkbd_console_settings
+	convert_systemd_console_settings
+
+	#####
+	# Now rc.conf itself.
+
+	convert_longhand
+
+	#####
+	# Now for stuff that always overrides rc.conf .
+
+	redo-ifchange "${freenas_db}"
+
+	# TODO: There are a lot more settings in the FreeNAS database to import.
+
+	sqlite3 "${freenas_db}" "SELECT tun_var,tun_value FROM system_tunable WHERE tun_enabled = 1 AND tun_type = 'rc' ORDER BY id" |
+	while read -r var val
+	do
+		# FIXME: This is a poor man's quoting mechanism, and isn't robust.
+		printf "%s=\"%s\"" "${var}" "${val}"
+	done
 }
 
 convert_linux() {
@@ -562,6 +616,8 @@ convert_linux() {
 	printf "kld_list=\"%s\"\n" "${m}"
 
 	convert_hostname
+	convert_openbsd_hostname
+	convert_netbsd_ifconfig
 	convert_debian_network_interfaces
 
 	# In order, so that systemd overrides kbd overrides Debian.
@@ -593,6 +649,8 @@ convert_any() {
 
 	convert_hostname
 	convert_debian_network_interfaces
+	convert_openbsd_hostname
+	convert_netbsd_ifconfig
 
 	# In order, so that systemd overrides kbd overrides Debian.
 	convert_debian_console_settings
@@ -624,13 +682,12 @@ then
 elif test -r /usr/lib/os-release
 then
 	redo-ifcreate /etc/os-release
-	redo-ifchange /usr/lib/os-release
+	redo-ifchange /usr/lib/os-release "`readlink -f /usr/lib/os-release`"
 	convert_linux /usr/lib/os-release > "$3"
 	exit $?
-elif test _"`uname`" == _"Linux"
+elif test _"`uname`" = _"Linux"
 then
-	redo-ifcreate /etc/os-release
-	redo-ifcreate /usr/lib/os-release
+	redo-ifcreate /etc/os-release /usr/lib/os-release
 	convert_linux /dev/null > "$3"
 	exit $?
 fi

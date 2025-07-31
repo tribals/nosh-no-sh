@@ -17,7 +17,7 @@
 
 <refnamediv>
 <refname>emergency-login</refname>
-<refpurpose>perform emergency/rescue mode login</refpurpose>
+<refpurpose>perform emergency mode login</refpurpose>
 </refnamediv>
 
 <refsynopsisdiv>
@@ -29,61 +29,79 @@
 <refsection><title>Description</title>
 
 <para>
-<command>emergency-login</command> is a very simple login program that is designed to operate in the emergency and rescue modes (see <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>).
+<command>emergency-login</command> is a very simple login program that is designed to operate in the emergency startup mode (see <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> and <ulink url="emergency-and-rescue-modes.html">the <citetitle>emergency and rescue modes</citetitle> section of the nosh Guide</ulink>) and to simply verify the password of the superuser account, if the system account database is not broken.
 </para>
 
 <para>
-Its function is restricted compared to the usual <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry> program:
+Its function is restricted compared to the usual <citerefentry><refentrytitle>login-envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry> programs:
 </para>
 
 <itemizedlist>
 <listitem><para>
+It presents a very simple "glass TTY" user interface, suitable for even completely dumb TeleType Model 37 terminals, that makes no use of any escape or control sequences and relies entirely upon the terminal device line discpline for editing functions and not echoing passwords.
+</para></listitem>
+<listitem><para>
+It communicates entirely through its standard input and output, which it presumes are open to the terminal to log on to, and does not attempt to open its controlling terminal device.
+It makes no attempt to become a session or process group leader, and does not call <citerefentry><refentrytitle>setlogin</refentrytitle><manvolnum>2</manvolnum></citerefentry>.
+</para></listitem>
+<listitem><para>
 It does not use PAM or the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> subsystem.
+It presents a single, one-time, hardwired, prompt for a password that never times out.
+It has no "hushlogin", "nologin", or "welcome" mechanisms, configurable prompts, or configurable retry/timeout settings.
 </para></listitem>
 <listitem><para>
 It only uses the system account database and access to that is directly through the <citerefentry><refentrytitle>endpwent</refentrytitle><manvolnum>3</manvolnum></citerefentry>, <citerefentry><refentrytitle>endspent</refentrytitle><manvolnum>3</manvolnum></citerefentry>, <citerefentry><refentrytitle>getpwuid</refentrytitle><manvolnum>3</manvolnum></citerefentry> and <citerefentry><refentrytitle>getspnam</refentrytitle><manvolnum>3</manvolnum></citerefentry> library functions.
+Networking, NIS, and even <citerefentry><refentrytitle>nscd</refentrytitle><manvolnum>1</manvolnum></citerefentry> are presumed unavailable in emergency mode.
 </para></listitem>
 <listitem><para>
 It only allows login as the superuser.
-It looks up the account database entry by the superuser user ID, 0.
-If more than one record in the database has this ID, which one's password is used depends from how the <citerefentry><refentrytitle>getpwuid</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function works.
-</para></listitem>
+It looks up the account database entry by the superuser user name <code>root</code>, and if that does not result in an entry with user ID 0 it falls back to looking up the account database entry by the superuser ID 0.
+</para><note>
+If more than one record in the database has the superuser ID, which records's password and shell are used depends from how the <citerefentry><refentrytitle>getpwuid</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function works.
+FreeBSD and NetBSD as standard have both <code>root</code> and <code>toor</code> accounts both with user ID 0, but with different passwords and different shells.
+Because their system account databases are indexed Berkeley DB databases, superuser accounts are not necessarily enumerated in the order that they occur in <filename>/etc/master.passwd</filename> when looking up by ID 0.
+</note><caution>
+If it is not actually run as the superuser, the password verification check will always fail.
+It is not a set-UID program, and expects to already be running as the superuser.
+</caution></listitem>
 <listitem><para>
 It fails open in the event of a missing password (or shadow) file.
 If <citerefentry><refentrytitle>getpwuid</refentrytitle><manvolnum>3</manvolnum></citerefentry> (or <citerefentry><refentrytitle>getspnam</refentrytitle><manvolnum>3</manvolnum></citerefentry>) fails for some reason, it issues no prompt and acts as if the correct password had been entered.
-</para></listitem>
+</para><caution>
+Emergency mode is a last resort system repair mode.
+If the system account database is broken, failing open enables it to be fixed.
+Do not conflate emergency mode with rescue mode, where the system account database is required to be functional and login fails closed if it is not so.
+</caution></listitem>
 <listitem><para>
 It does not record anything in the accounting logs.
 The filesystem containing them might not be mounted in emergency mode, or might be mounted read-only.
 For that and other reasons, it does not use <citerefentry><refentrytitle>syslog</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
 </para></listitem>
 <listitem><para>
-It ignores any <code>secure</code> settings in the TTYs database (if the operating system has one).
-</para></listitem>
+It ignores any <code>secure</code> settings in the <citerefentry><refentrytitle>ttys</refentrytitle><manvolnum>5</manvolnum></citerefentry> database (if the operating system has one).
+</para><caution>
+The terminal is presumed to be a "secure" terminal that permits direct log-on by the superuser.
+Do not invoke <command>emergency-login</command> on non-"secure" terminals.
+</caution></listitem>
 <listitem><para>
 It ignores all settings in the account database relating to password expiry.
 </para></listitem>
 <listitem><para>
 It tries hard to execute a shell.
-If it cannot execute the shell listed in the account record, it attempts to fall back to the program denoted by the <envar>SHELL</envar> environment variable, or the program hardwired as the platform's <code>_PATH_BSHELL</code> setting at compilation time.
+If it cannot execute the shell listed in the account record (or that field is blank), it attempts to fall back to the program denoted by the <envar>SHELL</envar> environment variable, or the program hardwired as the platform's <code>_PATH_BSHELL</code> setting at compilation time.
 </para></listitem>
 <listitem><para>
-It does not tell the shell that it is a login shell, in order that the shell does not attempt to source "rc" scripts that may not be appropriate for emergency/rescue mode.
+It does not tell the shell that it is a login shell, in order that the shell does not attempt to source "profile" or "login" scripts that may not be appropriate for emergency mode.
+</para></listitem>
+<listitem><para>
+It tells the shell that its name is "sh".
+This should invoke the POSIX-conformant mode of the shell, which for non-login shells must only look at the "rc" file denoted by the <envar>ENV</envar> environment variable.
+Since it does not set this environment variable, the shell should not attempt to source "rc" scripts that may not be appropriate for emergency mode.
 </para></listitem>
 <listitem><para>
 It alters no environment variables at all, and does not attempt to change into a home directory.
 </para></listitem>
 </itemizedlist>
-
-<para>
-Like <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry>, it should be chained to by <citerefentry><refentrytitle>vc-get-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry> and <citerefentry><refentrytitle>open-controlling-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-</para>
-
-<para>
-It is usually invoked on the console by means of an <code>emergency-login@console</code> service.
-This is presumed to be a "secure" terminal that permits direct log-on by the superuser.
-Do not invoke it on non-"secure" terminals.
-</para>
 
 </refsection>
 

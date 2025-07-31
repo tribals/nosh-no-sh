@@ -5,7 +5,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #if !defined(__LINUX__) && !defined(__linux__)
 
-#if defined(__OpenBSD__)
+#if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <dev/usb/usb.h>
 #endif
 #include <dev/usb/usbhid.h>
@@ -23,15 +23,15 @@ uint16_t
 usb_ident_to_keymap_index (
 	const uint32_t ident
 ) {
-	if ((HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_SYSTEM_CONTROL) <= ident && HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_LAST_SYSTEM_KEY) >= ident)) 
-		switch (ident - HID_USAGE2(HUP_GENERIC_DESKTOP, 0)) { 
+	if ((HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_SYSTEM_CONTROL) <= ident && HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_LAST_SYSTEM_KEY) >= ident))
+		switch (ident - HID_USAGE2(HUP_GENERIC_DESKTOP, 0)) {
 			default:	break;
 			case 0x81:	return KBDMAP_INDEX_POWER;
 			case 0x82:	return KBDMAP_INDEX_SLEEP;
 			case 0x83:	return KBDMAP_INDEX_WAKE;
 			case 0xA4:	return KBDMAP_INDEX_DEBUG;
 			case 0xA8:	break;				// return KBDMAP_INDEX_HIBERNATE;
-		} 
+		}
 	else
 	if ((HID_USAGE2(HUP_KEYBOARD, 0) <= ident && HID_USAGE2(HUP_KEYBOARD, 0xFFFF) >= ident))
 		switch (ident - HID_USAGE2(HUP_KEYBOARD, 0)) {
@@ -77,18 +77,18 @@ usb_ident_to_keymap_index (
 			case 0x2A:	return KBDMAP_INDEX_BACKSPACE;	// E13
 			case 0x2B:	return KBDMAP_INDEX_TAB;	// D00
 			case 0x2C:	return KBDMAP_INDEX_SPACE;	// A03
-			case 0x2D:	return KBDMAP_INDEX_MINUS;	// E11
-			case 0x2E:	return KBDMAP_INDEX_EQUALS;	// E12
-			case 0x2F:	return KBDMAP_INDEX_LEFTBRACE;	// D11
-			case 0x30:	return KBDMAP_INDEX_RIGHTBRACE;	// D12
-			case 0x31:	return KBDMAP_INDEX_EUROPE1;	// The idea that D13 with "\|" is a distinct key is a USB HID specification bug; on real keyboards C12/D13 is a single key per ISO/IEC 9995-3:2010.
-			case 0x32:	return KBDMAP_INDEX_EUROPE1;	// C12 (105/107/109) or D13 (104) or E13 (106), EUROPE1 (despite being present on U.S. keyboards too)
-			case 0x33:	return KBDMAP_INDEX_SEMICOLON;	// C10
-			case 0x34:	return KBDMAP_INDEX_APOSTROPHE;	// C11
-			case 0x35:	return KBDMAP_INDEX_GRAVE;	// E00
-			case 0x36:	return KBDMAP_INDEX_COMMA;	// B08
-			case 0x37:	return KBDMAP_INDEX_DOT;	// B09
-			case 0x38:	return KBDMAP_INDEX_SLASH1;	// B10
+			case 0x2D:	return KBDMAP_INDEX_E11;	// Minus
+			case 0x2E:	return KBDMAP_INDEX_E12;	// Plus
+			case 0x2F:	return KBDMAP_INDEX_D11;	// LeftBrace
+			case 0x30:	return KBDMAP_INDEX_D12;	// RightBrace
+			case 0x31:	return KBDMAP_INDEX_C12;	// The idea that D13 with "\|" is a distinct key is a USB HID specification bug; on real keyboards C12/D13 is a single key per ISO/IEC 9995-3:2010.
+			case 0x32:	return KBDMAP_INDEX_C12;	// C12 (105/107/109) or D13 (104) or E13 (106), EUROPE1 (despite being present on U.S. keyboards too)
+			case 0x33:	return KBDMAP_INDEX_C10;	// semicolon
+			case 0x34:	return KBDMAP_INDEX_C11;	// apostrophe
+			case 0x35:	return KBDMAP_INDEX_E00;	// grave
+			case 0x36:	return KBDMAP_INDEX_B08;	// comma
+			case 0x37:	return KBDMAP_INDEX_B09;	// dot
+			case 0x38:	return KBDMAP_INDEX_B10;	// slash1
 			case 0x39:	return KBDMAP_INDEX_CAPSLOCK;	// C00
 			case 0x3A:	return KBDMAP_INDEX_F1;
 			case 0x3B:	return KBDMAP_INDEX_F2;
@@ -132,8 +132,8 @@ usb_ident_to_keymap_index (
 			case 0x61:	return KBDMAP_INDEX_KP_9;	// D53
 			case 0x62:	return KBDMAP_INDEX_KP_0;	// A51
 			case 0x63:	return KBDMAP_INDEX_KP_DECIMAL;	// A53
-			case 0x64:	return KBDMAP_INDEX_EUROPE2;	// B00
-			case 0x65:	return KBDMAP_INDEX_APPLICATION;// A11
+			case 0x64:	return KBDMAP_INDEX_B00;	// 105+107: europe2
+			case 0x65:	return KBDMAP_INDEX_POPUP_MENU;	// A11
 			case 0x66:	return KBDMAP_INDEX_POWER;
 			case 0x67:	return KBDMAP_INDEX_KP_EQUALS;	// E52 (Apple)
 			case 0x68:	return KBDMAP_INDEX_F13;
@@ -164,9 +164,9 @@ usb_ident_to_keymap_index (
 			case 0x81:	return KBDMAP_INDEX_VOLUME_DOWN;
 			case 0x85:	return KBDMAP_INDEX_KP_THOUSANDS;// C54 (107) or A52 (Apple)
 			case 0x86:	return KBDMAP_INDEX_KP_AS400_EQUALS;	// Keypad Equal Sign for AS/400
-			case 0x87:	return KBDMAP_INDEX_SLASH2;	// B11, International1
+			case 0x87:	return KBDMAP_INDEX_B11;	// 107: slash2, International1
 			case 0x88:	return KBDMAP_INDEX_KATAKANA_HIRAGANA;	// A07, International2
-			case 0x89:	return KBDMAP_INDEX_YEN;	// E13, International3
+			case 0x89:	return KBDMAP_INDEX_E13;	// 109: Yen, International3
 			case 0x8A:	return KBDMAP_INDEX_HENKAN;	// A03, International4
 			case 0x8B:	return KBDMAP_INDEX_MUHENKAN;	// A06, International5
 			case 0x8C:	break;				// return KBDMAP_INDEX_INTERNATIONAL6;
@@ -202,18 +202,19 @@ usb_ident_to_keymap_index (
 			case 0xE5:	return KBDMAP_INDEX_SHIFT2;	// B12
 			case 0xE6:	return KBDMAP_INDEX_OPTION;	// A08
 			case 0xE7:	return KBDMAP_INDEX_SUPER2;	// A10
-		} 
+		}
 	else
 	if ((HID_USAGE2(HUP_CONSUMER, 0) <= ident && HID_USAGE2(HUP_CONSUMER, 0xFFFF) >= ident))
 		switch (ident - HID_USAGE2(HUP_CONSUMER, 0)) {
 			default:	break;
+		// Media transport controls:
 			case 0x00B0:	break;	// return KBDMAP_INDEX_PLAY;
-			case 0x00B1:	return KBDMAP_INDEX_PAUSE;
+			case 0x00B1:	break;	// return KBDMAP_INDEX_PAUSE_PLAYER;
 			case 0x00B2:	return KBDMAP_INDEX_RECORD;
 			case 0x00B3:	return KBDMAP_INDEX_FAST_FORWARD;
 			case 0x00B4:	return KBDMAP_INDEX_REWIND;
 			case 0x00B5:	return KBDMAP_INDEX_NEXT_TRACK;
-			case 0x00B6:	return KBDMAP_INDEX_PREV_TRACK;
+			case 0x00B6:	return KBDMAP_INDEX_PREVIOUS_TRACK;
 			case 0x00B7:	return KBDMAP_INDEX_STOP_PLAYING;
 			case 0x00B8:	return KBDMAP_INDEX_EJECT;
 			case 0x00B9:	break;	// return KBDMAP_INDEX_RANDOM_PLAY;
@@ -224,7 +225,8 @@ usb_ident_to_keymap_index (
 			case 0x00CC:	break;	// return KBDMAP_INDEX_STOP_EJECT;
 			case 0x00CD:	return KBDMAP_INDEX_PLAY_PAUSE;
 			case 0x00CE:	break;	// return KBDMAP_INDEX_PLAY_SKIP;
-			case 0x00E2:	break;	// return KBDMAP_INDEX_MUTE_PLAYER;
+		// Audio controls:
+			case 0x00E2:	return KBDMAP_INDEX_MUTE;
 			case 0x00E5:	break;	// return KBDMAP_INDEX_BASS_BOOST;
 			case 0x00E7:	break;	// return KBDMAP_INDEX_LOUDNESS;
 			case 0x00E9:	return KBDMAP_INDEX_VOLUME_UP;
@@ -235,9 +237,11 @@ usb_ident_to_keymap_index (
 			case 0x0153:	break;	// return KBDMAP_INDEX_BASS_DOWN;
 			case 0x0154:	break;	// return KBDMAP_INDEX_TREBLE_UP;
 			case 0x0155:	break;	// return KBDMAP_INDEX_TREBLE_DOWN;
-			case 0x0184:	break;	// return KBDMAP_INDEX_WORDPROCESSOR;
+		// Application launch:
+			case 0x0183:	break;	// return KBDMAP_INDEX_CONTROL_CONFIGURATION;
+			case 0x0184:	return KBDMAP_INDEX_WORDPROCESSOR;
 			case 0x0185:	break;	// return KBDMAP_INDEX_TEXT_EDITOR;
-			case 0x0186:	break;	// return KBDMAP_INDEX_SPREADSHEET;
+			case 0x0186:	return KBDMAP_INDEX_SPREADSHEET;
 			case 0x0187:	break;	// return KBDMAP_INDEX_GRAPHICS_EDITOR;
 			case 0x0188:	break;	// return KBDMAP_INDEX_PRESENTATION_APP;
 			case 0x0189:	break;	// return KBDMAP_INDEX_DATABASE;
@@ -245,34 +249,37 @@ usb_ident_to_keymap_index (
 			case 0x018B:	break;	// return KBDMAP_INDEX_NEWS;
 			case 0x018C:	break;	// return KBDMAP_INDEX_VOICEMAIL;
 			case 0x018D:	break;	// return KBDMAP_INDEX_ADDRESS_BOOK;
-			case 0x018E:	break;	// return KBDMAP_INDEX_CALENDAR;
+			case 0x018E:	return KBDMAP_INDEX_CALENDAR;
 			case 0x018F:	break;	// return KBDMAP_INDEX_PROJECT_MANAGER;
 			case 0x0190:	break;	// return KBDMAP_INDEX_TIMECARD;
-			case 0x0191:	break;	// return KBDMAP_INDEX_CHECKBOOK;
+			case 0x0191:	break;	// return KBDMAP_INDEX_CHEQUEBOOK;
 			case 0x0192:	return KBDMAP_INDEX_CALCULATOR;
-			case 0x0194:	return KBDMAP_INDEX_COMPUTER;
+			case 0x0194:	return KBDMAP_INDEX_MY_COMPUTER;
 			case 0x0195:	break;	// return KBDMAP_INDEX_NETWORK;
-			case 0x0196:	return KBDMAP_INDEX_WWW;
+			case 0x0196:	return KBDMAP_INDEX_WWW_BROWSER;
 			case 0x0198:	break;	// return KBDMAP_INDEX_CONFERENCE;
 			case 0x0199:	break;	// return KBDMAP_INDEX_CHAT;
 			case 0x019A:	break;	// return KBDMAP_INDEX_DIALLER;
 			case 0x019B:	break;	// return KBDMAP_INDEX_LOGON;
-			case 0x019C:	break;	// return KBDMAP_INDEX_LOGOFF;
+			case 0x019C:	return KBDMAP_INDEX_LOGOFF;
 			case 0x019E:	return KBDMAP_INDEX_LOCK;
 			case 0x019F:	break;	// return KBDMAP_INDEX_CONTROL_PANEL;
 			case 0x01A0:	return KBDMAP_INDEX_CLI;
-			case 0x01A1:	break;	// return KBDMAP_INDEX_TASK_MANAGER;
-			case 0x01A2:	break;	// return KBDMAP_INDEX_SELECT_TASK;
-			case 0x01A3:	break;	// return KBDMAP_INDEX_NEXT_TASK;
-			case 0x01A4:	break;	// return KBDMAP_INDEX_PREVIOUS_TASK;
-			case 0x01A5:	break;	// return KBDMAP_INDEX_HALT_TASK;
+			case 0x01A1:	return KBDMAP_INDEX_TASK_MANAGER;
+			case 0x01A2:	return KBDMAP_INDEX_SELECT_TASK;
+			case 0x01A3:	return KBDMAP_INDEX_NEXT_TASK;
+			case 0x01A4:	return KBDMAP_INDEX_PREVIOUS_TASK;
+			case 0x01A5:	return KBDMAP_INDEX_HALT_TASK;
 			case 0x01A6:	break;	// return KBDMAP_INDEX_HELP_CENTRE;
 			case 0x01A7:	break;	// return KBDMAP_INDEX_DOCUMENTS;
 			case 0x01AA:	break;	// return KBDMAP_INDEX_DESKTOP;
+			case 0x01AB:	return KBDMAP_INDEX_SPELL;
 			case 0x01B3:	break;	// return KBDMAP_INDEX_CLOCK;
 			case 0x01B4:	return KBDMAP_INDEX_FILE_MANAGER;
-			case 0x01BC:	break;	// return KBDMAP_INDEX_INSTANT_MESSAGING;
+			case 0x01BC:	return KBDMAP_INDEX_INSTANT_MESSAGING;
 			case 0x01C1:	break;	// return KBDMAP_INDEX_WWW_SHOPPING;
+			case 0x01C7:	return KBDMAP_INDEX_MEDIA_PLAYER;
+		// Generic GUI application controls:
 			case 0x0201:	return KBDMAP_INDEX_NEW;
 			case 0x0202:	return KBDMAP_INDEX_OPEN;
 			case 0x0203:	break;	// return KBDMAP_INDEX_CLOSE;
@@ -289,19 +296,23 @@ usb_ident_to_keymap_index (
 			case 0x021E:	break;	// return KBDMAP_INDEX_SELECT_ALL;
 			case 0x021F:	return KBDMAP_INDEX_FIND;
 			case 0x0220:	break;	// return KBDMAP_INDEX_FIND_AND_REPLACE;
-			case 0x0221:	break;	// return KBDMAP_INDEX_SEARCH;
-			case 0x0223:	return KBDMAP_INDEX_HOME;
-			case 0x0224:	return KBDMAP_INDEX_BACK;
-			case 0x0225:	return KBDMAP_INDEX_FORWARD;
-			case 0x0226:	break;	// return KBDMAP_INDEX_STOP_LOADING;
+			case 0x0221:	return KBDMAP_INDEX_SEARCH;
+			case 0x0223:	return KBDMAP_INDEX_HOME_PAGE;
+			case 0x0224:	return KBDMAP_INDEX_APP_BACK;
+			case 0x0225:	return KBDMAP_INDEX_APP_FORWARD;
+			case 0x0226:	return KBDMAP_INDEX_STOP_LOADING;
 			case 0x0227:	return KBDMAP_INDEX_REFRESH;
 			case 0x0228:	break;	// return KBDMAP_INDEX_PREVIOUS_LINK;
 			case 0x0229:	break;	// return KBDMAP_INDEX_NEXT_LINK;
 			case 0x022A:	return KBDMAP_INDEX_BOOKMARKS;
 			case 0x022B:	break;	// return KBDMAP_INDEX_HISTORY;
-		} 
+			case 0x0236:	return KBDMAP_INDEX_APP_LEFT;
+			case 0x0237:	return KBDMAP_INDEX_APP_RIGHT;
+		}
 	else
-		/* This is not a system, keyboard, or consumer key. */ ;
+	{
+		/* This is not a system, keyboard, or consumer key. */
+	}
 
 	return 0xFFFF;
 }

@@ -1,19 +1,20 @@
-<title>Troubleshooting</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Troubleshooting</title>
+<h1 class="Ruled">
 Troubleshooting
 </h1>
 
-<h2 style="border-bottom: 1px solid grey">
+<h2 class="Ruled">
 A service is continually switching between the "running" and "failed" states, and shows an uptime of 0 seconds (or 1 second).
 </h2>
 
 <p>
-<a href="http://jdebp.eu./FGA/daemontools-service-not-staying-up.html">
+<a href="https://jdebp.uk/FGA/daemontools-service-not-staying-up.html">
 This service is failing to start properly; investigate its log and check its run script.</a>
 </p>
 
-<h2 style="border-bottom: 1px solid grey">
+<h2 class="Ruled">
 A service is stuck in the "starting", "failed", or "stopping" states.
 </h2>
 
@@ -29,7 +30,7 @@ The "fsck@" service <code>fsck</code>s a volume in its "starting" state, for exa
 These long-running initialization actions are <em>not</em> necessarily stuck just because they take a long time.
 </p>
 
-<h2 style="border-bottom: 1px solid grey">
+<h2 class="Ruled">
 The system bootstrap never fully completes.
 </h2>
 
@@ -53,17 +54,17 @@ Start the system in rescue mode, then bring up the "normal" target interactively
 Watch for things that are "BLOCKED" and note how far through the boot process <code>system-control</code> gets.
 </p>
 
-<h3 style="border-bottom: 1px dotted grey">
+<h3 class="Ruled">
 <code>system-control</code> experiences a conflict
 </h3>
 
 <p>
-The most common conflict is one between kernel virtual terminals and user-mode virtual terminals &mdash; the <code>ttylogin@ttyv1</code> service conflicting with the <code>console-fb-realizer@head0</code> service.
+The most common conflict is one between kernel virtual terminals and user-mode virtual terminals &mdash; the <code>ttylogin@ttyv1</code> service conflicting with the <code>console-kvt-realizer@ttyv1</code> service.
 This is hard, but not impossible, to cause.
 Simply disable the one or the other service.
 </p>
 
-<h3 style="border-bottom: 1px dotted grey">
+<h3 class="Ruled">
 Volumes are not mounted, and services needing those volumes to be mounted cannot start
 </h3>
 
@@ -80,7 +81,7 @@ You must enable these services.
 This can be done explicitly, or by <a href="external-formats.html">the autoconfiguration system of <code>redo</code> scripts</a>, which will create and enable mount services based upon the contents of <code>/etc/fstab</code>.
 </p>
 
-<h3 style="border-bottom: 1px dotted grey">
+<h3 class="Ruled">
 Services remain blocked
 </h3>
 
@@ -93,7 +94,7 @@ Look at service B's own logs, and the output of
 </p>
 <blockquote><pre>system-control status B</pre></blockquote>
 
-<h3 style="border-bottom: 1px dotted grey">
+<h3 class="Ruled">
 The service manager reports errors when attempting to load a service
 </h3>
 
@@ -107,7 +108,7 @@ Notice that "sysinit" services <a href="startup-and-shutdown.html#sysinit">locat
 The point where they are loaded by the service manager is well before the point that the <code>/var</code> or <code>/</code> volumes are mounted read-write.
 </p>
 
-<h3 style="border-bottom: 1px dotted grey">
+<h3 class="Ruled">
 <code>fsck</code> ran and then nothing else started
 </h3>
 
@@ -124,7 +125,7 @@ And this is the remedial action to take here, in fact.
 Simply reboot the system after all <code>fsck</code>s have successfully run, and the <code>monitor-fsck-progress</code> service has removed its user interface.
 </p>
 
-<h2 style="border-bottom: 1px solid grey">
+<h2 class="Ruled">
 An <code>/etc/fstab</code> entry is ignored.
 </h2>
 
@@ -145,7 +146,30 @@ The BSDs explicitly require, as stated in their <code>/etc/fstab</code> manuals,
 The same requirement actually exists in the GNU C library, but its manual does not mention this and some custom parsers deviate from the behaviour of the GNU C library and thereby make it erroneously appear that this is not necessary.
 </p>
 
-<h2 style="border-bottom: 1px solid grey">
+<h2 class="Ruled">
+Stuck modifier keys or mouse buttons in a user-space virtual terminal
+</h2>
+
+<p>
+The currently pressed set of modifier keys is shared amongst HID realizers (both keyboard and mouce) according to the <a href="user-virtual-terminal-configuration.html">user-space virtual terminal configuration</a> that has been set up.
+Normally, realizers clear out their device's individual contributions to the overall aggregate keyboard state when they terminate.
+But if a realizer is forcefully terminated, or ABENDs, this will not happen.
+</p>
+
+<p>
+Resetting keyboard modifier state is a simple matter of zeroing out the state file, however.
+Any modifiers currently physically pressed at that moment will appear released.
+But normal function will resume as soon as the human being stops holding down the keys.
+The counts of keyboards currently pressing a key are not permitted to go negative.
+A key release when the count is zero will just be ignored, and will not underflow.
+</p>
+
+<p>
+This can be done quite effectively with the simple <code>truncate</code> command:
+</p>
+<blockquote><tt>truncate -c -s 0 keyboards-aggregate/${FILENAME} mice/aggregate/${FILENAME}</tt></blockquote>
+
+<h2 class="Ruled">
 GNOME Terminal refuses to start.
 </h2>
 
@@ -199,7 +223,7 @@ You can usually see which ones GNOME Terminal server is attempting to auto-start
 </ul>
 
 <!--
-<h2 style="border-bottom: 1px solid grey">
+<h2 class="Ruled">
 One cannot halt, reboot, or power off in emergency mode
 </h2>
 

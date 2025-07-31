@@ -33,26 +33,23 @@ bool per_user_mode(false);
 // **************************************************************************
 */
 
-static 
-const char * const 
-target_bundle_prefixes[6] = {
-	"/run/service-bundles/targets/", 
-	"/usr/local/etc/service-bundles/targets/", 
-	"/etc/service-bundles/targets/", 
-	"/usr/local/share/service-bundles/targets/", 
-	"/usr/share/service-bundles/targets/", 
+static
+const char * const
+target_bundle_prefixes[] = {
+	"/usr/local/etc/service-bundles/targets/",
+	"/etc/service-bundles/targets/",
+	"/var/local/service-bundles/targets/",
+	"/run/service-bundles/targets/",
 	"/var/service-bundles/targets/"
 }, * const
-service_bundle_prefixes[11] = {
-	"/run/service-bundles/services/", 
-	"/usr/local/etc/service-bundles/services/", 
-	"/etc/service-bundles/services/", 
-	"/usr/local/share/service-bundles/services/", 
-	"/var/local/service-bundles/services/", 
-	"/var/local/sv/",
-	"/usr/share/service-bundles/services/", 
-	"/var/service-bundles/services/", 
-	"/var/sv/",
+service_bundle_prefixes[] = {
+	"/usr/local/etc/service-bundles/services/",
+	"/etc/service-bundles/services/",
+	"/var/local/service-bundles/services/",
+	"/var/local/sv/",	// old toolkit compatibility
+	"/run/service-bundles/services/",
+	"/var/service-bundles/services/",
+	"/var/sv/",	// old toolkit compatibility
 	"/var/svc.d/",	// Wayne Marshall compatibility
 	"/service/"	// Daniel J. Bernstein compatibility
 };
@@ -112,8 +109,8 @@ open_bundle_directory (
 			suffix = ".service";
 			const std::string
 			user_service_bundle_prefixes[2] = {
-				r + "/service-bundles/services/", 
-				h + "/.config/service-bundles/services/", 
+				r + "/service-bundles/services/",
+				h + "/.config/service-bundles/services/",
 			};
 			for ( const std::string * q(user_service_bundle_prefixes); q < user_service_bundle_prefixes + sizeof user_service_bundle_prefixes/sizeof *user_service_bundle_prefixes; ++q) {
 				path = *q;
@@ -151,10 +148,10 @@ open_bundle_directory (
 */
 
 void
-system_control ( 
+system_control (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -173,7 +170,7 @@ system_control (
 			&no_legend_option,
 			&no_pager_option
 		};
-		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", 
+		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options",
 				"{"
 				"halt|reboot|poweroff|powercycle|"
 				"emergency|rescue|normal|init|sysinit|"
@@ -181,7 +178,7 @@ system_control (
 				"try-restart|hangup|"
 				"is-active|is-loaded|is-enabled|"
 				"cat|show|status|show-json|"
-				"set-service-env|print-service-env|"
+				"set-service-env|print-service-env|print-service-scripts|"
 				"convert-systemd-units|convert-fstab-services|"
 				"nagios-check-service|load-kernel-module|unload-kernel-module|"
 				"is-service-manager-client|"
@@ -191,19 +188,17 @@ system_control (
 		);
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command name");
 	}
 
 	// Effectively, all subcommands are implemented by chaining to builtins of the same name.

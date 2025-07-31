@@ -1,14 +1,11 @@
 #
 # Enable user virtual terminal login services
-# Only used on Linux, where there is usually no /etc/ttys to supply this information.
+# Only used on Linux, as ttylogin-starter does not function outwith Linux.
 #
 # This is not a systemd preset.
 # It goes in a special nosh system-manager preset directory.
-# It is used by the nosh-run-user-vt package in order to enable TTY login services on user-space virtual terminals.
+# It is used by the nosh-run-user-vt package in order to enable the on-demand starter for TTY login services.
 #
-
-enable	ttylogin@vc*-tty.service
-enable	cyclog@ttylogin@vc*-tty.service
 
 disable	ttylogin-starter.service
 disable	cyclog@ttylogin-starter.service

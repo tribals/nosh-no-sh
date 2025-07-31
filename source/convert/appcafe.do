@@ -34,9 +34,13 @@ set_if_unset appcafe-ssl-keygen root /usr/local/share/appcafe
 # This is not needed any more, and is for backwards compatibility with the older service bundle.
 system-control set-service-env appcafe-nginx conf "nginx.conf"
 
+# appcafe services are never preset, for security reasons.
+# The syscache-daemon pulls from a hijackable GitHub account; and appcafe relies upon syscache-daemon.
+# See the full security announcement made on 2023-04-15 for details.
+
 for target in appcafe
 do
-	system-control preset -- "${target}".target
+	system-control disable -- "${target}".target
 done
 
 for target in appcafe
@@ -52,11 +56,12 @@ done
 
 for service in appcafe-dispatcher appcafe-nginx appcafe-php-fpm appcafe-ssl-keygen
 do
-	system-control preset ${service}.service
-	system-control preset --prefix "cyclog@" ${service}.service
+	system-control disable -- ${service}.service
+	#system-control preset --prefix "cyclog@" ${service}.service
+	system-control disable -- 'cyclog@'${service}.service
 done
 
-if ! fgrep -q "ssl on;" "appcafe-nginx.conf"
+if ! grep -F -q "ssl on;" "appcafe-nginx.conf"
 then
 	system-control disable appcafe-ssl-keygen
 fi

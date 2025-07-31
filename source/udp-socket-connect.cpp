@@ -41,15 +41,15 @@ q (
 */
 
 void
-udp_socket_connect ( 
+udp_socket_connect (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	const char * localhost(0);
-	const char * localaddress(0);
-	const char * localport(0);
+	const char * localhost(nullptr);
+	const char * localaddress(nullptr);
+	const char * localport(nullptr);
 	bool verbose(false);
 	bool numeric_host(false);
 	bool numeric_service(false);
@@ -83,35 +83,29 @@ udp_socket_connect (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{host} {port} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing connect host name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "connect host name");
 	}
 	const char * connecthost(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing connect port number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "connect port number");
 	}
 	const char * connectport(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 	next_prog = arg0_of(args);
 
-	addrinfo * remote_info_list(0), remote_hints = {0,0,0,0,0,0,0,0};
+	addrinfo * remote_info_list(nullptr), remote_hints = {};
 	remote_hints.ai_family = AF_UNSPEC;
 	remote_hints.ai_socktype = SOCK_DGRAM;
 	remote_hints.ai_protocol = 0;
@@ -144,7 +138,7 @@ udp_socket_connect (
 		}
 
 		if (localaddress || localport) {
-			addrinfo * local_info(0), local_hints = {0,0,0,0,0,0,0,0};
+			addrinfo * local_info(nullptr), local_hints = {};
 			local_hints.ai_family = remote_info->ai_family;
 			local_hints.ai_socktype = remote_info->ai_socktype;
 			local_hints.ai_protocol = remote_info->ai_protocol;
@@ -164,7 +158,7 @@ udp_socket_connect (
 		if (!no_kill_IP_options) {
 			switch (remote_info->ai_family) {
 				case AF_INET:
-					if (0 > setsockopt(s, IPPROTO_IP, IP_OPTIONS, 0, 0)) goto exit_error ;
+					if (0 > setsockopt(s, IPPROTO_IP, IP_OPTIONS, nullptr, 0)) goto exit_error ;
 					break;
 				default:
 					break;
@@ -189,7 +183,7 @@ udp_socket_connect (
 			{
 				const struct sockaddr_in & localaddr4(*reinterpret_cast<const struct sockaddr_in *>(&localaddr));
 				char port[64], ip[INET_ADDRSTRLEN];
-				if (0 == inet_ntop(localaddr4.sin_family, &localaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(localaddr4.sin_family, &localaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(localaddr4.sin_port));
 				envs.set("UDPLOCALIP", ip);
 				envs.set("UDPLOCALPORT", port);
@@ -199,15 +193,15 @@ udp_socket_connect (
 			{
 				const struct sockaddr_in6 & localaddr6(*reinterpret_cast<const struct sockaddr_in6 *>(&localaddr));
 				char port[64], ip[INET6_ADDRSTRLEN];
-				if (0 == inet_ntop(localaddr6.sin6_family, &localaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(localaddr6.sin6_family, &localaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(localaddr6.sin6_port));
 				envs.set("UDPLOCALIP", ip);
 				envs.set("UDPLOCALPORT", port);
 				break;
 			}
 			default:
-				envs.set("UDPLOCALIP", 0);
-				envs.set("UDPLOCALPORT", 0);
+				envs.set("UDPLOCALIP", nullptr);
+				envs.set("UDPLOCALPORT", nullptr);
 				break;
 		}
 		switch (remote_info->ai_family) {
@@ -215,7 +209,7 @@ udp_socket_connect (
 			{
 				const struct sockaddr_in & remoteaddr4(*reinterpret_cast<const struct sockaddr_in *>(remote_info->ai_addr));
 				char port[64], ip[INET_ADDRSTRLEN];
-				if (0 == inet_ntop(remoteaddr4.sin_family, &remoteaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(remoteaddr4.sin_family, &remoteaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(remoteaddr4.sin_port));
 				envs.set("UDPREMOTEIP", ip);
 				envs.set("UDPREMOTEPORT", port);
@@ -225,21 +219,21 @@ udp_socket_connect (
 			{
 				const struct sockaddr_in6 & remoteaddr6(*reinterpret_cast<const struct sockaddr_in6 *>(remote_info->ai_addr));
 				char port[64], ip[INET6_ADDRSTRLEN];
-				if (0 == inet_ntop(remoteaddr6.sin6_family, &remoteaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(remoteaddr6.sin6_family, &remoteaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(remoteaddr6.sin6_port));
 				envs.set("UDPREMOTEIP", ip);
 				envs.set("UDPREMOTEPORT", port);
 				break;
 			}
 			default:
-				envs.set("UDPREMOTEIP", 0);
-				envs.set("UDPREMOTEPORT", 0);
+				envs.set("UDPREMOTEIP", nullptr);
+				envs.set("UDPREMOTEPORT", nullptr);
 				break;
 		}
 		envs.set("UDPLOCALHOST", localhost);
-		envs.set("UDPLOCALINFO", 0);
-		envs.set("UDPREMOTEHOST", 0);
-		envs.set("UDPREMOTEINFO", 0);
+		envs.set("UDPLOCALINFO", nullptr);
+		envs.set("UDPREMOTEHOST", nullptr);
+		envs.set("UDPREMOTEINFO", nullptr);
 
 		if (verbose)
 			std::fprintf(stderr, "%s: %u %s %s %s %s\n", prog, getpid(), q(envs, "UDPLOCALIP"), q(envs, "UDPLOCALPORT"), q(envs, "UDPREMOTEIP"), q(envs, "UDPREMOTEPORT"));

@@ -1,1 +1,4 @@
-UCSPI-TCP shim service utilities
+ This package provides shims for UCSPI-TCP service commands.
+  * tcpserver, recordio
+ .
+ The shims simply invoke native service management commands.

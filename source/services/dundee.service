@@ -7,6 +7,7 @@ Description=Bluetooth DUN
 
 [Service]
 Type=dbus
+BusName=org.ofono.%p
 RuntimeDirectory=%p
 ExecStart=%p --nodetach
 

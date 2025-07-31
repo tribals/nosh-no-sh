@@ -7,6 +7,7 @@ Description=Combined logger for uhidd@ services
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog uhidd/
 RestartSec=1

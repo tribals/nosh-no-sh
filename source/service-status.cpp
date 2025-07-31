@@ -32,7 +32,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 struct tm
 convert(
 	const ProcessEnvironment & envs,
@@ -45,13 +47,17 @@ convert(
 	return tm;
 }
 
+}
+
 /* Pretty coloured output ***************************************************
 // **************************************************************************
 */
 
+namespace {
+
 enum { COLOUR_DEFAULT = -1 };
 
-static inline
+inline
 int
 colour_of_state (
 	bool ready_after_run,
@@ -78,25 +84,7 @@ colour_of_state (
 	}
 }
 
-static inline
-void
-set_italics (
-	ECMA48Output & o,
-	bool v
-) {
-	o.SGRAttribute(v ? 3U : 23U);
-}
-
-static inline
-void
-set_underline (
-	ECMA48Output & o,
-	bool v
-) {
-	o.SGRAttribute(v ? 4U : 24U);
-}
-
-static inline
+inline
 void
 set_exception_colour (
 	ECMA48Output & o
@@ -104,7 +92,7 @@ set_exception_colour (
 	o.SGRColour(true, Map256Colour(COLOUR_BLUE));
 }
 
-static inline
+inline
 void
 set_colour_of_state (
 	ECMA48Output & o,
@@ -120,7 +108,7 @@ set_colour_of_state (
 		o.SGRColour(true, Map256Colour(colour));
 }
 
-static inline
+inline
 void
 set_config_colour (
 	ECMA48Output & o
@@ -128,7 +116,7 @@ set_config_colour (
 	o.SGRColour(true, Map256Colour(COLOUR_CYAN));
 }
 
-static inline
+inline
 void
 reset_colour (
 	ECMA48Output & o
@@ -136,7 +124,7 @@ reset_colour (
 	o.SGRColour(true);
 }
 
-static inline
+inline
 const char *
 state_of (
 	bool ready_after_run,
@@ -145,14 +133,14 @@ state_of (
 	char c
 ) {
 	switch (c) {
-		case encore_status_stopped:	
+		case encore_status_stopped:
 			if (ready_after_run)
 				return exited_run ? "done" : "stopped";
 			else
 				return "stopped";
 		case encore_status_starting:	return "starting";
 		case encore_status_started:	return "started";
-		case encore_status_running:	
+		case encore_status_running:
 			if (ready_after_run)
 				return main_pid ? "started" : "ready";
 			else
@@ -163,7 +151,6 @@ state_of (
 	}
 }
 
-static
 const char * const
 status_event[4] = {
 	"Started",
@@ -172,7 +159,7 @@ status_event[4] = {
 	"Stopped",
 };
 
-static inline
+inline
 void
 write_timestamp (
 	const ProcessEnvironment & envs,
@@ -186,9 +173,9 @@ write_timestamp (
 	const struct tm t(convert(envs, s));
 	const size_t len(std::strftime(buf, sizeof buf, "%F %T %z", &t));
 	std::fprintf(stdout, " %s ", preposition);
-	if (attributes) set_underline(o, true);
+	if (attributes) o.set_underline(true);
 	std::fwrite(buf, len, 1U, stdout);
-	if (attributes) set_underline(o, false);
+	if (attributes) o.set_underline(false);
 	std::fputc(';', stdout);
 	uint64_t secs(z - s);
 	uint64_t mins(secs / 60U);
@@ -206,7 +193,7 @@ write_timestamp (
 	std::fprintf(stdout, " %" PRIu64 "s ago", secs);
 }
 
-static inline
+inline
 void
 display (
 	const ProcessEnvironment & envs,
@@ -262,7 +249,7 @@ display (
 		reset_colour(o);
 		if (p && !long_form)
 			std::fprintf(stdout, " (pid %u)", p);
-		if (z >= s) 
+		if (z >= s)
 			write_timestamp(envs, o, attributes, "since", z, s);
 		const char * const paused(status[PAUSE_FLAG_OFFSET] ? "paused" : "");
 		const char * const want('u' == want_flag ? "want up" : 'O' == want_flag ? "once at most" : 'o' == want_flag ? "once" : 'd' == want_flag ? "want down" : "");
@@ -323,7 +310,9 @@ display (
 }
 
 // Used to preserve this argument when we return with new arguments.
-static std::string current;
+std::string current;
+
+}
 
 /* Main function ************************************************************
 // **************************************************************************
@@ -337,7 +326,7 @@ service_status (
 ) {
 	const char * prog(basename_of(args[0]));
 	TerminalCapabilities caps(envs);
-	ECMA48Output o(caps, stdout, true /* C1 is 7-bit aliased */);
+	ECMA48Output o(caps, stdout, true /* C1 is 7-bit aliased */, false /* C1 is not raw 8-bit */);
 
 	bool long_form(0 != std::strcmp(prog, "svstat"));
 	bool colours(isatty(STDOUT_FILENO));
@@ -354,18 +343,16 @@ service_status (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{directories...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing directory name(s).");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "directory name(s)");
 	}
 
 	if (!colours)
@@ -383,9 +370,9 @@ service_status (
 		if (0 > bundle_dir_fd.get()) {
 			const int error(errno);
 			std::fprintf(stdout, "%s: ", name);
-			if (colours) set_italics(o, true);
+			if (colours) o.set_italics(true);
 			std::fprintf(stdout, "%s", std::strerror(error));
-			if (colours) set_italics(o, false);
+			if (colours) o.set_italics(false);
 			std::fputc('\n', stdout);
 			continue;
 		}
@@ -394,9 +381,9 @@ service_status (
 		if (0 > supervise_dir_fd.get()) {
 			const int error(errno);
 			std::fprintf(stdout, "%s: %s: ", name, "supervise");
-			if (colours) set_italics(o, true);
+			if (colours) o.set_italics(true);
 			std::fprintf(stdout, "%s", std::strerror(error));
-			if (colours) set_italics(o, false);
+			if (colours) o.set_italics(false);
 			std::fputc('\n', stdout);
 			continue;
 		}
@@ -415,9 +402,9 @@ service_status (
 			const int error(errno);
 			if (ENXIO != error) {
 				std::fprintf(stdout, "%s: %s: ", name, "supervise/ok");
-				if (colours) set_italics(o, true);
+				if (colours) o.set_italics(true);
 				std::fprintf(stdout, "%s", std::strerror(error));
-				if (colours) set_italics(o, false);
+				if (colours) o.set_italics(false);
 				std::fputc('\n', stdout);
 				continue;
 			}
@@ -427,9 +414,9 @@ service_status (
 			if (0 > status_fd.get()) {
 				const int error(errno);
 				std::fprintf(stdout, "%s: %s: ", name, "status");
-				if (colours) set_italics(o, true);
+				if (colours) o.set_italics(true);
 				std::fprintf(stdout, "%s", std::strerror(error));
-				if (colours) set_italics(o, false);
+				if (colours) o.set_italics(false);
 				std::fputc('\n', stdout);
 				display(envs, name, o, colours, long_form, true, initially_up, run_on_empty, ready_after_run, use_hangup, use_kill, z, 0U, status);
 			} else {
@@ -447,25 +434,22 @@ service_status (
 				// We are going to clean up the grandchild(ren) so that our parent does not get stuck with zombies.
 				subreaper(true);
 
-				const int child(fork());
+				const pid_t child(fork());
 				if (0 > child) {
-					const int error(errno);
-					std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "fork", std::strerror(error));
-					throw EXIT_FAILURE;
+					die_errno(prog, envs, "fork");
 				}
 				if (0 == child) {
 					// We could do some of this in code, but this is simpler and more maintainable, given that we have the builtins.
 					current = name + std::string("/log/main/current");
 					args.clear();
-					args.insert(args.end(), "pipe");
-					args.insert(args.end(), "--inwards");
-					args.insert(args.end(), "tail");
-					args.insert(args.end(), "-n");
-					args.insert(args.end(), log_lines);
-					args.insert(args.end(), current.c_str());
-					args.insert(args.end(), "|");
-					args.insert(args.end(), "tai64nlocal");
-					args.insert(args.end(), 0);
+					args.push_back("pipe");
+					args.push_back("--inwards");
+					args.push_back("tail");
+					args.push_back("-n");
+					args.push_back(log_lines);
+					args.push_back(current.c_str());
+					args.push_back("|");
+					args.push_back("tai64nlocal");
 					next_prog = arg0_of(args);
 					return;
 				}

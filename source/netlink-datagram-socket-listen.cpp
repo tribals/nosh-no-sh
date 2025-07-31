@@ -41,14 +41,14 @@ struct Protocol {
 	{ "selinux",		NETLINK_SELINUX		},
 	{ "iscsi",		NETLINK_ISCSI		},
 	{ "audit",		NETLINK_AUDIT		},
-	{ "fib-lookup",		NETLINK_FIB_LOOKUP	},	
+	{ "fib-lookup",		NETLINK_FIB_LOOKUP	},
 	{ "connector",		NETLINK_CONNECTOR	},
 	{ "netfilter",		NETLINK_NETFILTER	},
 	{ "ip6-fw",		NETLINK_IP6_FW		},
 	{ "dnrtmsg",		NETLINK_DNRTMSG		},
 	{ "kobject-uevent",	NETLINK_KOBJECT_UEVENT	},
 	{ "generic",		NETLINK_GENERIC		},
-	{ "scsitransport",	NETLINK_SCSITRANSPORT	},	
+	{ "scsitransport",	NETLINK_SCSITRANSPORT	},
 	{ "ecryptfs",		NETLINK_ECRYPTFS	},
 	{ "rdma",		NETLINK_RDMA		},
 	{ "crypto",		NETLINK_CRYPTO		},
@@ -72,7 +72,11 @@ lookup_netlink_protocol (
 */
 
 void
-netlink_datagram_socket_listen ( 
+netlink_datagram_socket_listen
+#if !defined(__LINUX__) && !defined(__linux__)
+[[gnu::noreturn]]
+#endif
+(
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -99,26 +103,23 @@ netlink_datagram_socket_listen (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{protocol} {group} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 		has_rcvbuf = receive_buffer_size_option.is_set();
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing protocol name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "protocol name");
 	}
 	const char * protocol(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing group number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "group number");
 	}
 	const char * group(args.front());
 	args.erase(args.begin());
@@ -126,10 +127,8 @@ netlink_datagram_socket_listen (
 
 	const char * end(group);
 	const long groups(std::strtol(group, const_cast<char **>(&end), 0));
-	if (end == group || *end) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, group, "Bad group number.");
-		throw EXIT_FAILURE;
-	}
+	if (end == group || *end)
+		die_invalid(prog, envs, group, "Bad group number.");
 
 #if defined(__LINUX__) || defined(__linux__)
 	sockaddr_nl addr;
@@ -144,12 +143,12 @@ netlink_datagram_socket_listen (
 	addr.sun_family = AF_UNSPEC;
 	errno = EAFNOSUPPORT;
 	const int s(-1);
+	static_cast<void>(protocol);	// Silence a compiler warning.
+	static_cast<void>(groups);	// Silence a compiler warning.
 #endif
 	if (0 > s) {
 exit_error:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, prog);
 	}
 	if (0 > bind(s, reinterpret_cast<sockaddr *>(&addr), sizeof addr)) goto exit_error;
 #if defined(SO_PASSCRED)
@@ -172,7 +171,7 @@ exit_error:
 		&&  0 > setsockopt(s, SOL_SOCKET, SO_RCVBUFFORCE, &size, sizeof size)
 #endif
 		&&  0 > setsockopt(s, SOL_SOCKET, SO_RCVBUF, &size, sizeof size)
-		) 
+		)
 			goto exit_error;
 	}
 #endif

@@ -1,1 +1,2 @@
-Service managament utilities that require a TUI or a GUI.
+ This package provides extra tools for use with service management, including:
+  * chkservice

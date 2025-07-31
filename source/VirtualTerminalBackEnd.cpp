@@ -13,8 +13,28 @@ For copyright and licensing terms, see the file named COPYING.
 #include "VirtualTerminalBackEnd.h"
 
 VirtualTerminalBackEnd::VirtualTerminalBackEnd(
-	const char * dirname, 
-	FILE * b, 
+) :
+	dir_name(nullptr),
+	buffer_file(nullptr),
+	input_fd(-1),
+	message_pending(0U),
+	polling_for_write(false),
+	reload_needed(true),
+	cursor(),
+	size(),
+	cursor_glyph(CursorSprite::BLOCK),
+	cursor_attributes(CursorSprite::VISIBLE),
+	pointer_attributes(0),
+	screen_flags(0),
+	cells()
+{
+	if (buffer_file)
+		std::setvbuf(buffer_file, display_stdio_buffer, _IOFBF, sizeof display_stdio_buffer);
+}
+
+VirtualTerminalBackEnd::VirtualTerminalBackEnd(
+	const char * dirname,
+	FILE * b,
 	int d
 ) :
 	dir_name(dirname),
@@ -23,87 +43,92 @@ VirtualTerminalBackEnd::VirtualTerminalBackEnd(
 	message_pending(0U),
 	polling_for_write(false),
 	reload_needed(true),
-	cursor_y(0U),
-	cursor_x(0U),
-	visible_y(0U),
-	visible_x(0U),
-	visible_h(0U),
-	visible_w(0U),
-	h(0U),
-	w(0U),
+	cursor(),
+	size(),
 	cursor_glyph(CursorSprite::BLOCK),
 	cursor_attributes(CursorSprite::VISIBLE),
 	pointer_attributes(0),
+	screen_flags(0),
 	cells()
 {
-	std::setvbuf(buffer_file, display_stdio_buffer, _IOFBF, sizeof display_stdio_buffer);
+	if (buffer_file)
+		std::setvbuf(buffer_file, display_stdio_buffer, _IOFBF, sizeof display_stdio_buffer);
 }
 
 VirtualTerminalBackEnd::~VirtualTerminalBackEnd()
 {
 }
 
-void 
-VirtualTerminalBackEnd::move_cursor(
-	coordinate y, 
-	coordinate x
-) { 
-	if (y >= h) y = h - 1;
-	if (x >= w) x = w - 1;
-	cursor_y = y; 
-	cursor_x = x; 
+void
+VirtualTerminalBackEnd::set_buffer_file(FILE * f)
+{
+	if (f == buffer_file) return;
+	reload_needed = true;
+	buffer_file = f;
+	if (buffer_file)
+		std::setvbuf(buffer_file, display_stdio_buffer, _IOFBF, sizeof display_stdio_buffer);
 }
 
-void 
+void
+VirtualTerminalBackEnd::set_input_fd(int fd)
+{
+	if (input_fd.get() == fd) return;
+	polling_for_write = false;
+	input_fd.reset(fd);
+}
+
+void
+VirtualTerminalBackEnd::move_cursor(
+	coordinate y,
+	coordinate x
+) {
+	if (y >= size.h) y = size.h - 1;
+	if (x >= size.w) x = size.w - 1;
+	cursor.y = y;
+	cursor.x = x;
+}
+
+void
 VirtualTerminalBackEnd::resize(
-	coordinate new_h, 
+	coordinate new_h,
 	coordinate new_w
 ) {
-	if (h == new_h && w == new_w) return;
-	h = new_h;
-	w = new_w;
-	const std::size_t s(static_cast<std::size_t>(h) * w);
+	if (size.h == new_h && size.w == new_w) return;
+	size.h = new_h;
+	size.w = new_w;
+	const std::size_t s(static_cast<std::size_t>(size.h) * size.w);
 	if (cells.size() == s) return;
 	cells.resize(s);
 }
 
-inline
-void 
-VirtualTerminalBackEnd::keep_visible_area_in_buffer()
-{
-	if (visible_y + visible_h > h) visible_y = h - visible_h;
-	if (visible_x + visible_w > w) visible_x = w - visible_w;
-}
-
-inline
-void 
-VirtualTerminalBackEnd::keep_visible_area_around_cursor()
-{
+void
+VirtualTerminalBackEnd::calculate_visible_rectangle(
+	const struct wh & n,
+	struct xy & origin,
+	struct wh & margin
+) const {
+	// Restrict the maximum visible area to the size of the buffer.
+	if (n.h > size.h) { margin.h = size.h; } else { margin.h = n.h; }
+	if (n.w > size.w) { margin.w = size.w; } else { margin.w = n.w; }
+	// Keep the visible area in the buffer.
+	if (origin.y + margin.h > size.h) origin.y = size.h - margin.h;
+	if (origin.x + margin.w > size.w) origin.x = size.w - margin.w;
 	// When programs repaint the screen the cursor is instantaneously all over the place, leading to the window scrolling all over the shop.
 	// But some programs, like vim, make the cursor invisible during the repaint in order to reduce cursor flicker.
 	// We take advantage of this by only scrolling the screen to include the cursor position if the cursor is actually visible.
 	if (CursorSprite::VISIBLE & cursor_attributes) {
 		// The window includes the cursor position.
-		if (visible_y > cursor_y || visible_h < 1U) visible_y = cursor_y; else if (visible_y + visible_h <= cursor_y) visible_y = cursor_y - visible_h + 1;
-		if (visible_x > cursor_x || visible_w < 1U) visible_x = cursor_x; else if (visible_x + visible_w <= cursor_x) visible_x = cursor_x - visible_w + 1;
+		if (origin.y > cursor.y || margin.h < 1U) origin.y = cursor.y; else if (origin.y + margin.h <= cursor.y) origin.y = cursor.y - margin.h + 1;
+		if (origin.x > cursor.x || margin.w < 1U) origin.x = cursor.x; else if (origin.x + margin.w <= cursor.x) origin.x = cursor.x - margin.w + 1;
 	}
-}
-
-void 
-VirtualTerminalBackEnd::set_visible_area(
-	coordinate new_h, 
-	coordinate new_w
-) {
-	if (new_h > h) { visible_h = h; } else { visible_h = new_h; }
-	if (new_w > w) { visible_w = w; } else { visible_w = new_w; }
-	keep_visible_area_in_buffer();
-	keep_visible_area_around_cursor();
 }
 
 /// \brief Pull the display buffer from file into the memory buffer, but don't output anything.
 void
-VirtualTerminalBackEnd::reload () 
+VirtualTerminalBackEnd::reload ()
 {
+	if (!buffer_file) { reload_needed = false; return; }
+
 	// The stdio buffers may well be out of synch, so we need to reset them.
 #if defined(__LINUX__) || defined(__linux__)
 	std::fflush(buffer_file);
@@ -122,12 +147,13 @@ VirtualTerminalBackEnd::reload ()
 
 	resize(header1[1], header1[0]);
 	move_cursor(header1[3], header1[2]);
-	cursor_glyph = static_cast<CursorSprite::glyph_type>(header2[0]);
-	cursor_attributes = header2[1];
-	pointer_attributes = header2[2];
+	cursor_glyph = static_cast<CursorSprite::glyph_type>(header2[0] & 0x0F);
+	cursor_attributes = static_cast<CursorSprite::attribute_type >(header2[1] & 0x0F);
+	pointer_attributes = static_cast<PointerSprite::attribute_type >(header2[2] & 0x0F);
+	screen_flags = static_cast<ScreenFlags::flag_type>(header2[2] >> 4);
 
-	for (unsigned row(0); row < h; ++row) {
-		for (unsigned col(0); col < w; ++col) {
+	for (unsigned row(0); row < size.h; ++row) {
+		for (unsigned col(0); col < size.w; ++col) {
 			unsigned char b[CELL_LENGTH] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 			std::fread(b, sizeof b, 1U, buffer_file);
 			uint32_t wc;
@@ -143,16 +169,18 @@ VirtualTerminalBackEnd::reload ()
 	reload_needed = false;
 }
 
-void 
+void
 VirtualTerminalBackEnd::WriteInputMessage(uint32_t m)
 {
 	if (sizeof m > (sizeof message_buffer - message_pending)) return;
 	std::memmove(message_buffer + message_pending, &m, sizeof m);
 	message_pending += sizeof m;
 }
+
 void
 VirtualTerminalBackEnd::FlushMessages()
 {
+	if (0 > input_fd.get()) { message_pending = 0; return; }
 	const ssize_t l(write(input_fd.get(), message_buffer, message_pending));
 	if (l > 0) {
 		std::memmove(message_buffer, message_buffer + l, message_pending - l);

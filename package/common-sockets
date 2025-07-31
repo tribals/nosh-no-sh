@@ -9,9 +9,11 @@ epmd
 exim4-smtp-relay
 exim4-smtp-submission
 fcgiwrap
+finger6d
 ftp4d
 ftp6d
 git-daemon
+gemini6d
 gopher6d
 http6d
 https6d
@@ -25,6 +27,7 @@ local-syslogd
 local-syslog-read
 mpd
 nagios-nrpe-server
+nicname6d
 oidentd
 opal-prd
 org.cups.cups-lpd
@@ -42,6 +45,8 @@ twoftpd-anon
 udp-rsyslogd
 udp-syslogd
 udp-syslog-read
+utmps-utmpd
+utmps-wtmpd
 uuidd
 uwsgi-emperor
 vsftpd

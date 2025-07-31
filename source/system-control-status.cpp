@@ -32,9 +32,7 @@ lookup_bundle_directories (
 		std::string path, name, suffix;
 		const int rc(open_bundle_directory(envs, "", *i, path, name, suffix));
 		if (0 > rc) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, *i, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, *i);
 		}
 		r.insert(r.end(), path + name);
 		close(rc);
@@ -42,35 +40,23 @@ lookup_bundle_directories (
 	return r;
 }
 
-static inline
-std::vector<const char *>
-convert (
-	const std::vector<std::string> & args
-) {
-	std::vector<const char *> r;
-	for (std::vector<std::string>::const_iterator i(args.begin()); args.end() != i; ++i)
-		r.insert(r.end(), i->c_str());
-//	r.insert(r.end(), 0);
-	return r;
-}
-
 /* System control subcommands ***********************************************
 // **************************************************************************
 */
 
-static std::vector<std::string> args_storage;
+namespace {
 
-static
 void
-common_subcommand ( 
+common_subcommand (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	const ProcessEnvironment & envs,
 	const char * command,
-	const char * arg
+	const char * arg,
+	bool show_log_lines = false
 ) {
 	const char * prog(basename_of(args[0]));
-	const char * log_lines(0);
+	const char * log_lines(nullptr);
 	try {
 		popt::bool_definition user_option('u', "user", "Communicate with the per-user manager.", per_user_mode);
 		popt::string_definition log_lines_option('\0', "log-lines", "number", "Control the number of log lines printed.", log_lines);
@@ -78,21 +64,24 @@ common_subcommand (
 			&user_option,
 			&log_lines_option
 		};
-		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{service(s)...}");
+		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table - (show_log_lines?0:1), main_table, "Main options", "{service(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
+	// This must have static storage duration as we are using it in args.
+	static std::vector<std::string> args_storage;
+
 	args_storage = lookup_bundle_directories(prog, args, envs);
-	args = convert(args_storage);
+	args = convert_args_storage(args_storage);
+	args.insert(args.begin(), "--");
 	if (arg)
 		args.insert(args.begin(), arg);
 	if (log_lines) {
@@ -103,8 +92,10 @@ common_subcommand (
 	next_prog = arg0_of(args);
 }
 
+}
+
 void
-find ( 
+find (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -113,7 +104,7 @@ find (
 }
 
 void
-show_json ( 
+show_json (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -122,25 +113,25 @@ show_json (
 }
 
 void
-show ( 
+show (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
-	common_subcommand(next_prog, args, envs, "service-show", NULL);
+	common_subcommand(next_prog, args, envs, "service-show", nullptr);
 }
 
 void
-status ( 
+status (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
-	common_subcommand(next_prog, args, envs, "service-status", NULL);
+	common_subcommand(next_prog, args, envs, "service-status", nullptr, true /* log-lines option */);
 }
 
 void
-try_restart ( 
+try_restart (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -149,7 +140,7 @@ try_restart (
 }
 
 void
-unload_when_stopped ( 
+unload_when_stopped (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -158,7 +149,7 @@ unload_when_stopped (
 }
 
 void
-hangup ( 
+hangup (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -167,28 +158,28 @@ hangup (
 }
 
 void
-is_active ( 
+is_active (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
-	common_subcommand(next_prog, args, envs, "service-is-up", NULL);
+	common_subcommand(next_prog, args, envs, "service-is-up", nullptr);
 }
 
 void
-is_loaded ( 
+is_loaded (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
-	common_subcommand(next_prog, args, envs, "service-is-ok", NULL);
+	common_subcommand(next_prog, args, envs, "service-is-ok", nullptr);
 }
 
 void
-is_enabled ( 
+is_enabled (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
-	common_subcommand(next_prog, args, envs, "service-is-enabled", NULL);
+	common_subcommand(next_prog, args, envs, "service-is-enabled", nullptr);
 }

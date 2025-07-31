@@ -35,59 +35,46 @@ enum {
 	START = 1
 };
 
-/* Pretty coloured output ***************************************************
-// **************************************************************************
-*/
-
-enum { COLOUR_DEFAULT = -1 };
-
-static inline
-void
-reset_colour (
-	ECMA48Output & o
-) {
-	o.SGRColour(true);
-}
-
 /* Utilities ****************************************************************
 // **************************************************************************
 */
 
-static bool verbose(false), pretending(false);
-
 namespace {
+
+enum { COLOUR_DEFAULT = -1 };
+
+bool verbose(false), pretending(false);
+
 struct index : public std::pair<dev_t, ino_t> {
 	index(const struct stat & s) : pair(s.st_dev, s.st_ino) {}
 	std::size_t hash() const { return static_cast<std::size_t>(first) + static_cast<std::size_t>(second); }
 };
 
 struct bundle;
-}
 
 typedef std::set<bundle *> bundle_pointer_set;
 typedef std::list<bundle *> bundle_pointer_list;
 
-namespace {
 struct bundle {
-	bundle() : 
-		bundle_dir_fd(-1), 
-		supervise_dir_fd(-1), 
-		service_dir_fd(-1), 
-		status_file_fd(-1), 
-		ss_scanned(false), 
+	bundle() :
+		bundle_dir_fd(-1),
+		supervise_dir_fd(-1),
+		service_dir_fd(-1),
+		status_file_fd(-1),
+		ss_scanned(false),
 		primary_target(false),
-		use_hangup(false), 
-		use_final_kill(false), 
-		order(-1), 
-		wants(WANT_NONE), 
-		job_state(INITIAL) 
+		use_hangup(false),
+		use_final_kill(false),
+		order(-1),
+		wants(WANT_NONE),
+		job_state(INITIAL)
 	{
 	}
-	~bundle() { 
-		if (-1 != bundle_dir_fd) { close(bundle_dir_fd); bundle_dir_fd = -1; } 
-		if (-1 != supervise_dir_fd) { close(supervise_dir_fd); supervise_dir_fd = -1; } 
-		if (-1 != service_dir_fd) { close(service_dir_fd); service_dir_fd = -1; } 
-		if (-1 != status_file_fd) { close(status_file_fd); status_file_fd = -1; } 
+	~bundle() {
+		if (-1 != bundle_dir_fd) { close(bundle_dir_fd); bundle_dir_fd = -1; }
+		if (-1 != supervise_dir_fd) { close(supervise_dir_fd); supervise_dir_fd = -1; }
+		if (-1 != service_dir_fd) { close(service_dir_fd); service_dir_fd = -1; }
+		if (-1 != status_file_fd) { close(status_file_fd); status_file_fd = -1; }
 	}
 
 	enum {
@@ -114,19 +101,19 @@ struct bundle {
 	bool needs_initial_action() const { return ACTIONED == job_state; }
 	bool needs_harder_action() const { return ORDERED == job_state || REREQUESTED == job_state; }
 	bool needs_hardest_action() const { return FORCED == job_state; }
-	void stop_initial() { 
+	void stop_initial() {
 		if (use_hangup)
-			hangup_daemon(supervise_dir_fd); 
-		stop(supervise_dir_fd); 
+			hangup_daemon(supervise_dir_fd);
+		stop(supervise_dir_fd);
 	}
-	void stop_harder() { 
+	void stop_harder() {
 		if (use_hangup)
-			hangup_daemon(supervise_dir_fd); 
-		terminate_daemon(supervise_dir_fd); 
-		continue_daemon(supervise_dir_fd); 
+			hangup_daemon(supervise_dir_fd);
+		terminate_daemon(supervise_dir_fd);
+		continue_daemon(supervise_dir_fd);
 	}
-	void stop_hardest() { 
-		stop_harder(); 
+	void stop_hardest() {
+		stop_harder();
 		if (use_final_kill)
 			kill_daemon(supervise_dir_fd);
 	}
@@ -141,13 +128,15 @@ protected:
 	int job_state;
 	static const char * name_of (enum event);
 	static void set_colour_of (ECMA48Output &, enum event);
+	static void reset_colour (ECMA48Output &);
 	static int colour_of (enum event);
 };
+
 }
 
 inline
 void
-bundle::tick() 
+bundle::tick()
 {
 	if (DONE > 1 + job_state)	// micro-optimization: only needs to calculate 1 + job_state once
 		++job_state;
@@ -193,7 +182,9 @@ bundle::name_of (
 		case CANNOT_STOP:		return "cannot stop";
 		case IS_READY:			return "ready";
 		case IS_DONE:			return "done";
+#if 0	// Actually unreachable, and generates a warning.
 		default:			return "unknown";
+#endif
 	}
 }
 
@@ -218,7 +209,9 @@ bundle::colour_of (
 		case CANNOT_STOP:		return COLOUR_RED;
 		case IS_READY:			return COLOUR_GREEN;
 		case IS_DONE:			return COLOUR_GREEN;
+#if 0	// Actually unreachable, and generates a warning.
 		default:			return COLOUR_DEFAULT;
+#endif
 	}
 }
 
@@ -236,7 +229,15 @@ bundle::set_colour_of (
 }
 
 inline
-void 
+void
+bundle::reset_colour (
+	ECMA48Output & o
+) {
+	o.SGRColour(true);
+}
+
+inline
+void
 bundle::print_event(
 	const char * prog,
 	ECMA48Output & o,
@@ -250,13 +251,18 @@ bundle::print_event(
 }
 
 namespace std {
+
 template <> struct hash<struct index> {
 	size_t operator() (const struct index & v) const { return v.hash(); }
 };
+
 }
+
+namespace {
+
 typedef std::unordered_map<struct index, bundle> bundle_info_map;
 
-static inline
+inline
 unsigned
 want_for (
 	int service_dir_fd
@@ -265,7 +271,7 @@ want_for (
 	return want ? bundle::WANT_START : bundle::WANT_STOP;
 }
 
-static inline
+inline
 bundle *
 add_bundle (
 	bundle_info_map & bundles,
@@ -279,7 +285,7 @@ add_bundle (
 		const int error(errno);
 		close(bundle_dir_fd);
 		errno = error;
-		return 0;
+		return nullptr;
 	}
 	FileDescriptorOwner service_dir_fd(open_service_dir(bundle_dir_fd));
 	const unsigned wants (
@@ -304,7 +310,7 @@ add_bundle (
 	return &b;
 }
 
-static inline
+inline
 bundle *
 add_bundle_searching_path (
 	const ProcessEnvironment & envs,
@@ -314,11 +320,11 @@ add_bundle_searching_path (
 ) {
 	std::string path, name, suffix;
 	const int bundle_dir_fd(open_bundle_directory(envs, "", arg, path, name, suffix));
-	if (0 > bundle_dir_fd) return 0;
+	if (0 > bundle_dir_fd) return nullptr;
 	return add_bundle(bundles, bundle_dir_fd, path, name, want);
 }
 
-static inline
+inline
 void
 add_primary_target_bundles (
 	const char * prog,
@@ -330,15 +336,13 @@ add_primary_target_bundles (
 	for (std::vector<const char *>::const_iterator i(args.begin()); args.end() != i; ++i) {
 		bundle * bp(add_bundle_searching_path(envs, bundles, *i, want));
 		if (!bp) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, *i, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, *i);
 		}
 		bp->primary_target = true;
 	}
 }
 
-static inline
+inline
 void
 add_related_bundles (
 	bundle_info_map & bundles,
@@ -363,7 +367,7 @@ add_related_bundles (
 	}
 }
 
-static inline
+inline
 bundle *
 lookup_without_adding (
 	bundle_info_map & bundles,
@@ -371,14 +375,14 @@ lookup_without_adding (
 ) {
 	struct stat bundle_dir_s;
 	if (!is_directory(bundle_dir_fd, bundle_dir_s))
-		return 0;
+		return nullptr;
 	bundle_info_map::iterator bundle_i(bundles.find(bundle_dir_s));
 	if (bundle_i != bundles.end())
 		return &bundle_i->second;
-	return 0;
+	return nullptr;
 }
 
-static inline
+inline
 bundle_pointer_set
 lookup_without_adding (
 	bundle_info_map & bundles,
@@ -405,7 +409,6 @@ lookup_without_adding (
 	return r;
 }
 
-static
 void
 mark_paths_in_order (
 	bundle * parent,
@@ -427,7 +430,6 @@ mark_paths_in_order (
 	}
 }
 
-static
 void
 insertion_sort (
 	bundle_pointer_list & sorted,
@@ -442,10 +444,10 @@ insertion_sort (
 	sorted.push_back(b);
 }
 
-static inline
+inline
 void
 make_symlink_target (
-	int bundle_dir_fd, 
+	int bundle_dir_fd,
 	const char * path,
 	mode_t mode
 ) {
@@ -459,7 +461,7 @@ make_symlink_target (
 	mkdirat(bundle_dir_fd, buf.data(), mode);
 }
 
-static inline
+inline
 bool
 load (
 	const char * prog,
@@ -482,11 +484,13 @@ load (
 	}
 	if (pretending) return true;
 	make_supervise_fifos (supervise_dir_fd);
-	load(prog, socket_fd, name.c_str(), supervise_dir_fd, service_dir_fd);
+	::load(prog, socket_fd, name.c_str(), supervise_dir_fd, service_dir_fd);
 	if (run_on_empty)
 		make_run_on_empty(prog, socket_fd, supervise_dir_fd);
 	make_pipe_connectable(prog, socket_fd, supervise_dir_fd);
 	return wait_ok(supervise_dir_fd, 5000);
+}
+
 }
 
 /* System control subcommands ***********************************************
@@ -494,7 +498,7 @@ load (
 */
 
 void
-start_stop_common [[gnu::noreturn]] ( 
+start_stop_common [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
 	const ProcessEnvironment & envs,
@@ -503,15 +507,13 @@ start_stop_common [[gnu::noreturn]] (
 	bool colours
 ) {
 	TerminalCapabilities caps(envs);
-	ECMA48Output o(caps, stderr, true /* C1 is 7-bit aliased */);
+	ECMA48Output o(caps, stderr, true /* C1 is 7-bit aliased */, false /* C1 is not raw 8-bit */);
 	if (!colours)
 		caps.colour_level = caps.NO_COLOURS;
 
 	const FileDescriptorOwner queue(kqueue());
 	if (0 > queue.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 
 	const FileDescriptorOwner socket_fd(connect_service_manager_socket(!per_user_mode, prog));
@@ -630,7 +632,7 @@ start_stop_common [[gnu::noreturn]] (
 	// This isn't strictly necessary, as checks in the enacting loop will ensure that no bundle has action taken if a predecessor action has yet to happen.
 	// But for large targets, with lots of prerequisites, this yields a consistent and fairly sensible ordering of actions in the log output, for humans.
 	for (bundle_pointer_set::const_iterator i(unsorted.begin()); unsorted.end() != i; ++i)
-		mark_paths_in_order(0, *i);
+		mark_paths_in_order(nullptr, *i);
 	bundle_pointer_list sorted;
 	for (bundle_pointer_set::const_iterator i(unsorted.begin()); unsorted.end() != i; ++i)
 		insertion_sort(sorted, *i);
@@ -716,7 +718,7 @@ start_stop_common [[gnu::noreturn]] (
 		bool any_more_pending(false);
 		for (bundle_pointer_list::const_iterator i(sorted.begin()); sorted.end() != i; ++i) {
 			bundle & b(**i);
-			
+
 			// Check for any outward transitions that we can make.
 
 			// Finishing the action transitions the state machine to the done state from any state.
@@ -731,8 +733,8 @@ start_stop_common [[gnu::noreturn]] (
 						b.print_event(prog, o, bundle::WANT_START == b.wants ? b.IS_READY: b.IS_DONE);
 					b.mark_done();
 					struct kevent k;
-					set_event(&k, b.status_file_fd, EVFILT_VNODE, EV_DELETE|EV_DISABLE, NOTE_WRITE, 0, 0);
-					kevent(queue.get(), &k, 1, 0, 0, 0);
+					set_event(k, b.status_file_fd, EVFILT_VNODE, EV_DELETE|EV_DISABLE, NOTE_WRITE, 0, nullptr);
+					kevent(queue.get(), &k, 1, nullptr, 0, nullptr);
 				}
 			}
 			if (b.done()) continue;
@@ -761,8 +763,8 @@ start_stop_common [[gnu::noreturn]] (
 					b.print_event(prog, o, b.IS_UNBLOCKED);
 				b.mark_unblocked();
 				struct kevent k;
-				set_event(&k, b.status_file_fd, EVFILT_VNODE, EV_ADD|EV_ENABLE|EV_CLEAR, NOTE_WRITE, 0, 0);
-				kevent(queue.get(), &k, 1, 0, 0, 0);
+				set_event(k, b.status_file_fd, EVFILT_VNODE, EV_ADD|EV_ENABLE|EV_CLEAR, NOTE_WRITE, 0, nullptr);
+				kevent(queue.get(), &k, 1, nullptr, 0, nullptr);
 			} else {
 				// Timing out transitions all states at ACTIONED and above to the next state.
 				if (!timed_out) continue;
@@ -780,7 +782,7 @@ start_stop_common [[gnu::noreturn]] (
 						const bool was_already_loaded(is_ok(b.supervise_dir_fd));
 						if (!was_already_loaded)
 							b.print_event(prog, o, b.CANNOT_START);
-						else 
+						else
 						if (b.needs_initial_action()) {
 							if (verbose)
 								b.print_event(prog, o, b.IS_START);
@@ -801,13 +803,13 @@ start_stop_common [[gnu::noreturn]] (
 								b.print_event(prog, o, b.STOP_HARDEST);
 							if (!pretending)
 								b.stop_hardest();
-						} else 
+						} else
 						if (b.needs_harder_action()) {
 							if (verbose)
 								b.print_event(prog, o, b.STOP_HARDER);
 							if (!pretending)
 								b.stop_harder();
-						} else 
+						} else
 						if (b.needs_initial_action()) {
 							if (verbose)
 								b.print_event(prog, o, b.IS_STOP);
@@ -820,7 +822,7 @@ start_stop_common [[gnu::noreturn]] (
 			}
 		}
 		if (!any_more_pending) break;
-		const int ne(kevent(queue.get(), 0, 0, revents.data(), revents.size(), &one_second));
+		const int ne(kevent(queue.get(), nullptr, 0, revents.data(), revents.size(), &one_second));
 		timed_out = 0 == ne;
 	}
 
@@ -828,7 +830,7 @@ start_stop_common [[gnu::noreturn]] (
 }
 
 void
-activate [[gnu::noreturn]] ( 
+activate [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -849,21 +851,20 @@ activate [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "[service(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	start_stop_common(next_prog, args, envs, prog, START, colours);
 }
 
 void
-deactivate [[gnu::noreturn]] ( 
+deactivate [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -884,21 +885,20 @@ deactivate [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "[service(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	start_stop_common(next_prog, args, envs, prog, STOP, colours);
 }
 
 void
-isolate [[gnu::noreturn]] ( 
+isolate [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -919,21 +919,20 @@ isolate [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "[service(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	start_stop_common(next_prog, args, envs, prog, START, colours);
 }
 
 void
-reset [[gnu::noreturn]] ( 
+reset [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -954,14 +953,13 @@ reset [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "[service(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	start_stop_common(next_prog, args, envs, prog, DEFAULT, colours);

@@ -3,26 +3,40 @@
 ## **************************************************************************
 
 [Unit]
-Description=Standard login on %I
-After=multi-user-pre.target
+Description=1980s and later full-screen TUI login on %I
+After=multi-user-pre.target hostname.target
+Conflicts=agetty@%I.service mgetty@%I.service getty@%I.service
 
 [Service]
 SessionLeader=true
+LocalReaper=yes
 StandardInput=tty
-ExecStart=login -p
-RestartSec=0
-# This isn't appropriate for modern service management systems, and doesn't even do anything on BSDs.
-#UtmpIdentifier=%I
-BannerFile=/etc/issue.vc
+StandardError=log
+RestartSec=0.1
 TTYPath=%I
+# Some job control shells ignore SIGTERM and need an explicit SIGHUP.
+SendSIGHUP=on
+# We don't want to inherit the environment that services get.
+# Terminal login expects to start with just the the TTY and TERM variables set up by initial terminal management.
+ClearEnvironment=True
 # Always-on terminals such as KVTs and remote/local real terminals need this.
 # This is overriden for user-space virtual terminals.
 TTYReset=yes
 # Open file descriptors from old login sessions need to be revoked, on KVTs and remote/local real terminals.
 # This is overriden for user-space virtual terminals.
 TTYVHangup=yes
-# Some job control shells ignore SIGTERM and need an explicit SIGHUP.
-SendSIGHUP=on
+# The login(1) program uses a very basic "dumb TTY" approach and doesn't even make use of cursor addressing or arrow keys.
+# On the BSDs, it even has a daft compiled-in timeout, totally unnecessary on always-up local terminals.
+# This service knows that it is not providing serial-port login that has to assume a lack of even basic 1980s terminal functionality.
+# Use a login program that presents a full-screen TUI using cursor addressing instead.
+InteractiveLogin=on
+# If the login shell process UID does not own the terminal device, job control and signals go wrong.
+TTYOwner=true
+ExecStart=login-shell
+# This is overriden for user-space virtual terminals.
+TUILevel=ascii
+# The login program works off the terminal type environment variables, as does everything in the resultant login session.
+TTYType=on
 
 [Install]
 WantedBy=multi-user.target

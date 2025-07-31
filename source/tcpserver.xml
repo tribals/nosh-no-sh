@@ -22,24 +22,24 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>tcpserver</command> 
-<arg choice='opt'>-O</arg> 
-<arg choice='opt'>-P</arg> 
-<arg choice='opt'>-q</arg> 
-<arg choice='opt'>-Q</arg> 
-<arg choice='opt'>-R</arg> 
-<arg choice='opt'>-H</arg> 
-<arg choice='opt'>-d</arg> 
-<arg choice='opt'>-b <replaceable>backlog</replaceable></arg> 
-<arg choice='opt'>-v</arg> 
-<arg choice='opt'>-D</arg> 
-<arg choice='opt'>-o</arg> 
-<arg choice='opt'>-l <replaceable>localname</replaceable></arg> 
-<arg choice='opt'>-c <replaceable>connlimit</replaceable></arg> 
-<arg choice='opt'>-U</arg> 
-<arg choice='opt'>-B <replaceable>banner</replaceable></arg> 
-<arg choice='req'><replaceable>host</replaceable></arg> 
-<arg choice='req'><replaceable>port</replaceable></arg> 
+<command>tcpserver</command>
+<arg choice='opt'>-O</arg>
+<arg choice='opt'>-P</arg>
+<arg choice='opt'>-q</arg>
+<arg choice='opt'>-Q</arg>
+<arg choice='opt'>-R</arg>
+<arg choice='opt'>-H</arg>
+<arg choice='opt'>-d</arg>
+<arg choice='opt'>-b <replaceable>backlog</replaceable></arg>
+<arg choice='opt'>-v</arg>
+<arg choice='opt'>-D</arg>
+<arg choice='opt'>-o</arg>
+<arg choice='opt'>-l <replaceable>localname</replaceable></arg>
+<arg choice='opt'>-c <replaceable>connlimit</replaceable></arg>
+<arg choice='opt'>-U</arg>
+<arg choice='opt'>-B <replaceable>banner</replaceable></arg>
+<arg choice='req'><replaceable>host</replaceable></arg>
+<arg choice='req'><replaceable>port</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>

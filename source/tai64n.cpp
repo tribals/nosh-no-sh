@@ -20,8 +20,8 @@ For copyright and licensing terms, see the file named COPYING.
 #include "fdutils.h"
 #include "popt.h"
 
-static 
-bool 
+static
+bool
 process (
 	const char * prog,
 	const ProcessEnvironment & envs,
@@ -35,8 +35,7 @@ process (
 			std::fflush(stdout);
 		const int rd(read(fd, buf, sizeof buf));
 		if (0 > rd) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
+			message_fatal_errno(prog, envs, name);
 			return false;
 		} else if (0 == rd)
 			break;
@@ -72,16 +71,15 @@ tai64n [[gnu::noreturn]] (
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "[file(s)...]");
+		popt::top_table_definition main_option(0, nullptr, "Main options", "[file(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
 		if (!process(prog, envs, "<stdin>", STDIN_FILENO))

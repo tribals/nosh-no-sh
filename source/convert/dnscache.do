@@ -13,12 +13,25 @@ dir_not_empty() { test -n "`/bin/ls -A \"$1\"`" ; }
 
 # These get us *only* the configuration variables, safely.
 read_rc() { clearenv read-conf rc.conf printenv "$1" ; }
-list_network_addresses() { ( read_rc network_addresses || echo 127.0.0.1 ) | fmt -w 1 ; }
+list_network_addresses() { ( read_rc dnscache_network_addresses || echo 127.0.0.1 ) | fmt -w 1 ; }
+show() {
+	local service
+	for service
+	do
+		if system-control is-enabled "${service}"
+		then
+			echo on "${service}"
+		else
+			echo off "${service}"
+		fi
+		system-control print-service-env "${service}" | sed -e 's/^/	/'
+	done
+}
 
 redo-ifchange rc.conf general-services "dnscache@.socket" "dnscache.service"
 
 list_graft_points() {
-	# http://jdebp.eu./FGA/dns-private-address-split-horizon.html#WhatToDo
+	# http://jdebp.uk./FGA/dns-private-address-split-horizon.html#WhatToDo
 	for d in \
 		0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0 \
 		1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0 \
@@ -83,6 +96,7 @@ list_graft_points() {
 	done
 }
 
+# Old system: One pre-packaged dnscache server for the entire machine
 if s="`system-control find dnscache`"
 then
 	set_if_unset dnscache IPSEND 0.0.0.0
@@ -91,32 +105,31 @@ then
 	set_if_unset dnscache CACHESIZE 1000000
 	set_if_unset dnscache ROOT "root"
 
-	system-control print-service-env dnscache >> "$3"
-
+	install -d -m 0755 "${s}/service/root/ip"
+	install -d -m 0755 "${s}/service/root/servers"
 	# We do not use an on-disc seed file any more.
 	test \! -e "${s}/service/seed" || chmod 0 "${s}/service/seed" 
-#	if ! test -r "${s}/service/seed"
-#	then
-#		install -m 0600 /dev/null "${s}/service/seed" 
-#		dd if=/dev/urandom of="${s}/service/seed" bs=128 count=1
-#	elif setuidgid nobody test -r "${s}/service/seed"
-#		chmod 0600 "${s}/service/seed" 
-#	fi
 	test -r "${s}/service/root/servers/@" || echo '127.53.0.1' > "${s}/service/root/servers/@"
+	redo-ifchange "${s}/service/root/servers/@"
 	list_graft_points |
 	while read -r d
 	do
-		test -r "${s}/service/root/servers/${d}" || ln "${s}/service/root/servers/@" "${s}/service/root/servers/${d}"
+		if ! test -r "${s}/service/root/servers/${d}"
+		then
+			ln "${s}/service/root/servers/@" "${s}/service/root/servers/${d}"
+			redo-ifchange "${s}/service/root/servers/${d}"
+		fi
 	done
-	if ! dir_not_empty "${s}/service/root/ip"
-	then
-		touch "${s}/service/root/ip/127.0.0.1"
-		touch "${s}/service/root/ip/127.53.0.1"
-	fi
+	dir_not_empty "${s}/service/root/ip" || touch "${s}/service/root/ip/127.0.0.1"
+
+	show "${s}" >> "$3"
 fi
 
-lr="/var/local/sv/"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+# New system: Individual dnscache servers for every IP adddress in dnscache_netework_addresses in rc.conf
+
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+lr="/var/local/service-bundles/services/"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 list_network_addresses |
 while read -r i
@@ -125,10 +138,9 @@ do
 	service="dnscache@$i"
 	s="$lr/${service}"
 
-	system-control convert-systemd-units $e "$lr/" "./${service}.socket"
-	system-control preset "${service}"
+	system-control convert-systemd-units $e --bundle-root "$lr/" "./${service}.socket"
 	rm -f -- "${s}/log"
-	ln -s -- "../../../sv/cyclog@dnscache" "${s}/log"
+	ln -s -f -- "../../../../service-bundles/services/cyclog@dnscache" "${s}/log"
 
 	install -d -m 0755 "${s}/service/env"
 	install -d -m 0755 "${s}/service/root"
@@ -136,28 +148,22 @@ do
 	install -d -m 0755 "${s}/service/root/servers"
 	# We do not use an on-disc seed file any more.
 	test \! -e "${s}/service/seed" || chmod 0 "${s}/service/seed" 
-#	if ! test -r "${s}/service/seed"
-#	then
-#		install -m 0600 /dev/null "${s}/service/seed" 
-#		dd if=/dev/urandom of="${s}/service/seed" bs=128 count=1
-#	elif setuidgid nobody test -r "${s}/service/seed"
-#		chmod 0600 "${s}/service/seed" 
-#	fi
 	test -r "${s}/service/root/servers/@" || echo '127.53.0.1' > "${s}/service/root/servers/@"
+	redo-ifchange "${s}/service/root/servers/@"
 	list_graft_points |
 	while read -r d
 	do
-		test -r "${s}/service/root/servers/${d}" || ln "${s}/service/root/servers/@" "${s}/service/root/servers/${d}"
+		if ! test -r "${s}/service/root/servers/${d}"
+		then
+			ln "${s}/service/root/servers/@" "${s}/service/root/servers/${d}"
+			redo-ifchange "${s}/service/root/servers/${d}"
+		fi
 	done
 	dir_not_empty "${s}/service/root/ip" || touch "${s}/service/root/ip/127.0.0.1"
 	set_if_unset "${s}/" IPSEND 0.0.0.0
 	set_if_unset "${s}/" CACHESIZE 1000000
 	set_if_unset "${s}/" ROOT "root"
 
-	if system-control is-enabled "${s}"
-	then
-		echo >> "$3" on "${service}"
-	else
-		echo >> "$3" off "${service}"
-	fi
+	system-control preset --rcconf-file rc.conf "${service}"
+	show "${s}" >> "$3"
 done

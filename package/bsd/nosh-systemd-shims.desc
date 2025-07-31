@@ -1,1 +1,4 @@
-systemd shim service and system management utilities
+ This package provides shims for systemd service and system management commands.
+  * systemctl, systemd
+ .
+ The shims simply invoke native service management commands.

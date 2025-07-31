@@ -27,8 +27,9 @@ fi
 
 redo-ifchange "warden-jail@.service" "warden-jailed@.service"
 
-r="/var/local/sv"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 convert_setting() {
 	test -r "$1" || return
@@ -62,8 +63,8 @@ do
 	jail_service="warden-jail@${JAILNAME}"
 	jailed_service="warden-jailed@${JAILNAME}"
 
-	system-control convert-systemd-units $e "$r/" ./"${jail_service}.service"
-	system-control convert-systemd-units $e "$r/" ./"${jailed_service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" ./"${jail_service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" ./"${jailed_service}.service"
 
 	mkdir -p -m 0755 "$r/${jail_service}/service/env"
 	mkdir -p -m 0755 "$r/${jailed_service}/service/env"

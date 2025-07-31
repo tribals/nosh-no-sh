@@ -1,0 +1,6 @@
+ This package provides systemd service units for running the nosh service manager and daemontools service scanner under systemd, instead of running the nosh system manager.
+ It presets systemd services that:
+  * run the nosh service-manager server under systemd;
+  * run the nosh service-dt-scanner (a.k.a. svscan) service under systemd; and
+  * start the nosh normal.target and its dependencies.
+ It disables the nosh sysinit.target, on the basis that systemd is doing that part of the work.

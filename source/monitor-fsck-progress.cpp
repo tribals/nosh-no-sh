@@ -69,7 +69,7 @@ munch (
 	return r;
 }
 
-std::string 
+std::string
 ConnectedClient::left() const
 {
 	std::string r(pass + " ");
@@ -84,7 +84,7 @@ ConnectedClient::left() const
 	return r;
 }
 
-std::string 
+std::string
 ConnectedClient::right() const
 {
 	char buf[128];
@@ -92,7 +92,7 @@ ConnectedClient::right() const
 	return buf;
 }
 
-void 
+void
 ConnectedClient::parse(
 	std::string s
 ) {
@@ -106,11 +106,11 @@ ConnectedClient::parse(
 // **************************************************************************
 */
 
-static const char title_text[] = "nosh package parallel fsck monitor";
-static const char in_progress[] = "fsck in progress";
-static const char no_fscks[] = "no fscks";
-
 namespace {
+
+const char title_text[] = "nosh package parallel fsck monitor";
+const char in_progress[] = "fsck in progress";
+const char no_fscks[] = "no fscks";
 
 inline ColourPair C(uint_fast8_t f, uint_fast8_t b) { return ColourPair(Map256Colour(f), Map256Colour(b)); }
 
@@ -119,7 +119,7 @@ struct TUI :
 	public TUIOutputBase,
 	public TUIInputBase
 {
-	TUI(ProcessEnvironment & e, ClientTable & m, TUIDisplayCompositor & c);
+	TUI(ProcessEnvironment & e, const TUIOutputBase::Options & options,ClientTable & m, TUIDisplayCompositor & c);
 
 	bool quit_flagged() const { return pending_quit_event; }
 	bool exit_signalled() const { return terminate_signalled||interrupt_signalled||hangup_signalled; }
@@ -135,14 +135,6 @@ protected:
 
 	virtual void redraw_new();
 
-	virtual void ExtendedKey(uint_fast16_t k, uint_fast8_t m);
-	virtual void FunctionKey(uint_fast16_t k, uint_fast8_t m);
-	virtual void UCS3(uint_fast32_t character);
-	virtual void Accelerator(uint_fast32_t character);
-	virtual void MouseMove(uint_fast16_t, uint_fast16_t, uint8_t);
-	virtual void MouseWheel(uint_fast8_t n, int_fast8_t v, uint_fast8_t m);
-	virtual void MouseButton(uint_fast8_t n, uint_fast8_t v, uint_fast8_t m);
-
 private:
 	char stdin_buffer[1U * 1024U];
 };
@@ -151,11 +143,12 @@ private:
 
 TUI::TUI(
 	ProcessEnvironment & e,
+	const TUIOutputBase::Options & options,
 	ClientTable & m,
 	TUIDisplayCompositor & comp
 ) :
 	TerminalCapabilities(e),
-	TUIOutputBase(*this, stdout, false, false, false, false, false, comp),
+	TUIOutputBase(*this, stdout, options, comp),
 	TUIInputBase(static_cast<const TerminalCapabilities &>(*this), stdin),
 	terminate_signalled(false),
 	interrupt_signalled(false),
@@ -198,22 +191,22 @@ TUI::handle_signal (
 		case SIGHUP:	hangup_signalled = true; break;
 		case SIGUSR1:	usr1_signalled = true; break;
 		case SIGUSR2:	usr2_signalled = true; break;
-		case SIGTSTP:	/* exit_full_screen_mode(); raise(SIGSTOP); */ break;
-		case SIGCONT:	enter_full_screen_mode(); invalidate_cur(); set_update_needed(); break;
+		case SIGTSTP:	/* tstp_signal(); */ break;
+		case SIGCONT:	continued(); break;
 	}
 }
 
 void
 TUI::redraw_new (
 ) {
-	erase_new_to_backdrop();
+	vio.CLSToSpace(ColourPair::def);
 
 	vio.WriteNCharsAttr(0, 0, 0U, title, ' ', c.query_w());
-	vio.WriteCharStrAttr(0, (c.query_w() - sizeof title_text + 1) / 2, 0U, title, title_text, sizeof title_text - 1);
+	vio.WriteCharStrAttr7Bit(0, (c.query_w() - sizeof title_text + 1) / 2, 0U, title, title_text, sizeof title_text - 1);
 	vio.WriteNCharsAttr(1, 0, 0U, status, ' ', c.query_w());
 	const std::size_t sl(clients.empty() ? sizeof no_fscks : sizeof in_progress);
 	const char * st(clients.empty() ? no_fscks : in_progress);
-	vio.WriteCharStrAttr(1, (c.query_w() - sl + 1) / 2, 0U, status, st, sl - 1);
+	vio.WriteCharStrAttr7Bit(1, (c.query_w() - sl + 1) / 2, 0U, status, st, sl - 1);
 	vio.WriteNCharsAttr(2, 0, 0U, status, '=', c.query_w());
 
 	long row(3);
@@ -224,10 +217,13 @@ TUI::redraw_new (
 		const std::string l(client.left()), r(client.right());
 		vio.WriteNCharsAttr(row, 0, 0U, line, ' ', c.query_w());
 		long col(0);
-		vio.PrintFormatted(row, col, 0U, line, "%s %s ", l.c_str(), client.name.c_str());
+		vio.PrintCharStrAttrUTF8(row, col, 0U, line, l.data(), l.length());
+		vio.PrintNCharsAttr(row, col, 0U, line, ' ', 1U);
+		vio.PrintCharStrAttrUTF8(row, col, 0U, line, client.name.data(), client.name.length());
+		vio.PrintNCharsAttr(row, col, 0U, line, ' ', 1U);
 		if (col + r.length() < c.query_w())
 			col = c.query_w() - r.length();
-		vio.WriteCharStrAttr(row, col, 0U, line, r.c_str(), r.length());
+		vio.PrintCharStrAttrUTF8(row, col, 0U, line, r.c_str(), r.length());
 		if (client.max) {
 			const unsigned n(client.count * c.query_w() / client.max);
 			vio.WriteNAttrs(row, 0, 0U, progress, n);
@@ -237,127 +233,81 @@ TUI::redraw_new (
 	c.set_cursor_state(CursorSprite::BLINK, CursorSprite::BOX);
 }
 
-void
-TUI::ExtendedKey(
-	uint_fast16_t /*k*/,
-	uint_fast8_t /*m*/
-) {
-}
-
-void
-TUI::FunctionKey(
-	uint_fast16_t /*k*/,
-	uint_fast8_t /*m*/
-) {
-}
-
-void
-TUI::UCS3(
-	uint_fast32_t character
-) {
-	switch (character) {
-		case '<':
-			ExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U);
-			break;
-		case '>':
-			ExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U);
-			break;
-	}
-}
-
-void
-TUI::Accelerator(
-	uint_fast32_t /*character*/
-) {
-}
-
-void 
-TUI::MouseMove(
-	uint_fast16_t /*row*/,
-	uint_fast16_t /*col*/,
-	uint8_t /*modifiers*/
-) {
-}
-
-void 
-TUI::MouseWheel(
-	uint_fast8_t /*wheel*/,
-	int_fast8_t /*value*/,
-	uint_fast8_t /*modifiers*/
-) {
-}
-
-void 
-TUI::MouseButton(
-	uint_fast8_t /*button*/,
-	uint_fast8_t /*value*/,
-	uint_fast8_t /*modifiers*/
-) {
-}
-
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-monitor_fsck_progress [[gnu::noreturn]] ( 
+monitor_fsck_progress [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
+	TUIOutputBase::Options options;
 	try {
-		popt::definition * top_table[] = {};
+		popt::bool_definition cursor_application_mode_option('\0', "cursor-keypad-application-mode", "Set the cursor keypad to application mode instead of normal mode.", options.cursor_application_mode);
+		popt::bool_definition calculator_application_mode_option('\0', "calculator-keypad-application-mode", "Set the calculator keypad to application mode instead of normal mode.", options.calculator_application_mode);
+		popt::bool_definition no_alternate_screen_buffer_option('\0', "no-alternate-screen-buffer", "Prevent switching to the XTerm alternate screen buffer.", options.no_alternate_screen_buffer);
+		popt::bool_string_definition scnm_option('\0', "inversescreen", "Switch inverse screen mode on/off.", options.scnm);
+		popt::tui_level_definition tui_level_option('T', "tui-level", "Specify the level of TUI character set.");
+		popt::definition * tui_table[] = {
+			&cursor_application_mode_option,
+			&calculator_application_mode_option,
+			&no_alternate_screen_buffer_option,
+			&scnm_option,
+			&tui_level_option,
+		};
+		popt::table_definition tui_table_option(sizeof tui_table/sizeof *tui_table, tui_table, "Terminal quirks options");
+		popt::definition * top_table[] = {
+			&tui_table_option,
+		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
+		options.tui_level = tui_level_option.value() < options.TUI_LEVELS ? tui_level_option.value() : options.TUI_LEVELS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	const unsigned listen_fds(query_listen_fds_or_daemontools(envs));
 	if (1U > listen_fds) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "LISTEN_FDS", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "LISTEN_FDS");
 	}
 
 	const FileDescriptorOwner queue(kqueue());
 	if (0 > queue.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 	std::vector<struct kevent> ip;
 
-	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, 0);
+	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, nullptr);
 	ReserveSignalsForKQueue kqueue_reservation(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, SIGWINCH, SIGTSTP, SIGCONT, 0);
 	PreventDefaultForFatalSignals ignored_signals(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, 0);
-	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
+	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 	for (unsigned i(0U); i < listen_fds; ++i)
-		append_event(ip, LISTEN_SOCKET_FILENO + i, EVFILT_READ, EV_ADD|EV_ENABLE, 0, 0, 0);
+		append_event(ip, LISTEN_SOCKET_FILENO + i, EVFILT_READ, EV_ADD|EV_ENABLE, 0, 0, nullptr);
 
 	ClientTable clients;
 
 	TUIDisplayCompositor compositor(false /* no software cursor */, 24, 80);
-	TUI ui(envs, clients, compositor);
+	TUI ui(envs, options, clients, compositor);
+
+	// How long to wait with updates pending.
+	const struct timespec immediate_timeout = { 0, 0 };
 
 	std::vector<struct kevent> p(listen_fds + 4);
 	while (true) {
@@ -365,20 +315,22 @@ monitor_fsck_progress [[gnu::noreturn]] (
 			break;
 		ui.handle_resize_event();
 		ui.handle_refresh_event();
-		ui.handle_update_event();
 
-		const int rc(kevent(queue.get(), ip.data(), ip.size(), p.data(), p.size(), 0));
+		const int rc(kevent(queue.get(), ip.data(), ip.size(), p.data(), p.size(), ui.has_update_pending() ? &immediate_timeout : nullptr));
 		ip.clear();
 
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
+			if (EINTR == errno) continue;
 #if defined(__LINUX__) || defined(__linux__)
-			if (EINVAL == error) continue;	// This works around a Linux bug when an inotify queue overflows.
-			if (0 == error) continue;	// This works around another Linux bug.
+			if (EINVAL == errno) continue;	// This works around a Linux bug when an inotify queue overflows.
+			if (0 == errno) continue;	// This works around another Linux bug.
 #endif
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, "kevent");
+		}
+
+		if (0 == rc) {
+			ui.handle_update_event();
+			continue;
 		}
 
 		for (std::size_t i(0); i < static_cast<std::size_t>(rc); ++i) {
@@ -398,12 +350,10 @@ monitor_fsck_progress [[gnu::noreturn]] (
 						socklen_t remoteaddrsz = sizeof remoteaddr;
 						const int s(accept(fd, reinterpret_cast<sockaddr *>(&remoteaddr), &remoteaddrsz));
 						if (0 > s) {
-							const int error(errno);
-							std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "accept", std::strerror(error));
-							throw EXIT_FAILURE;
+							die_errno(prog, envs, "accept");
 						}
 
-						append_event(ip, s, EVFILT_READ, EV_ADD|EV_ENABLE, 0, 0, 0);
+						append_event(ip, s, EVFILT_READ, EV_ADD|EV_ENABLE, 0, 0, nullptr);
 						clients[s];
 					} else
 					{
@@ -429,11 +379,9 @@ monitor_fsck_progress [[gnu::noreturn]] (
 							client.parse(line);
 						if (hangup && !c) {
 							struct kevent o;
-							EV_SET(&o, fd, EVFILT_READ, EV_DELETE|EV_DISABLE, 0, 0, 0);
-							if (0 > kevent(queue.get(), &o, 1, 0, 0, 0)) {
-								const int error(errno);
-								std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-								throw EXIT_FAILURE;
+							set_event(o, fd, EVFILT_READ, EV_DELETE|EV_DISABLE, 0, 0, nullptr);
+							if (0 > kevent(queue.get(), &o, 1, nullptr, 0, nullptr)) {
+								die_errno(prog, envs, "kevent");
 							}
 							close(fd);
 							clients.erase(fd);

@@ -1,1 +1,4 @@
-OpenBSD shim service and system management utilities
+ This package provides shims for OpenBSD service and system management commands.
+  * rcctl
+ .
+ The shims simply invoke native service management commands.

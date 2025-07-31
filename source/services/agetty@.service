@@ -3,17 +3,25 @@
 ## **************************************************************************
 
 [Unit]
-Description=alternative serial-line terminal login on %I
-After=motd-dynamic.service hostname.service
+Description=serial-line terminal login on %I (Wietse Venema's %p)
+After=motd-dynamic.service hostname.target
+Conflicts=mgetty@%I.service
 
 [Service]
 SessionLeader=true
-# The login-options are specific to util-linux login.
-# This needs fixing if we ever find agetty ported to a BSD.
-ExecStart=%p --keep-baud --login-options '-p -- \u' %I
-RestartSec=0
+RestartSec=0.1
+TTYPath=%I
 # Some job control shells ignore SIGTERM and need an explicit SIGHUP.
 SendSIGHUP=on
+# We don't want to inherit the environment that services get.
+# Terminal login expects to start with just the the TTY and TERM variables set up by initial terminal management.
+ClearEnvironment=True
+# The login-options are specific to util-linux login.
+# They need fixing if we ever find "alternative getty" ported to a BSD.
+# 115200 is the maximum possible (divisor register = 1) bit rate for a vanilla 16550 UART.
+ExecStart=%p --keep-baud --flow-control --noissue --login-options '-p -- \u' -- - 115200 linux-16color
+StandardInput=tty
+BannerFile=/etc/issue.vc
 
 [Install]
 WantedBy=multi-user.target

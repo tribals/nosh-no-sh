@@ -19,7 +19,9 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "fdutils.h"
 #include "popt.h"
+#include "UnicodeClassification.h"
 #include "UTF8Decoder.h"
+#include "u32string.h"
 #include "ECMA48Decoder.h"
 #include "FileDescriptorOwner.h"
 #include "InputMessage.h"
@@ -28,54 +30,77 @@ For copyright and licensing terms, see the file named COPYING.
 #include "ControlCharacters.h"
 
 namespace {
+
 class Decoder :
 	public TerminalCapabilities,
 	public UTF8Decoder::UCS32CharacterSink,
 	public ECMA48Decoder::ECMA48ControlSequenceSink
 {
 public:
-	Decoder(const char *, const ProcessEnvironment &, bool, bool, bool);
+	Decoder(const char *, const ProcessEnvironment &, bool, bool, bool, bool);
 	~Decoder();
 	bool process (const char * name, int fd);
 protected:
 	UTF8Decoder utf8_decoder;
 	ECMA48Decoder ecma48_decoder;
 	const char * const prog;
+	const ProcessEnvironment & envs;
 	const bool input, no_7bit;
 
-	virtual void ProcessDecodedUTF8(uint32_t character, bool decoder_error, bool overlong);
-	virtual void PrintableCharacter(bool, unsigned short, uint_fast32_t);
-	virtual void ControlCharacter(uint_fast32_t);
-	virtual void EscapeSequence(uint_fast32_t, char);
-	virtual void ControlSequence(uint_fast32_t, char, char);
-	virtual void ControlString(uint_fast32_t);
+	virtual void ProcessDecodedUTF8(char32_t character, bool decoder_error, bool overlong);
+	virtual void PrintableCharacter(bool, unsigned short, char32_t);
+	virtual void ControlCharacter(char32_t);
+	virtual void EscapeSequence(char32_t, char32_t);
+	virtual void ControlSequence(char32_t, char32_t, char32_t);
+	virtual void ControlString(char32_t);
 
 	void out(const char *);
 	void csi(const char *);
-	void csi_sumargs(const char *);
+	void csi_one_arg(const char *);
 	void csi_fnk(const char *);
-	void csi_unknown(uint_fast32_t, char, char);
-	void plainchar(uint_fast32_t, char);
+	void csi_unknown(char32_t, char, char);
+	void plainchar(char32_t, char);
 	void dec_modifier(unsigned);
 	void keychord(const char *, const char *, unsigned);
+	void keychord(const char *, unsigned);
 	void fkey(const char *, unsigned, unsigned);
 	void fkey(const char *, unsigned);
-	void fnk(const char *, unsigned);
-	void iso2022(const char *, uint_fast32_t);
+	void xterm_fnk(const char *, unsigned, unsigned, unsigned);
+	void decfnk(const char *, unsigned);
+	void scofnk(unsigned);
+	void fnk();
+	void usb_extended();
+	void usb_consumer();
+	void iso2022(const char *, char32_t);
 };
+
+inline unsigned int TranslateFromDECModifiers(unsigned int n) { return n - 1U; }
+inline unsigned int TranslateToDECModifiers(uint_fast8_t n) { return n + 1U; }
+//inline unsigned int TranslateDECCoordinates(unsigned int n) { return n - 1U; }
+
+inline
+bool
+IsControl(char32_t character)
+{
+	return (character < SPC) || (character >= 0x80 && character < 0xA0) || (DEL == character);
+}
+
 }
 
 Decoder::Decoder(
 	const char * p,
-	const ProcessEnvironment & envs,
+	const ProcessEnvironment & e,
 	bool i,
 	bool permit_cancel,
-	bool permit_7bit_extensions
-) : 
-	TerminalCapabilities(envs),
+	bool permit_7bit_extensions,
+	bool permit_control_strings
+) :
+	TerminalCapabilities(e),
+	ECMA48Decoder::ECMA48ControlSequenceSink(),
 	utf8_decoder(*this),
-	ecma48_decoder(*this, false /* no control strings */, permit_cancel, permit_7bit_extensions, interix_function_keys, rxvt_function_keys),
+	ecma48_decoder(*this, permit_control_strings, permit_cancel, permit_7bit_extensions, interix_function_keys, rxvt_function_keys, linux_function_keys),
 	prog(p),
+	envs(e),
 	input(i),
 	no_7bit(!permit_7bit_extensions)
 {
@@ -86,9 +111,9 @@ Decoder::~Decoder(
 	ecma48_decoder.AbortSequence();
 }
 
-void 
+void
 Decoder::ProcessDecodedUTF8(
-	uint32_t character,
+	char32_t character,
 	bool decoder_error,
 	bool overlong
 ) {
@@ -106,50 +131,60 @@ void
 Decoder::csi (
 	const char * name
 ) {
-	std::fprintf(stdout, "%s ", name);
-	for (std::size_t i(0U); i < argc; ++i)
-		std::fprintf(stdout, "%s%u", i?";":"", args[i]);
-	std::fprintf(stdout, "\n");
+	std::fprintf(stdout, "%s", name);
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		std::fputc(i ? ';' : ' ', stdout);
+		for (std::size_t j(0U); j < QuerySubArgCount(i); ++j) {
+			if (j) std::fputc(':', stdout);
+			if (!QueryArgNull(i,j))
+				std::fprintf(stdout, "%u", GetArgZeroIfEmpty(i,j));
+		}
+	}
+	std::fputc('\n', stdout);
 }
 
 void
-Decoder::csi_sumargs (
+Decoder::csi_one_arg (
 	const char * name
 ) {
-	if (argc) {
-		unsigned s(0U);
-		for (std::size_t i(0U); i < argc; ++i)
-			s += args[i];
-		if (0U == s) s = 1U;
-		std::fprintf(stdout, "%s %u\n", name, s);
-	} else
-		std::fprintf(stdout, "%s\n", name);
+	std::fprintf(stdout, "%s", name);
+	if (QueryArgCount())
+		std::fprintf(stdout, " %u", GetArgZDIfZeroOneIfEmpty(0U));
+	std::fputc('\n', stdout);
 }
 
 void
 Decoder::csi_unknown (
-	uint_fast32_t character,
+	char32_t character,
 	char last_intermediate,
 	char first_private_parameter
 ) {
 	std::fprintf(stdout, "unknown CSI ");
 	if (first_private_parameter) plainchar(first_private_parameter, ' ');
-	for (std::size_t i(0U); i < argc; ++i)
-		std::fprintf(stdout, "%s%u", i?";":"", args[i]);
-	if (argc) std::fprintf(stdout, " ");
+	for (std::size_t i(0U); i < QueryArgCount(); ++i)
+		std::fprintf(stdout, "%s%u", i?";":"", GetArgZeroIfEmpty(i));
+	if (QueryArgCount()) std::fprintf(stdout, " ");
 	if (last_intermediate) plainchar(last_intermediate, ' ');
 	plainchar(character, '\n');
 }
 
 void
 Decoder::plainchar(
-	uint_fast32_t character,
+	char32_t character,
 	char suffix
 ) {
-	if (' ' <= character && character < DEL)
-		std::fprintf(stdout, "'%c'%c", static_cast<char>(character), suffix);
-	else
-		std::fprintf(stdout, "U+%08" PRIxFAST32 "%c", character, suffix);
+	std::fprintf(stdout, "U+%08" PRIx32, character);
+	if (!IsControl(character)
+	&&  !UnicodeCategorization::IsOtherFormat(character)
+	&&  !UnicodeCategorization::IsOtherSurrogate(character)
+	&&  !UnicodeCategorization::IsMarkNonSpacing(character)
+	&&  !UnicodeCategorization::IsMarkEnclosing(character)
+	) {
+		std::string s;
+		ConvertToUTF8(s, u32string(&character, 1U));
+		std::fprintf(stdout, " '%s'", s.c_str());
+	}
+	std::fputc(suffix, stdout);
 }
 
 inline
@@ -157,6 +192,10 @@ void
 Decoder::dec_modifier(
 	unsigned mod
 ) {
+	// our extensions
+	if (mod & INPUT_MODIFIER_SUPER) std::fprintf(stdout, "Super+");
+	if (mod & INPUT_MODIFIER_GROUP2) std::fprintf(stdout, "Group2+");
+	// DEC
 	if (mod & INPUT_MODIFIER_CONTROL) std::fprintf(stdout, "Control+");
 	if (mod & INPUT_MODIFIER_LEVEL2) std::fprintf(stdout, "Level2+");
 	if (mod & INPUT_MODIFIER_LEVEL3) std::fprintf(stdout, "Level3+");
@@ -169,6 +208,15 @@ Decoder::keychord(
 	unsigned mod
 ) {
 	std::fprintf(stdout, "%s ", prefix);
+	dec_modifier(mod);
+	std::fprintf(stdout, "%s\n", name);
+}
+
+void
+Decoder::keychord(
+	const char * name,
+	unsigned mod
+) {
 	dec_modifier(mod);
 	std::fprintf(stdout, "%s\n", name);
 }
@@ -200,14 +248,66 @@ Decoder::fkey(
 }
 
 void
-Decoder::fnk(
+Decoder::xterm_fnk(
+	const char * prefix,
+	unsigned f,
+	unsigned k,
+	unsigned m
+) {
+	std::fputs("XTerm ", stdout);
+	switch (k) {
+		default:	std::fprintf(stdout, "%s FNK %u;%u;%u\n", prefix, f, TranslateToDECModifiers(m), k); break;
+		case 9U:	keychord(prefix,"KEY_PAD_TAB",m); break;
+		case 13U:	keychord(prefix,"KEY_PAD_ENTER",m); break;
+		case 27U:	keychord(prefix,"KEY_ESC",m); break;
+		case 33U:	keychord(prefix,"KEY_PAD_EXCLAMATION",m); break;
+		case 35U:	keychord(prefix,"KEY_PAD_HASH",m); break;
+		case 39U:	keychord(prefix,"KEY_PAD_APOSTROPHE",m); break;
+		case 40U:	keychord(prefix,"KEY_PAD_OPEN_BRACKET",m); break;
+		case 41U:	keychord(prefix,"KEY_PAD_CLOSE_BRACKET",m); break;
+		case 42U:	keychord(prefix,"KEY_PAD_ASTERISK",m); break;
+		case 43U:	keychord(prefix,"KEY_PAD_PLUS",m); break;
+		case 44U:	keychord(prefix,"KEY_PAD_COMMA",m); break;
+		case 45U:	keychord(prefix,"KEY_PAD_MINUS",m); break;
+		case 46U:	keychord(prefix,"KEY_PAD_DELETE",m); break;
+		case 47U:	keychord(prefix,"KEY_PAD_SLASH",m); break;
+		case 48U:	keychord(prefix,"KEY_PAD_INSERT",m); break;
+		case 49U:	keychord(prefix,"KEY_PAD_END",m); break;
+		case 50U:	keychord(prefix,"KEY_PAD_DOWN",m); break;
+		case 51U:	keychord(prefix,"KEY_PAD_PAGE_DOWN",m); break;
+		case 52U:	keychord(prefix,"KEY_PAD_LEFT",m); break;
+		case 53U:	keychord(prefix,"KEY_PAD_CENTRE",m); break;
+		case 54U:	keychord(prefix,"KEY_PAD_RIGHT",m); break;
+		case 55U:	keychord(prefix,"KEY_PAD_HOME",m); break;
+		case 56U:	keychord(prefix,"KEY_PAD_UP",m); break;
+		case 57U:	keychord(prefix,"KEY_PAD_PAGE_UP",m); break;
+		case 58U:	keychord(prefix,"KEY_PAD_COLON",m); break;
+		case 59U:	keychord(prefix,"KEY_PAD_SEMICOLON",m); break;
+		case 60U:	keychord(prefix,"KEY_PAD_LESS",m); break;
+		case 61U:	keychord(prefix,"KEY_PAD_EQUALS",m); break;
+		case 62U:	keychord(prefix,"KEY_PAD_GREATER",m); break;
+		case 63U:	keychord(prefix,"KEY_PAD_QUESTION",m); break;
+	}
+}
+
+void
+Decoder::decfnk(
 	const char * prefix,
 	unsigned default_modifier
 ) {
-	if (argc > 0U) {
-		const uint_fast8_t m(argc < 2U ? default_modifier : 0U < args[1U] ? args[1U] - 1U : 0U);
-		switch (args[0U]) {
-			default:	std::fprintf(stdout, "%s FNK %u;%u\n", prefix, args[0], m + 1U); break;
+	if (1U > QueryArgCount()) {
+		std::fprintf(stdout, "%s FNK\n", prefix);
+		return;
+	}
+	// Vanilla DECFNK never has subarguments, so we pre-convert multiple arguments to a single key in our extended form.
+	if (HasNoSubArgsFrom(0U))
+		CollapseArgsToSubArgs(0U);
+	// As an extension we permit multiple keys to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const uint_fast8_t m(TranslateFromDECModifiers(GetArgOneIfZeroThisIfEmpty(i,1U,TranslateToDECModifiers(default_modifier))));
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		switch (k) {
+			default:	std::fprintf(stdout, "%s FNK %u;%u\n", prefix, k, TranslateToDECModifiers(m)); break;
 			case 1U:	keychord(prefix,linux_editing_keypad ? "HOME" : "FIND", m); break;
 			case 2U:	keychord(prefix,"INSERT",m); break;
 			case 3U:	keychord(prefix,"DELETE",m); break;
@@ -238,30 +338,235 @@ Decoder::fnk(
 			case 34U:	fkey(prefix,20U,m); break;
 			case 35U:	fkey(prefix,21U,m); break;
 			case 36U:	fkey(prefix,22U,m); break;
+			case 42U:	fkey(prefix,23U,m); break;	// XTerm extension to DEC VT
+			case 43U:	fkey(prefix,24U,m); break;	// XTerm extension to DEC VT
+			case 27U:	// DEC VT function key 14½ is a Harry Potter XTerm extension to DEC VT.
+			{
+				if (QuerySubArgCount(i) < 3U)
+					std::fprintf(stdout, "%s FNK %u;%u\n", prefix, k, m);
+				else
+					xterm_fnk(prefix,k,GetArgZeroIfEmpty(i,2U),m);
+				break;
+			}
 		}
-	} else
-		std::fprintf(stdout, "%s FNK %u\n", prefix, args[0]);
+	}
+}
+
+void
+Decoder::scofnk(
+	unsigned k
+) {
+	// The caller has guaranteed that XTerm's extensions for PF1 to PF5 with modifiers has not reached here.
+	// Vanilla CSI sequences for SCO function keys never have arguments.
+	// They encode the modifiers in the key number.
+	uint_fast8_t m(0U);
+	if (k > 48U) {
+		m |= INPUT_MODIFIER_LEVEL3;
+		k -= 48U;
+	}
+	if (k > 24U) {
+		m |= INPUT_MODIFIER_CONTROL;
+		k -= 24U;
+	}
+	if (k > 12U) {
+		m |= INPUT_MODIFIER_LEVEL2;
+		k -= 12U;
+	}
+	fkey("SCO",k,m);
+}
+
+void
+Decoder::fnk(
+) {
+	if (1U > QueryArgCount()) {
+		std::fprintf(stdout, "FNK\n");
+		return;
+	}
+	// Vanilla FNK never has subarguments, so we pre-convert multiple arguments to a single key in our extended form.
+	if (HasNoSubArgsFrom(0U))
+		CollapseArgsToSubArgs(0U);
+	// As an extension we permit multiple keys and modifiers to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const uint_fast8_t m(GetArgZeroIfEmpty(i,1U));
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		fkey("ECMA48",k,m);
+	}
+}
+
+void
+Decoder::usb_extended(
+) {
+	if (1U > QueryArgCount()) {
+		std::fprintf(stdout, "%s\n", "ExtendedUSB");
+		return;
+	}
+	// We expect (possibly multiple) keys and modifiers to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const uint_fast8_t m(GetArgZeroIfEmpty(i,1U));
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		switch (k) {
+			case EXTENDED_KEY_MUTE:		keychord("Mute",m); break;
+			case EXTENDED_KEY_VOLUME_UP:	keychord("Volume+",m); break;
+			case EXTENDED_KEY_VOLUME_DOWN:	keychord("Volume-",m); break;
+			default:
+			{
+				char name[64];
+				std::snprintf(name, sizeof name, "%u", k);
+				keychord("ExtendedUSB",name,m);
+				break;
+			}
+		}
+	}
+}
+
+void
+Decoder::usb_consumer(
+) {
+	if (1U > QueryArgCount()) {
+		std::fprintf(stdout, "%s\n", "ConsumerUSB");
+		return;
+	}
+	// We expect (possibly multiple) keys and modifiers to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const uint_fast8_t m(GetArgZeroIfEmpty(i,1U));
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		switch (k) {
+			case CONSUMER_KEY_PLAY:			keychord("Play", m); break;
+			case CONSUMER_KEY_PAUSE:		keychord("Pause", m); break;
+			case CONSUMER_KEY_RECORD:		keychord("Record", m); break;
+			case CONSUMER_KEY_FAST_FORWARD:		keychord("Fast Forward", m); break;
+			case CONSUMER_KEY_REWIND:		keychord("Rewind", m); break;
+			case CONSUMER_KEY_NEXT_TRACK:		keychord("Next Track", m); break;
+			case CONSUMER_KEY_PREV_TRACK:		keychord("Prev Track", m); break;
+			case CONSUMER_KEY_STOP_PLAYING:		keychord("Stop Playing", m); break;
+			case CONSUMER_KEY_EJECT:		keychord("Eject", m); break;
+			case CONSUMER_KEY_RANDOM_PLAY:		keychord("Shuffle", m); break;
+			case CONSUMER_KEY_REPEAT:		keychord("Repeat", m); break;
+			case CONSUMER_KEY_TRACK_NORMAL:		keychord("Track Normal", m); break;
+			case CONSUMER_KEY_FRAME_FORWARD:	keychord("Frame Forward", m); break;
+			case CONSUMER_KEY_FRAME_BACK:		keychord("Frame Backward", m); break;
+			case CONSUMER_KEY_STOP_EJECT:		keychord("Stop/Eject", m); break;
+			case CONSUMER_KEY_PLAY_PAUSE:		keychord("Play/Pause", m); break;
+			case CONSUMER_KEY_PLAY_SKIP:		keychord("Play Skip", m); break;
+			case CONSUMER_KEY_MUTE_PLAYER:		keychord("Mute Player", m); break;
+			case CONSUMER_KEY_BASS_BOOST:		keychord("Bass Boost", m); break;
+			case CONSUMER_KEY_LOUDNESS:		keychord("Loudness", m); break;
+			case CONSUMER_KEY_VOLUME_UP:		keychord("Player Volume+", m); break;
+			case CONSUMER_KEY_VOLUME_DOWN:		keychord("Player Volume-", m); break;
+			case CONSUMER_KEY_BALANCE_RIGHT:	keychord("Balance Right", m); break;
+			case CONSUMER_KEY_BALANCE_LEFT:		keychord("Balance Left", m); break;
+			case CONSUMER_KEY_BASS_UP:		keychord("Bass+", m); break;
+			case CONSUMER_KEY_BASS_DOWN:		keychord("Bass-", m); break;
+			case CONSUMER_KEY_TREBLE_UP:		keychord("Treble+", m); break;
+			case CONSUMER_KEY_TREBLE_DOWN:		keychord("Treble-", m); break;
+			case CONSUMER_KEY_WORDPROCESSOR:	keychord("Word Processor", m); break;
+			case CONSUMER_KEY_TEXT_EDITOR:		keychord("Text Editor", m); break;
+			case CONSUMER_KEY_SPREADSHEET:		keychord("Spreadsheet", m); break;
+			case CONSUMER_KEY_GRAPHICS_EDITOR:	keychord("Graphics Editor", m); break;
+			case CONSUMER_KEY_PRESENTATION_APP:	keychord("Presentation App", m); break;
+			case CONSUMER_KEY_DATABASE:		keychord("Database", m); break;
+			case CONSUMER_KEY_MAIL:			keychord("Mail", m); break;
+			case CONSUMER_KEY_NEWS:			keychord("News", m); break;
+			case CONSUMER_KEY_VOICEMAIL:		keychord("Voicemail", m); break;
+			case CONSUMER_KEY_ADDRESS_BOOK:		keychord("Address Book", m); break;
+			case CONSUMER_KEY_CALENDAR:		keychord("Calendar", m); break;
+			case CONSUMER_KEY_PROJECT_MANAGER:	keychord("Project Manager", m); break;
+			case CONSUMER_KEY_TIMECARD:		keychord("Time Card", m); break;
+			case CONSUMER_KEY_CHEQUEBOOK:		keychord("Cheque Book", m); break;
+			case CONSUMER_KEY_CALCULATOR:		keychord("Calculator", m); break;
+			case CONSUMER_KEY_LOCAL_COMPUTER:	keychord("Local Computer", m); break;
+			case CONSUMER_KEY_LOCAL_NETWORK:	keychord("Local Network", m); break;
+			case CONSUMER_KEY_WWW_BROWSER:		keychord("WWW Browser", m); break;
+			case CONSUMER_KEY_CONFERENCE:		keychord("Conference", m); break;
+			case CONSUMER_KEY_CHAT:			keychord("Chat", m); break;
+			case CONSUMER_KEY_DIALLER:		keychord("Dialler", m); break;
+			case CONSUMER_KEY_LOGON:		keychord("Log In", m); break;
+			case CONSUMER_KEY_LOGOFF:		keychord("Log Out", m); break;
+			case CONSUMER_KEY_LOCK:			keychord("Lock Session", m); break;
+			case CONSUMER_KEY_CONTROL_PANEL:	keychord("Control Panel", m); break;
+			case CONSUMER_KEY_CLI:			keychord("Command-Line", m); break;
+			case CONSUMER_KEY_TASK_MANAGER:		keychord("Task Manager", m); break;
+			case CONSUMER_KEY_SELECT_TASK:		keychord("Select Task", m); break;
+			case CONSUMER_KEY_NEXT_TASK:		keychord("Next Task", m); break;
+			case CONSUMER_KEY_PREVIOUS_TASK:	keychord("Previous Task", m); break;
+			case CONSUMER_KEY_HALT_TASK:		keychord("Halt Task", m); break;
+			case CONSUMER_KEY_HELP_CENTRE:		keychord("Help Centre", m); break;
+			case CONSUMER_KEY_DOCUMENTS:		keychord("Documents", m); break;
+			case CONSUMER_KEY_DESKTOP:		keychord("Desktop", m); break;
+			case CONSUMER_KEY_SPELL_CHECK:		keychord("Spell Check", m); break;
+			case CONSUMER_KEY_CLOCK:		keychord("Clock", m); break;
+			case CONSUMER_KEY_FILE_MANAGER:		keychord("File Manager", m); break;
+			case CONSUMER_KEY_IMAGE_BROWSER:	keychord("Image Browser", m); break;
+			case CONSUMER_KEY_INSTANT_MESSAGING:	keychord("Instant Messaging", m); break;
+			case CONSUMER_KEY_WWW_SHOPPING:		keychord("WWW Shopping", m); break;
+			case CONSUMER_KEY_AUDIO_PLAYER:		keychord("Audio Player", m); break;
+			case CONSUMER_KEY_NEW:			keychord("New", m); break;
+			case CONSUMER_KEY_OPEN:			keychord("Open", m); break;
+			case CONSUMER_KEY_CLOSE:		keychord("Close", m); break;
+			case CONSUMER_KEY_EXIT:			keychord("Exit", m); break;
+			case CONSUMER_KEY_MAXIMIZE:		keychord("Maximize", m); break;
+			case CONSUMER_KEY_MINIMIZE:		keychord("Minimize", m); break;
+			case CONSUMER_KEY_SAVE:			keychord("Save", m); break;
+			case CONSUMER_KEY_PRINT:		keychord("Print", m); break;
+			case CONSUMER_KEY_PROPERTIES:		keychord("Properties", m); break;
+			case CONSUMER_KEY_UNDO:			keychord("Undo", m); break;
+			case CONSUMER_KEY_COPY:			keychord("Copy", m); break;
+			case CONSUMER_KEY_CUT:			keychord("Cut", m); break;
+			case CONSUMER_KEY_PASTE:		keychord("Paste", m); break;
+			case CONSUMER_KEY_SELECT_ALL:		keychord("Select All", m); break;
+			case CONSUMER_KEY_FIND:			keychord("Find", m); break;
+			case CONSUMER_KEY_FIND_AND_REPLACE:	keychord("Find & Replace", m); break;
+			case CONSUMER_KEY_SEARCH:		keychord("Search", m); break;
+			case CONSUMER_KEY_GOTO:			keychord("Goto", m); break;
+			case CONSUMER_KEY_HOME:			keychord("Home", m); break;
+			case CONSUMER_KEY_BACK:			keychord("Back", m); break;
+			case CONSUMER_KEY_FORWARD:		keychord("Forward", m); break;
+			case CONSUMER_KEY_STOP_LOADING:		keychord("Stop Loading", m); break;
+			case CONSUMER_KEY_REFRESH:		keychord("Refresh", m); break;
+			case CONSUMER_KEY_PREVIOUS_LINK:	keychord("Previous Link", m); break;
+			case CONSUMER_KEY_NEXT_LINK:		keychord("Next Link", m); break;
+			case CONSUMER_KEY_BOOKMARKS:		keychord("Bookmarks", m); break;
+			case CONSUMER_KEY_HISTORY:		keychord("History", m); break;
+			case CONSUMER_KEY_PAN_LEFT:		keychord("Pan Left", m); break;
+			case CONSUMER_KEY_PAN_RIGHT:		keychord("Pan Right", m); break;
+			default:
+			{
+				char name[64];
+				std::snprintf(name, sizeof name, "%u", k);
+				keychord("ConsumerUSB",name,m);
+				break;
+			}
+		}
+	}
 }
 
 void
 Decoder::csi_fnk (
 	const char * name
 ) {
-	if (1U < argc) {
-		const uint_fast8_t mod(0U < args[1U] ? args[1U] - 1U : 0U);
-		dec_modifier(mod);
-	}
-	if (0U < argc) {
-		const unsigned num(0U < args[0U] ? args[0U] : 1U);
-		std::fprintf(stdout, "%s %u\n", name, num);
-	} else
+	if (1U > QueryArgCount()) {
 		std::fprintf(stdout, "%s\n", name);
+	} else
+	{
+		// Vanilla CSI sequences for extended keys never have subarguments, so we pre-convert multiple arguments to a single key in our extended form.
+		if (HasNoSubArgsFrom(0U))
+			CollapseArgsToSubArgs(0U);
+		// As an extension we permit multiple keys to be encoded in ISO 8613-3/ITU T.416 rep:mod form.
+		for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+			if (1U < QuerySubArgCount(i)) {
+				const uint_fast8_t mod(TranslateFromDECModifiers(GetArgOneIfZeroOrEmpty(i,1U)));
+				dec_modifier(mod);
+			}
+			const unsigned num(GetArgOneIfZeroOrEmpty(i,0U));
+			std::fprintf(stdout, "%s %u\n", name, num);
+		}
+	}
 }
 
 void
 Decoder::iso2022(
 	const char * name,
-	uint_fast32_t character
+	char32_t character
 ) {
 	std::fprintf(stdout, "%s ", name);
 	plainchar(character, '\n');
@@ -271,10 +576,18 @@ void
 Decoder::PrintableCharacter(
 	bool error,
 	unsigned short shift_level,
-	uint_fast32_t character
+	char32_t character
 ) {
 	if (error)
 		std::fprintf(stdout, "(error) ");
+	if (12U == shift_level) {
+		if ('A' <= character && character <= 'Z')
+			fkey("Linux", character - 'A' + 1U);
+		else {
+			std::fprintf(stdout, "SRS");
+			plainchar(character, '\n');
+		}
+	} else
 	if (10U == shift_level) {
 		// The Interix system has no F0 ('0') and omits 'l' for some reason.
 		if ('0' <  character && character <= '9')
@@ -294,7 +607,7 @@ Decoder::PrintableCharacter(
 		}
 	} else
 	if (3U == shift_level) {
-		if (rxvt_function_keys) switch (character) {
+		if (input && rxvt_function_keys) switch (character) {
 			case 'a':	keychord("rxvt", "KEY_PAD_UP", INPUT_MODIFIER_CONTROL); goto skip_dec;
 			case 'b':	keychord("rxvt", "KEY_PAD_DOWN", INPUT_MODIFIER_CONTROL); goto skip_dec;
 			case 'c':	keychord("rxvt", "KEY_PAD_RIGHT", INPUT_MODIFIER_CONTROL); goto skip_dec;
@@ -339,7 +652,7 @@ skip_dec:		;
 
 void
 Decoder::ControlCharacter(
-	uint_fast32_t character
+	char32_t character
 ) {
 	switch (character) {
 		default:	plainchar(character, '\n'); break;
@@ -374,8 +687,8 @@ Decoder::ControlCharacter(
 
 void
 Decoder::EscapeSequence(
-	uint_fast32_t character,
-	char last_intermediate
+	char32_t character,
+	char32_t last_intermediate
 ) {
 	switch (last_intermediate) {
 		default:	std::fprintf(stdout, "ESC "); plainchar(last_intermediate, ' '); plainchar(character, '\n'); break;
@@ -441,37 +754,49 @@ Decoder::EscapeSequence(
 
 void
 Decoder::ControlSequence(
-	uint_fast32_t character,
-	char last_intermediate,
-	char first_private_parameter
+	char32_t character,
+	char32_t last_intermediate,
+	char32_t first_private_parameter
 ) {
-	// Finish the final argument, using the relevant defaults.
-	FinishArg(0U); 
-
-	// Enact the action.
 	if (NUL == last_intermediate) {
 		if (NUL == first_private_parameter) {
-			if (sco_function_keys) {
+			// XTerm's Backtab, and extensions for Enter and PF1 to PF5 with modifiers, use CSI; and overlap SCO function keys.
+			// SCOFNK sequences never have modifiers, so we detect the lack of subarguments.
+			// For best results, simply avoid SCO function keys.
+			if (input && (sco_function_keys||teken_function_keys) && (1U > QueryArgCount())) {
 				static const char other[9] = "@[\\]^_`{";
-				// The SCO system has no F0 ('L').
-				if ('L' <  character && character <= 'Z') {
-					fkey("SCO", character - 'L');
+				// The SCOFNK system has no F0 ('L').
+				if ('L' == character)
+					;
+				else
+				// teken does not use SCOFNK for F1 ('M') to F12 ('X'); only genuine SCO Unix Multiscreen does.
+				if (sco_function_keys
+				&& ('L' <  character && character <= 'X')
+				) {
+					scofnk(character - 'L');
+					goto skip_dec;
+				} else
+				// teken realigns with SCO at Level2+F1 ('Y')
+				if ('Y' <= character && character <= 'Z') {
+					scofnk(character - 'L');
 					goto skip_dec;
 				} else
 				if ('a' <= character && character <= 'z') {
-					fkey("SCO", character - 'a' + 15U);
+					scofnk(character - 'a' + 15U);
 					goto skip_dec;
 				} else
-				if (const char * p = 0x20 < character && character < 0x80 ? std::strchr(other, static_cast<char>(character)) : 0) {
-					fkey("SCO", p - other + 41U);
+				if (const char * p = 0x20 < character && character < 0x80 ? std::strchr(other, static_cast<char>(character)) : nullptr) {
+					scofnk(p - other + 41U);
 					goto skip_dec;
 				} else
-					;
+				{
+				}
 			}
-			if (rxvt_function_keys) switch (character) {
-				case '$':	fnk("rxvt", INPUT_MODIFIER_LEVEL2); goto skip_dec;
-				case '^':	fnk("rxvt", INPUT_MODIFIER_CONTROL); goto skip_dec;
-				case '@':	fnk("rxvt", INPUT_MODIFIER_LEVEL2|INPUT_MODIFIER_CONTROL); goto skip_dec;
+			if (input && rxvt_function_keys) switch (character) {
+				case '~':	decfnk("rxvt", 0U); goto skip_dec;
+				case '$':	decfnk("rxvt", INPUT_MODIFIER_LEVEL2); goto skip_dec;
+				case '^':	decfnk("rxvt", INPUT_MODIFIER_CONTROL); goto skip_dec;
+				case '@':	decfnk("rxvt", INPUT_MODIFIER_LEVEL2|INPUT_MODIFIER_CONTROL); goto skip_dec;
 				case 'a':	keychord("rxvt", "UP", INPUT_MODIFIER_LEVEL2); goto skip_dec;
 				case 'b':	keychord("rxvt", "DOWN", INPUT_MODIFIER_LEVEL2); goto skip_dec;
 				case 'c':	keychord("rxvt", "RIGHT", INPUT_MODIFIER_LEVEL2); goto skip_dec;
@@ -479,49 +804,49 @@ Decoder::ControlSequence(
 			}
 			switch (character) {
 	// ---- ECMA-defined final characters ----
-				case '@':	csi_sumargs("ICH"); break;
-				case 'A':	input ? csi_fnk("CUU") : csi_sumargs("CUU"); break;
-				case 'B':	input ? csi_fnk("CUD") : csi_sumargs("CUD"); break;
-				case 'C':	input ? csi_fnk("CUF") : csi_sumargs("CUF"); break;
-				case 'D':	input ? csi_fnk("CUB") : csi_sumargs("CUB"); break;
-				case 'E':	input ? csi_fnk("CNL") : csi_sumargs("CNL"); break;
-				case 'F':	input ? csi_fnk("CPL") : csi_sumargs("CPL"); break;
+				case '@':	csi_one_arg("ICH"); break;
+				case 'A':	input ? csi_fnk("CUU") : csi_one_arg("CUU"); break;
+				case 'B':	input ? csi_fnk("CUD") : csi_one_arg("CUD"); break;
+				case 'C':	input ? csi_fnk("CUF") : csi_one_arg("CUF"); break;
+				case 'D':	input ? csi_fnk("CUB") : csi_one_arg("CUB"); break;
+				case 'E':	input ? csi_fnk("CNL") : csi_one_arg("CNL"); break;
+				case 'F':	input ? csi_fnk("CPL") : csi_one_arg("CPL"); break;
 				case 'G':	input ? csi_fnk("CHA") : csi("CHA"); break;
 				case 'H':	input ? csi_fnk("CUP") : csi("CUP"); break;
-				case 'I':	csi_sumargs("CHT"); break;
+				case 'I':	input ? csi_fnk("TAB") : csi_one_arg("CHT"); break;
 				case 'J':	csi("ED"); break;
 				case 'K':	csi("EL"); break;
-				case 'L':	csi_sumargs("IL"); break;
-				case 'M':	csi_sumargs("DL"); break;
+				case 'L':	input ? csi_fnk("IL") : csi_one_arg("IL"); break;
+				case 'M':	input ? csi_fnk("KEY_PAD_ENTER") : csi_one_arg("DL"); break;
 				case 'N':	csi("EF"); break;
-				case 'O':	csi("EA"); break;
-				case 'P':	csi_sumargs("DCH"); break;
-				case 'Q':	csi("SEE"); break;
-				case 'R':	csi("CPR"); break;
-				case 'S':	csi_sumargs("SU"); break;
-				case 'T':	csi_sumargs("SD"); break;
+				case 'O':	input ? csi("XTERMFO") : csi("EA"); break;
+				case 'P':	input ? csi_fnk("KEY_PAD_F1") : csi_one_arg("DCH"); break;
+				case 'Q':	input ? csi_fnk("KEY_PAD_F2") : csi("SEE"); break;
+				case 'R':	input ? csi_fnk("KEY_PAD_F3") : csi("CPR"); break;
+				case 'S':	input ? csi_fnk("KEY_PAD_F4") : csi_one_arg("SU"); break;
+				case 'T':	input ? csi_fnk("KEY_PAD_F5") : csi_one_arg("SD"); break;
 				case 'U':	csi("NP"); break;
 				case 'V':	csi("PP"); break;
 				case 'W':	csi("CTC"); break;
-				case 'X':	csi_sumargs("ECH"); break;
-				case 'Y':	csi_sumargs("CVT"); break;
-				case 'Z':	input ? csi_fnk("CBT") : csi_sumargs("CBT"); break;
+				case 'X':	csi_one_arg("ECH"); break;
+				case 'Y':	csi_one_arg("CVT"); break;
+				case 'Z':	input ? csi_fnk("CBT") : csi_one_arg("CBT"); break;
 				case '[':	csi("SRS"); break;
 				case '\\':	csi("PTX"); break;
 				case ']':	csi("SDS"); break;
 				case '^':	csi("SIMD"); break;
-				case '`':	csi_sumargs("HPA"); break;
-				case 'a':	csi_sumargs("HPR"); break;
+				case '`':	csi_one_arg("HPA"); break;
+				case 'a':	csi_one_arg("HPR"); break;
 				case 'b':	csi("REP"); break;
 				case 'c':	csi("DA"); break;
-				case 'd':	csi_sumargs("VPA"); break;
-				case 'e':	csi_sumargs("VPR"); break;
+				case 'd':	csi_one_arg("VPA"); break;
+				case 'e':	csi_one_arg("VPR"); break;
 				case 'f':	csi("HVP"); break;
 				case 'g':	csi("TBC"); break;
 				case 'h':	csi("SM"); break;
 				case 'i':	csi("MC"); break;
-				case 'j':	csi_sumargs("HPB"); break;
-				case 'k':	csi_sumargs("VPB"); break;
+				case 'j':	csi_one_arg("HPB"); break;
+				case 'k':	csi_one_arg("VPB"); break;
 				case 'l':	csi("RM"); break;
 				case 'm':	csi("SGR"); break;
 				case 'n':	csi("DSR"); break;
@@ -530,7 +855,7 @@ Decoder::ControlSequence(
 				case 'p':	csi("DECSTR"); break;
 				case 'q':	csi("DECLL"); break;
 				case 'r':	csi("DECSTBM"); break;
-				case 's':	if (argc > 0) csi("DECSLRM"); else csi("SCOSC"); break;
+				case 's':	if (QueryArgCount() > 0) csi("DECSLRM"); else csi("SCOSC"); break;
 				case 't':	csi("DECSLPP"); break;
 				case 'u':	csi("SCORC"); break;
 				case 'v':	csi("DECSVST"); break;
@@ -540,75 +865,133 @@ Decoder::ControlSequence(
 				case 'z':	csi("DECSVERP"); break;
 				case '|':	csi("DECTTC"); break;
 				case '}':	csi("DECPRO"); break;
-				case '~':	fnk("DEC",0U); break;
+				case '~':	decfnk("DEC",0U); break;
 				default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
 			}
 skip_dec: 		;
 		} else
 		if ('?' == first_private_parameter) switch (character) {
-			case 'c':	break;
+			case 'W':	csi("DECCTC"); break;
+			case 'c':	csi("LINUXSCUSR"); break;
 			case 'h':	csi("DECSM"); break;
 			case 'l':	csi("DECRM"); break;
+			case 'm':	csi("XTQMODKEYS"); break;
 			case 'n':	csi("DECDSR"); break;
 			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
 		} else
 		if ('>' == first_private_parameter) switch (character) {
 			case 'c':	csi("DECDA2"); break;
+			case 'm':	csi("XTMODKEYS"); break;
+			case 'n':	csi("XTDMODKEYS"); break;
 			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
 		} else
 		if ('=' == first_private_parameter) switch (character) {
-			case 'C':	break;
-			case 'S':	break;
+			case 'A':	csi("SCOABG"); break;
+			case 'B':	csi("SCOBLPD"); break;
+			case 'C':	csi("SCOCUSR"); break;
+			case 'D':	csi("SCOVGAI"); break;
+			case 'E':	csi("SCOVGAB"); break;
+			case 'F':	csi("SCOANFG"); break;
+			case 'G':	csi("SCOANBG"); break;
+			case 'H':	csi("SCOARFG"); break;
+			case 'I':	csi("SCOARBG"); break;
+			case 'J':	csi("SCOAGFG"); break;
+			case 'K':	csi("SCOAGBG"); break;
+			case 'L':	csi("SCOECM"); break;
+			case 'M':	csi("SCORQC"); break;
+			case 'S':	csi("C25LSCURS"); break;
+			case 'T':	csi("C25MODE"); break;
 			case 'c':	csi("DECDA3"); break;
+			case 'g':	csi("SCOAG"); break;
+			case 'h':	csi("SCOSM"); break;
+			case 'l':	csi("SCORM"); break;
+			case 'x':	csi("C25AGR"); break;
+			case 'z':	csi("C25VTSW"); break;
 			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
 		} else
 		if ('<' == first_private_parameter) switch (character) {
-			case 'M':	csi("true SGRmouse"); break;
-			case 'm':	csi("false SGRmouse"); break;
+			case 'M':	csi("XTerm mouse press"); break;
+			case 'm':	csi("XTerm mouse release"); break;
 			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
 		} else
 			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
-	if ('$' == last_intermediate) switch (character) {
-		case '|':	csi("DECSCPP"); break;
-		default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+	if ('$' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case '|':	csi("DECSCPP"); break;
+			case 'p':	csi("DECRQM (Standard)"); break;
+			case 'r':	csi("DECCARA"); break;
+			case 'w':	csi("DECRQPSR"); break;
+			case 'y':	csi("DECRPM (Standard)"); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+		if ('?' == first_private_parameter) switch (character) {
+			case 'p':	csi("DECRQM (DEC)"); break;
+			case 'y':	csi("DECRPM (DEC)"); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
-	if ('*' == last_intermediate) switch (character) {
-		case '|':	csi("DECSNLS"); break;
-		default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+	if ('*' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case '|':	csi("DECSNLS"); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
-	if (' ' == last_intermediate) switch (character) {
-		case 'q':	csi("DECSCUSR"); break;
-		case '@':	csi_sumargs("SL"); break;
-		case 'A':	csi_sumargs("SR"); break;
-		case 'B':	csi("GSM"); break;
-		case 'C':	csi("GSS"); break;
-		case 'D':	csi("FNT"); break;
-		case 'E':	csi("TSS"); break;
-		case 'F':	csi("JFY"); break;
-		case 'G':	csi("SPI"); break;
-		case 'H':	csi("QUAD"); break;
-		default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+	if (' ' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case '@':	csi_one_arg("SL"); break;
+			case 'A':	csi_one_arg("SR"); break;
+			case 'B':	csi("GSM"); break;
+			case 'C':	csi("GSS"); break;
+			case 'D':	csi("FNT"); break;
+			case 'E':	csi("TSS"); break;
+			case 'F':	csi("JFY"); break;
+			case 'G':	csi("SPI"); break;
+			case 'H':	csi("QUAD"); break;
+			case 'W':	fnk(); break;
+			case 'q':	csi("DECSCUSR"); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+		if ('?' == first_private_parameter) switch (character) {
+			case 'W':	usb_extended(); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+		if ('=' == first_private_parameter) switch (character) {
+			case 'W':	usb_consumer(); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
-	if ('!' == last_intermediate) switch (character) {
-		case 'p':	csi("DECSTR"); break;
-		default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+	if ('!' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case 'p':	csi("DECSTR"); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
-	if ('\'' == last_intermediate) switch (character) {
-		case 'w':	csi("DECEFR"); break;
-		case '{':	csi("DECSLE"); break;
-		case '|':	csi("DECRQLP"); break;
-		case 'z':	csi("DECELR"); break;
-		default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+	if ('\'' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case 'w':	csi("DECEFR"); break;
+			case '{':	csi("DECSLE"); break;
+			case '|':	csi("DECRQLP"); break;
+			case 'z':	csi("DECELR"); break;
+			default:	csi_unknown(character, last_intermediate, first_private_parameter); break;
+		} else
+			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
-	if ('&' == last_intermediate) switch (character) {
-		case 'w':	csi("DECLRP"); break;
+	if ('&' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case 'w':	csi("DECLRP"); break;
+		} else
+			csi_unknown(character, last_intermediate, first_private_parameter);
 	} else
 		csi_unknown(character, last_intermediate, first_private_parameter);
 }
 
 void
-Decoder::ControlString(uint_fast32_t character)
+Decoder::ControlString(char32_t character)
 {
 	switch (character) {
 		default:	std::fprintf(stdout, "unknown control string "); plainchar(character, ' '); break;
@@ -618,12 +1001,12 @@ Decoder::ControlString(uint_fast32_t character)
 		case APC:	std::fprintf(stdout, "APC "); break;
 		case SOS:	std::fprintf(stdout, "SOS "); break;
 	}
-	for (std::size_t s(0U); s < slen; ++s)
-		plainchar(str[s], ' ');
-	std::fprintf(stdout, "\n");
+	for (std::size_t s(0U); s < QueryControlStringLength(); ++s)
+		plainchar(QueryControlStringCharacter(s), ' ');
+	std::fputc('\n', stdout);
 }
 
-bool 
+bool
 Decoder::process (
 	const char * name,
 	int fd
@@ -632,8 +1015,7 @@ Decoder::process (
 	for (;;) {
 		const int rd(read(fd, buf, sizeof buf));
 		if (0 > rd) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
+			message_fatal_errno(prog, envs, name);
 			return false;
 		} else if (0 == rd)
 			return true;
@@ -655,29 +1037,31 @@ console_decode_ecma48 [[gnu::noreturn]] (
 ) {
 	const char * prog(basename_of(args[0]));
 	bool input(false);
-	bool cannot(false);
+	bool no_can(false);
 	bool no_7bit(false);
+	bool permit_control_strings(false);
 	try {
 		popt::bool_definition input_option('i', "input", "Treat ambiguous I/O sequences as input rather than as output.", input);
-		popt::bool_definition cannot_option('\0', "no-cancel", "Disable CAN cancellation.", cannot);
+		popt::bool_definition no_can_option('\0', "no-cancel", "Disable CAN cancellation.", no_can);
 		popt::bool_definition no_7bit_option('\0', "no-7bit", "Disable 7-bit code extensions.", no_7bit);
+		popt::bool_definition permit_control_strings_option('\0', "control-strings", "Permit control strings.", permit_control_strings);
 		popt::definition * top_table[] = {
 			&input_option,
-			&cannot_option,
+			&no_can_option,
 			&no_7bit_option,
+			&permit_control_strings_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "[file(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	Decoder decoder(prog, envs, input, !cannot, !no_7bit);
+	Decoder decoder(prog, envs, input, !no_can, !no_7bit, permit_control_strings);
 	if (args.empty()) {
 		if (!decoder.process("<stdin>", STDIN_FILENO))
 			throw static_cast<int>(EXIT_TEMPORARY_FAILURE);	// Bernstein daemontools compatibility

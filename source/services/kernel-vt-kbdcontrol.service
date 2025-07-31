@@ -17,7 +17,6 @@ EnvironmentDirectory=env
 StandardInput=file:/dev/ttyv0
 ExecStart=kbdcontrol ${keyboard:+-k "${keyboard}"} ${keymap:+-l "${keymap}"} ${keyrate:+-r "${keyrate}"} ${keybell:+-b "${keybell}"} ${allscreens_kbdflags}
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

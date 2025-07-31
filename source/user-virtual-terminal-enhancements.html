@@ -1,0 +1,74 @@
+<link rel="Up" href="terminals.html" title="Terminals" />
+<link rel="Prev" href="user-virtual-terminal-configuration.html" title="user virtual terminal configuration" />
+<link rel="Next" href="virtual-terminal-login.html" title="virtual terminal login" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>user-space virtual terminal enhancements</title>
+<h1 class="Ruled">
+user-space virtual terminal enhancements
+</h1>
+
+<p>
+<a href="user-virtual-terminals.html">user-space virtual terminals</a> have several enhancements over the kernel virtual terminal emulators that they are designed to be compatible with.
+</p>
+
+<h2 class="Ruled" id="Modifiers">
+Modifers on function and cursor/editing keys
+</h2>
+
+<p>
+DEC VTs had a mechanism for reporting, as part of the control sequence sent, the modifier keys that were pressed when certain non-alphanumeric keys were pressed.
+The kernel virtual terminal emulators in Linux and the BSDs barely implement any of it at all.
+<a href="commands/console-terminal-emulator.xml"><code>console-terminal-emulator</code></a> implements the DEC VT modifier reporting (a default-1 1-based sub-parameter/ambiguous following parameter of the key number in DECFNK) for all function keys and all cursor/editing keys that are not im "application" mode (which sends a Single Shift rather than a DECFNK control sequence).
+</p>
+
+<p>
+Applications can thus reliably implement things like (for examples) the Control key plus the arrow keys for moving by words, or Shift plus Tab for moving back one field in a dialogue box.
+</p>
+
+<h2 class="Ruled" id="COLORTERM">
+COLORTERM
+</h2>
+
+<p>
+<a href="commands/vc-get-terminal.xml"><code>vc-get-terminal</code></a> sets the <a href="commands/COLORTERM.xml"><code>COLORTERM</code></a> environment variable, allowing a vanilla <code>linux</code>, <code>teken</code>, or <code>netbsd6</code> kernel virtual terminal to be distinguished from a compatible user-space virtual terminal.
+This is most useful when, as the name suggests, one wants to know that full Direct and Indexed colours can be used; but can also be used to detect other <a href="commands/TerminalCapabilities.xml"><code>TerminalCapabilities</code></a>.
+(Most of the kernel virtual terminals do not implement even the full AIXterm 16-colour mechanism.)
+</p>
+
+<h2 class="Ruled" id="AlternateScreenBuffer">
+Alternate screen buffer
+</h2>
+
+<p>
+None of the kernel virtual terminals implement the XTerm "alternate screen buffer".
+<a href="commands/console-terminal-emulator.xml"><code>console-terminal-emulator</code></a> does, however, and the replacement/augmenting <code>linux-16color</code> and <code>teken-16color</code> termcap and terminfo records supplied in the toolset specify the control sequences for switching to and from the "alternate screen buffer" in the enter/leave full-screen mode capabilities.
+</p>
+
+<h2 class="Ruled" id="ExtraKeys">
+Multimedia, Internet, and Office keys
+</h2>
+
+<p>
+Modern keyboards since the 1990s have included "multimedia", "Internet", and "office" keys; usually around the sides or along the top of the keyboard.
+Almost no terminal emulator (even GUI ones) assigns fixed, known, control sequences to those keys so that applications can use them.
+</p>
+
+<p>
+<a href="commands/console-terminal-emulator.xml"><code>console-terminal-emulator</code></a> does, however.
+It takes the ECMA-48 standard FNK sequence, adds the DEC question mark or the SCO equals sign to denote a private version of the control sequence, and encodes the USB HID usage code for these keys (in the keyboard or consumer keys pages) and the modifier state, as the parameter and first (default-0, 0-based) sub-parameter, in the control sequence.
+The USB HID codes are stable and have been for many years, and applications can decode these control sequences with no more than reference to the USB Human Input Device documentation.
+</p>
+
+<h2 class="Ruled" id="ISO9995">
+Full standard keyboard maps
+</h2>
+
+<p>
+<a href="commands/console-convert-kbdmap.xml"><code>console-convert-kbdmap</code></a> provides as the default "underlay" keyboard map a full U.S.A. International keyboard map as group 1, and the ISO 9995-1 "common secondary group" as group 2.
+As standard, Shift+AltGr acts as the "group 2 latch" modifier to access that latter.
+</p>
+
+<p>
+The "common secondary group" contains most of the Unicode combining diacritics, and has its own level 1, level 2, and level 3 shift versions of things as well.
+This permits a large range of non-English-alphabet characters that have accents and diacritics, and a range of other symbols, to be typed in the ISO 9995-1 standard way, even when the U.S.A. International layout in group 1 has been replaced with another country's layout.
+</p>

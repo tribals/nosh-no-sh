@@ -20,7 +20,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include "FileDescriptorOwner.h"
 
 static inline
-void 
+void
 WriteInputMessage(
 	const FileDescriptorOwner & input_fd,
 	uint32_t m
@@ -33,10 +33,10 @@ WriteInputMessage(
 */
 
 void
-console_input_method_control [[gnu::noreturn]] ( 
+console_input_method_control [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 
@@ -46,25 +46,21 @@ console_input_method_control [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{.|K|L|R|G|Y|Z|N|C...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command");
 	}
 
 	FileDescriptorOwner run_dev_fd(open_dir_at(AT_FDCWD, "/run/dev"));
 	if (0 > run_dev_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "/run/dev", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "/run/dev");
 	}
 
 	for (;;) {
@@ -83,15 +79,11 @@ console_input_method_control [[gnu::noreturn]] (
 
 		FileDescriptorOwner vt_fd(open_dir_at(run_dev_fd.get(), vcname.c_str()));
 		if (0 > vt_fd.get()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, vcname.c_str(), std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, vcname.c_str());
 		}
 		const FileDescriptorOwner input_fd(open_writeexisting_at(vt_fd.get(), "input"));
 		if (0 > input_fd.get()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, vcname.c_str(), "input", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, vcname.c_str(), "input");
 		}
 		if ("." == command)
 			WriteInputMessage(input_fd, MessageForExtendedKey(EXTENDED_KEY_IM_TOGGLE, 0));
@@ -119,9 +111,7 @@ console_input_method_control [[gnu::noreturn]] (
 		else
 		if ("c" == command || "henkan" == command)
 			WriteInputMessage(input_fd, MessageForExtendedKey(EXTENDED_KEY_HENKAN, 0));
-		else {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command.c_str(), "Unrecognized command");
-			throw EXIT_FAILURE;
-		}
+		else
+			die_unrecognized_command(prog, envs, command.c_str());
 	}
 }

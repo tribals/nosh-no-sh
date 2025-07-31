@@ -9,6 +9,7 @@ Before=%I.service
 [Service]
 WorkingDirectory=/var/log/sv/
 User=%i-log
+SessionLeader=yes
 ExecStart=%p "%I/"
 
 [Install]

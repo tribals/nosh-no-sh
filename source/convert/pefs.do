@@ -10,8 +10,9 @@
 
 redo-ifchange general-services
 
-r="/var/local/sv"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 redo-ifchange "pefs-mount@.service"
 
@@ -21,7 +22,7 @@ then
 	do
 		test -z "$i" && continue
 		pefs_service="pefs-mount@$i"
-		system-control convert-systemd-units $e "$r/" "./${pefs_service}.service"
+		system-control convert-systemd-units $e --bundle-root "$r/" "./${pefs_service}.service"
 		mkdir -p -m 0755 "$r/${pefs_service}/service/env"
 		system-control disable "${pefs_service}"
 		rm -f -- "$r/${pefs_service}/log"

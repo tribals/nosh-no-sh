@@ -19,10 +19,10 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>setlock</command> 
-<arg choice='opt'>--non-blocking</arg> 
-<arg choice='opt'>--ignore</arg> 
-<arg choice='req'><replaceable>file</replaceable></arg> 
+<command>setlock</command>
+<arg choice='opt'>--non-blocking</arg>
+<arg choice='opt'>--ignore</arg>
+<arg choice='req'><replaceable>file</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -30,7 +30,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>setlock</command> is a chain-loading utility that opens the lock file named <replaceable>file</replaceable> leaving an open file descriptor in the current process and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>setlock</command> is a chain-loading utility that opens the lock file named <replaceable>file</replaceable> leaving an open file descriptor in the current process and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -38,11 +38,16 @@
 </para>
 
 <para>
-How the lockfile works is system dependent.
-The lock remains active whilst the file descriptor remains open in any process.
-Closing the file descriptor, by exiting the process or otherwise, is the only portable operation allowed.
+The lock remains active whilst the file <emphasis>description</emphasis>, that is opened by this utility for the purpose, remains open (via a file <emphasis>descriptor</emphasis>) in any process; either the one that ran <command>setlock</command> or a child process that has inherited the file descriptor.
+Closing the file descriptor, by exiting the process(es) or otherwise, is the only portable operation allowed.
 It is unspecified what access rights the file descriptor has for the lock file, or whether the descriptor is in blocking mode.
 </para>
+<note>
+Some code in a chained-to program (or child process) explicitly unlocking the file with <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> will also deactivate the lock.
+However, said code would have to discover the open file descriptor to use.
+<command>setlock</command> does not record it anywhere for programs to easily find.
+</note>
+
 
 <para>
 <command>setlock</command> does not read from or write to the lockfile.
@@ -51,7 +56,7 @@ Note, however, that since the file access is unspecified, it is unspecified whet
 </para>
 
 <para>
-Unless the <arg choice='plain'>--non-blocking</arg> command line option is used, <command>setlock</command> will wait to obtain the lock whilst another process holds it.  
+Unless the <arg choice='plain'>--non-blocking</arg> command line option is used, <command>setlock</command> will wait to obtain the lock whilst another process holds it.
 If that option is used, it will not wait, but instead will fail to acquire the lock.
 </para>
 
@@ -60,14 +65,260 @@ Unless the <arg choice='plain'>--ignore</arg> option is used, failure to acquire
 If that option is used, it will still exit on failure, but without printing an error message and with a success status.
 </para>
 
-</refsection><refsection><title>Unreliable implementation details</title>
+</refsection>
+
+<refsection><title>Unreliable implementation details and the NFS mess</title>
+
+<refsection><title>Précis</title>
+
+<caution>
+There is a broad range of tools that will interlock with this tool.
+However, there are also a couple of tools that do not, one of which shares its name and command-line syntax with a tool that does, making it important to know which of those tools one is using.
+</caution>
+
+<caution>
+NFS has historically caused major problems with Unix locking, and that continues to be the case almost a quarter of the way into the 21st century.
+Using NFS continues to break this and other tools.
+Network fileserver protocols that attempt to provide Unix locking semantics started with AT&amp;T Unix System 5 Release 3's RFS (Remote File Server) and continue with CIFS (a.k.a. SMB).
+One has to check carefully how the tools that one uses interact with the network fileserver protocol that one uses, both locally and remotely.
+</caution>
 
 <para>
-On the BSDs and Linux, locking is based upon the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
-On such systems, explicitly unlocking the file with <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> will also deactivate the lock.
+To summarize the summary of the summary: Unix file locking is a problem.
 </para>
 
-</refsection><refsection><title>Author</title>
+</refsection>
+
+<refsection><title>Dramatis person&#xe6;</title>
+
+<variablelist>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A whole-file advisory locking system call.
+Locks have the lifetime of the open file <emphasis>description</emphasis>.
+Child processes that inherit access to the open file description via inherited open file <emphasis>descriptors</emphasis> also hold the lock.
+They can explicitly unlock it with this system call.
+</para><para>
+Although never standardized by POSIX or the Single Unix Specification, and originating with 4.2BSD, in the 21st century this exists on pretty much all relevant Unix or Unix-alike operating systems, and the historical notion that this may not exist is just that &#x2014; historic.
+<ulink url="http://cr.yp.to/docs/unixport.html">Daniel J. Bernstein's Unix portability notes</ulink> from the 1990s state that this system call does not exist on SunOS.
+This is somewhat misleading, because its modern equivalent Illumos has a library function of this name, layered atop the <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+<ulink url="https://refspecs.linuxbase.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/baselib-flock-2.html">The Linux Standard Base Core Specification</ulink> guarantees the existence of this system call on Linux.
+And of course all of the BSDs have it.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>open</refentrytitle><manvolnum>2</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A system call that on some operating systems has an <code>O_EXLOCK</code> flag that opens the file and performs the equivalent of an exclusive <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> whole file lock, all in one call, eliminating a short window of opportunity where a process that creates a new lockfile might not be the first to advisory whole-file lock it.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>2</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A system call that provides advisory record-locking mechanisms, with a mode that allows locking a single record that always spans the entire file.
+Locks have the lifetime of the locking process.
+Other processes do not share the lock, and closing <emphasis>any</emphasis> file <emphasis>descriptor</emphasis> referencing the open file <emphasis>description</emphasis> releases the lock.
+</para><para>
+This was standardized by POSIX and the Single Unix Specification.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A system call that provides advisory record-locking mechanisms, with a mode that allows locking a single record that always spans the entire file, in two ways:
+</para>
+<itemizedlist>
+<listitem><para>
+Locks that have the lifetime and scope of the locking process, just like <citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>2</manvolnum></citerefentry>.
+This was standardized by POSIX and the Single Unix Specification.
+</para></listitem>
+<listitem><para>
+Locks that have the lifetime of the open file description and scope of potentially multiple processes, just like <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry>.
+This has not been standardized by POSIX and the Single Unix Specification.
+Although there was an attempt to standardize it, as of 2023 that attempt is still stalled after many years.
+</para></listitem>
+</itemizedlist>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<command>setlock</command>
+</term>
+<listitem><para>
+This utility.
+It uses the <code>O_EXLOCK</code> flag to the <citerefentry><refentrytitle>open</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call, if the operating system has it, falling back to using the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>setlock</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A file locking utility from 1999 by Daniel J. Bernstein that was part of <ulink url="http://cr.yp.to/daemontools.html">Bernstein's daemontools</ulink> and is part of <ulink url="https://jdebp.uk/Softwares/djbwares/">djbwares</ulink>.
+This uses the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call where it exists, falling back to the <citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call where it does not.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>lockrun</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A <ulink url="http://www.unixwiz.net/tools/lockrun.html">standalone</ulink> file locking utility from 2006 by Steve Friedl.
+This uses the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call, with a compile-time selectable option to instead use the <citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>flock</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A file locking utility from 2003 by H. Peter Anvin that is part of <ulink url="https://github.com/util-linux/util-linux">the util-linux toolset</ulink>.
+This uses the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>flock</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A <ulink url="https://github.com/discoteq/flock">standalone</ulink> file locking utility from 2014 by Joseph Holsten.
+This uses the <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>chpst</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A file locking utility by Gerrit Pape that is part of runit.
+This uses the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A file locking utility from FreeBSD 2.2 by John Polstra.
+This uses the <citerefentry><refentrytitle>open</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call with the <code>O_EXLOCK</code> flag.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>lckdo</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A file locking utility by Michael Tokarev that was part of moreutils.
+This uses the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call, with a compile-time selectable option to instead use the <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>s6-setlock</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+</term>
+<listitem><para>
+A file locking utility by Laurent Bercot that is part of <ulink url="https://skarnet.org/software/s6/index.html">s6</ulink>.
+This uses the <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+</para></listitem>
+</varlistentry>
+
+</variablelist>
+
+</refsection>
+
+<refsection><title>Details</title>
+
+<para>
+Operating systems vary:
+</para>
+
+<itemizedlist>
+<listitem><para>
+Illumos and the BSDs guarantee that all whole-file and record advisory locking mechanisms interlock with all other advisory lock mechanisms, of any type.
+Applications that take out both forms, as a way of covering all of their bases, will actually deadlock themselves, and the Illumos and BSD manuals thus say to use one or the other and not both.
+</para></listitem>
+<listitem><para>
+Per <ulink url="https://www.kernel.org/doc/Documentation/filesystems/locks.txt">Andy Walker's File Locking Release Notes</ulink> Linux since May 1997 has provided the <emphasis>opposite</emphasis> guarantee, that they <emphasis>do not</emphasis> interlock.
+Applications that want to interlock at both the whole-file and record levels have to take out both forms of lock.
+</para></listitem>
+<listitem><para>
+Both Illumos and Linux provide the not-standardized open file description record locks of <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry>; but as aforementioned Illumos and Linux differ on whether they interlock with other locking mechanisms.
+</para></listitem>
+</itemizedlist>
+
+<para>
+In general, the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call is the widely recommended locking mechanism, and has been for decades, with the Linux manual politely describing the semantics of <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> and <citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call locking as "unfortunate" and the BSD manual more forthrightly talking about "the completely stupid semantics of System V" and POSIX.
+(Sharing the sentiment, Michael Tokarev comments in the source code of <citerefentry><refentrytitle>lckdo</refentrytitle><manvolnum>1</manvolnum></citerefentry> on the "stupid POSIX fcntl locking semantics".)
+</para>
+
+<para>
+No known utility makes use of the not-standardized open file description record locks of <citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> provided by Illumos and Linux.
+</para>
+
+<para>
+All bar two of the tools now use the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call, either directly or via the <code>O_EXLOCK</code> flag to the <citerefentry><refentrytitle>open</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
+Bernstein <citerefentry><refentrytitle>setlock</refentrytitle><manvolnum>1</manvolnum></citerefentry> never needs to fall back and Freidl <citerefentry><refentrytitle>lockrun</refentrytitle><manvolnum>1</manvolnum></citerefentry> never requires its conditional compilation that was only introduced for SunOS and is obsoleted by Illumos.
+The others (including this <command>setlock</command>) simply have <emphasis>always</emphasis> used it, as it has been widely recognized as the correct choice since the 1990s, and the only real barrier to its universal use (its non-existence on historical operating systems like SunOS in the 1990s) has (by Illumos et al.) long since been removed.
+</para>
+
+<para>
+All bar just those two tools, Bercot <citerefentry><refentrytitle>s6-setlock</refentrytitle><manvolnum>8</manvolnum></citerefentry> and Holsten <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>1</manvolnum></citerefentry>, will interlock on local filesystems.
+Their file locks are compatible with one another, and they will all interoperate with one another on local filesystems.
+In addition, the guarantees made by Illumos and the BSDs mean that even these two will interlock with all of the rest on those operating systems, on local filesystems.
+</para>
+
+<para>
+Although AT&amp;T System 5 Release 3's RFS (Remote File Server) fully supported locking, as does CIFS (a.k.a. SMB), NFS has been a thorn in the side of Unix locking, and all of these tools, since 1984.
+NFS's decades-long history of interacting in unexpected ways with file locking is in part fortunately now just that &#x2014; history.
+However, several problems remain, still, as of 2023:
+</para>
+
+<itemizedlist>
+
+<listitem><para>
+The NFS implementation for Linux silently changes <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>2</manvolnum></citerefentry> locks by a client into <citerefentry><refentrytitle>lockf</refentrytitle><manvolnum>2</manvolnum></citerefentry>/<citerefentry><refentrytitle>fcntl</refentrytitle><manvolnum>2</manvolnum></citerefentry> locks on the server, throwing a giant spanner in the works for <emphasis>all</emphasis> of these tools because whether they interlock now also depends from whether a utility is run on an NFS client or locally on the NFS server without going through NFS.
+Thus nominally interlocking locks actually do not interlock, and nominally <emphasis>not</emphasis> interlocking locks actually do interlock (contra Andy Walker and the Linux documentation).
+</para><caution>
+The Bercot and Holsten utilities run on the server will interlock with all of the other utilities run on the client; but will only interlock with each other on the server, and not with any other utilities.
+</caution><caution>
+All of the others bar those two will interlock with one another on clients, and if they are all running on the server together and not going through NFS; but will not interlock with one another if they are used on a mixture of a client and the server.
+</caution></listitem>
+
+<listitem><para>
+Illumos documentation explicitly states that locking with the <citerefentry><refentrytitle>flock</refentrytitle><manvolnum>3</manvolnum></citerefentry> system call is not supported at all over NFS.
+</para><caution>
+Thus all bar the Bercot and Holsten utilities will not function over NFS on Illumos; despite that as aforementioned <emphasis>all</emphasis> all of these tools interoperate on local filesystems on Illumos.
+</caution></listitem>
+
+</itemizedlist>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Author</title>
 <para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
 </refsection>
 

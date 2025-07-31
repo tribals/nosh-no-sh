@@ -7,6 +7,7 @@ Description=%p daemon
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.locale1
 ExecStart=/lib/systemd/%p
 Restart=on-abort
 

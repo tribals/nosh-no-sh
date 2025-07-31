@@ -14,14 +14,13 @@ then
 elif test -r /usr/lib/os-release
 then
 	redo-ifcreate /etc/os-release
-	redo-ifchange exec /usr/lib/os-release
+	redo-ifchange exec /usr/lib/os-release "`readlink -f /usr/lib/os-release`"
 	# These get us *only* the operating system variables, safely.
 	read_os() { ./exec clearenv setenv "$1" "$2" read-conf /usr/lib/os-release printenv "$1" ; }
 else
-	redo-ifcreate /etc/os-release
-	redo-ifcreate /usr/lib/os-release
+	redo-ifcreate /etc/os-release /usr/lib/os-release
 	# The os-release system has defined defaults.
 	read_os() { printf "%s\n" "$2" ; }
 fi
-printf "%s:%s\n" "`read_os ID linux`" "`read_os VERSION_ID`" > "$3"
+printf "%s:%s\n" "`read_os ID linux`" "`read_os VERSION_ID \"\"`" > "$3"
 exec true

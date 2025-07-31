@@ -7,7 +7,11 @@ cgproxy
 cntlm
 colord-sane
 connman
+console-evdev-realizer-log
+console-fb-realizer-log
+console-ps2-mouse-realizer-log
 dundee
+hwclock
 irqbalance
 kernel-vt-kbdrate
 kernel-vt-loadkeys
@@ -15,12 +19,14 @@ kernel-vt-setfont
 kernel-vt-setterm
 kerneloops
 kmod
+kmod@firewire-sbp2
 kmod@ipv6
 kmod@loop
 kmod@lp
 kmod@parport_pc
 kmod@ppdev
 kmod@sg
+kmod@uio_pci_generic
 kmod@unix
 kmod@uvesafb
 mdadm
@@ -33,6 +39,8 @@ powertop
 rngd
 sudo
 sysstat
+systemd-tmpfiles-setup
+systemd-tmpfiles-clean
 systemd-hostnamed
 systemd-localed
 systemd-logind
@@ -40,4 +48,5 @@ systemd-timesyncd
 ttylogin-starter
 unattended-upgrade-shutdown
 update-binfmts
+vpp
 wettsteinsyslogd

@@ -6,9 +6,11 @@
 # It is used by the nosh-run-openssh-server package in order to enable the services themselves.
 #
 
+# Enable the one where the toolkit does the listening and accepting.
 enable	cyclog@sshd.service
 enable	sshd.service
-enable	cyclog@ssh.service
-enable	ssh.service
-enable	cyclog@sshgenkeys.service
-enable	sshgenkeys.service
+# Disable the one where sshd does the listening and accepting.
+disable	cyclog@ssh.service
+disable	ssh.service
+enable	cyclog@ssh-keygen.service
+enable	ssh-keygen.service

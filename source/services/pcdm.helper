@@ -9,13 +9,15 @@ allow-auto-login() {
 }
 
 check-bootflags() {
+	echo 1>&2 "Checking for X display setup flags"
+
 	# Check whether the user has selected to (re-)run stuff from the boot loader.
-	# We do not reset the kenv flags, as this check is only done at service startup, and also the flags might be shared.
 	if runwiz="`kenv runwiz 2>/dev/null`"
 	then
 		if test _"${runwiz}" = _"YES"
 		then
 			rm -f -- "runxsetup"
+			kenv -u runwiz
 		fi
 	fi
 	if xvesa="`kenv xvesa 2>/dev/null`"
@@ -23,14 +25,26 @@ check-bootflags() {
 		if test _"${xvesa}" = _"YES"
 		then
 			touch "runxvesa"
+			kenv -u xvesa
 		fi
+	fi
+	# Check whether the user has selected to (re-)run stuff from the PCBSD Control Panel.
+	if test -e /var/.runxsetup
+	then
+		rm -f -- "runxsetup"
+		rm -f -- /var/.runxsetup
+	fi
+	if test -e /var/.pcbsd-firstgui
+	then
+		rm -f -- "runfirstgui"
+		rm -f -- /var/.pcbsd-firstgui
 	fi
 }
 
 run_firstboot() {
 	fluxbox &
 	PID=$!
-	userenv --set-path --set-other --set-tools --set-timezone --set-locale pc-firstboot
+	userenv --default-path --default-tools --default-timezone --set-other --default-locale pc-firstboot
 	kill -9 -- ${PID}
 }
 
@@ -81,11 +95,11 @@ run() {
 	# Now start the X Server
 	# The xinit will be a local reaper, which it can handle.
 	# The "session" instance of this helper will be a local reaper, which the shell can handle.
-	local-reaper true xinit /bin/exec local-reaper true "$0" session -- "${display}" -auth "${PCDMAUTHFILE}" -retro $Xflags
+	local-reaper true xinit /bin/exec local-reaper true "$0" session -- "${display}" -auth "${authfile}" -retro $Xflags
 	rc=$?
 
 	# Now remove the authorization file
-	rm -f -- "${PCDMAUTHFILE}"
+	rm -f -- "${authfile}"
 
 	return ${rc}
 }

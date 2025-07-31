@@ -8,7 +8,7 @@
 # Use the "redo" command to run this .do script, via "redo all".
 # 2016-01-24: This line forces a rebuild because of the new dependency tree.
 #
-common="ataidle axfrdns brltty dbus-services dnscache ftp-proxy general-services geom host.conf hostname iovctl java-home kdm kernel-modules kernel-vt mdconfig mysql nfs ntp openldap openvpn pefs rc.conf savecore securelevel static-networking sysctl.conf syslogd system-installer terminal-services tinydns user-services volumes webcamd"
+common="ataidle axfrdns brltty dbus-services dnscache ftp-proxy general-services geom host.conf hostname iovctl java-home kdm kernel-modules kernel-vt keyboard-maps mdconfig mysql nfs ntp openldap openvpn pefs rc.conf savecore securelevel static-networking sysctl.conf syslogd system-installer taiclockd terminal-services tinydns user-services user-vt-realizer-configuration walldns volumes webcamd"
 
 case "`uname`" in
 Linux)

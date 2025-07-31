@@ -37,7 +37,7 @@ const struct bsd_kbdmap_item {
 	// Having two actions lets us map a single BSD name onto different actions for the calculator and cursor+editing keypads.
 	uint32_t action[2U];	// Action indices: 0 if from original PC/XT keycode, 1 if from PC/AT or PC98 extension keycodes
 	const char * name;
-} 
+}
 bsd_actions[]= {
 	{ {	NOOP(1),				NOOP(1),				}, "nop"		},	// This is not actually in the BSD doco; but it is in lots of keymap files.
 	{ {	UCSA(0x00),				UCSA(0x00),				}, "nul"		},
@@ -52,7 +52,7 @@ bsd_actions[]= {
 	{ {	UCSA(0x09),				UCSA(0x09),				}, "ht"			},
 	{ {	UCSA(0x0A),				UCSA(0x0A),				}, "nl"			},
 	{ {	UCSA(0x0B),				UCSA(0x0B),				}, "vt"			},
-//	{ {	UCSA(0x0C),				UCSA(0x0C),				}, "np"			},	// A BSDism that isn't used in any FreeBSD 10 keymap.
+//	{ {	UCSA(0x0C),				UCSA(0x0C),				}, "np"			},	// A BSDism, also in SCO Unix, that isn't used in any FreeBSD 10 keymap.
 	{ {	UCSA(0x0C),				UCSA(0x0C),				}, "ff"			},
 	{ {	UCSA(0x0D),				UCSA(0x0D),				}, "cr"			},
 	{ {	UCSA(0x0E),				UCSA(0x0E),				}, "so"			},
@@ -111,29 +111,34 @@ bsd_actions[]= {
 	{ {	MMNT(KBDMAP_MODIFIER_1ST_ALT),		MMNT(KBDMAP_MODIFIER_1ST_ALT),		}, "lalt"		},
 	{ {	MMNT(KBDMAP_MODIFIER_1ST_LEVEL3),	MMNT(KBDMAP_MODIFIER_1ST_LEVEL3),	}, "altgr"		},
 	{ {	MMNT(KBDMAP_MODIFIER_1ST_LEVEL3),	MMNT(KBDMAP_MODIFIER_1ST_LEVEL3),	}, "ralt"		},
-	{ {	MMNT(KBDMAP_MODIFIER_2ND_LEVEL3),	MMNT(KBDMAP_MODIFIER_2ND_LEVEL3),	}, "ashift"		},
+	{ {	MMNT(KBDMAP_MODIFIER_2ND_LEVEL3),	MMNT(KBDMAP_MODIFIER_2ND_LEVEL3),	}, "ashift"		},	// This means the sane as "altgr", and is used idiosyncratically by FreeBSD's "cz" and "gr" keymaps.
 	{ {	MMNT(KBDMAP_MODIFIER_1ST_META),		MMNT(KBDMAP_MODIFIER_1ST_META),		}, "meta"		},
 	{ {	MMNT(KBDMAP_MODIFIER_1ST_META),		MMNT(KBDMAP_MODIFIER_1ST_META),		}, "lmeta"		},
 	{ {	MMNT(KBDMAP_MODIFIER_2ND_META),		MMNT(KBDMAP_MODIFIER_2ND_META),		}, "rmeta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "lshifta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "rshifta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "shifta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "lctrla"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "rctrla"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "ctrla"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "lalta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "ralta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "alta"		},
-	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "alock"		},
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "lshifta"		},	// This means the same as "alock", and is used idiosyncratically by FreeBSD's "cz" and "gr" keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "rshifta"		},	// This means the same as "alock", and is used idiosyncratically by FreeBSD's "cz" and "gr" keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "shifta"		},	// This is not used in any FreeBSD 10 keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "lctrla"		},	// This is not used in any FreeBSD 10 keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "rctrla"		},	// This is not used in any FreeBSD 10 keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "ctrla"		},	// This is not used in any FreeBSD 10 keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "lalta"		},	// This means the same as "alock", and is used idiosyncratically by FreeBSD's "cz" and "gr" keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "ralta"		},	// This is not used in any FreeBSD 10 keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "alta"		},	// This is not used in any FreeBSD 10 keymaps.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "alock"		},	// The majority of FreeBSD keymaps use this for level 3 shift lock.
 	{ {	LOCK(KBDMAP_MODIFIER_CAPS),		LOCK(KBDMAP_MODIFIER_CAPS),		}, "clock"		},
 	{ {	LOCK(KBDMAP_MODIFIER_NUM),		LOCK(KBDMAP_MODIFIER_NUM),		}, "nlock"		},
 	{ {	LOCK(KBDMAP_MODIFIER_SCROLL),		LOCK(KBDMAP_MODIFIER_SCROLL),		}, "slock"		},
-	{ {	EXTE(EXTENDED_KEY_BACKTAB),		EXTE(EXTENDED_KEY_BACKTAB),		}, "btab"		},
+	{ {	EXTN(EXTENDED_KEY_BACKTAB),		EXTE(EXTENDED_KEY_BACKTAB),		}, "btab"		},
+	{ {	EXTE(EXTENDED_KEY_TAB),			EXTE(EXTENDED_KEY_TAB),			}, "tab"		},	// This is an extension to the BSD format.
 	{ {	EXTE(EXTENDED_KEY_BACKSPACE),		EXTE(EXTENDED_KEY_BACKSPACE),		}, "bspace"		},	// This is an extension to the BSD format that allows use of the DEC VT switchable backspace mechanism.
 	{ {	EXTE(EXTENDED_KEY_DELETE),		EXTE(EXTENDED_KEY_DELETE),		}, "delete"		},	// This is an extension to the BSD format that allows use of the XTerm switchable delete mechanism.
+	{ {	EXTE(EXTENDED_KEY_ESCAPE),		EXTE(EXTENDED_KEY_ESCAPE),		}, "escape"		},	// This is an extension to the BSD format that allows use of the DEC VT return key.
 	{ {	EXTE(EXTENDED_KEY_RETURN_OR_ENTER),	EXTE(EXTENDED_KEY_RETURN_OR_ENTER),	}, "return"		},	// This is an extension to the BSD format that allows use of the DEC VT return key.
 	{ {	EXTN(EXTENDED_KEY_PAD_ENTER),		EXTE(EXTENDED_KEY_PAD_ENTER),		}, "enter"		},	// This is an extension to the BSD format that allows use of the DEC VT enter key.
 	{ {	EXTE(EXTENDED_KEY_IM_TOGGLE),		EXTE(EXTENDED_KEY_IM_TOGGLE),		}, "imsw"		},	// This is an extension to the BSD format that allows an IM toggle key.
+	{ {	EXTE(EXTENDED_KEY_HANJA),		EXTE(EXTENDED_KEY_HANJA),		}, "hanja"		},	// This is an extension to the BSD format that allows a Hanja key.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL2),		LOCK(KBDMAP_MODIFIER_LEVEL2),		}, "l2lock"		},	// This is an extension to the BSD format that allows level 2 lock.
+	{ {	LOCK(KBDMAP_MODIFIER_LEVEL3),		LOCK(KBDMAP_MODIFIER_LEVEL3),		}, "l3lock"		},	// This is an extension to the BSD format that allows level 3 lock (more systematic name than "alock").
 	{ {	MMNT(KBDMAP_MODIFIER_1ST_GROUP2),	MMNT(KBDMAP_MODIFIER_1ST_GROUP2),	}, "g2shift"		},	// This is an extension to the BSD format that allows group 2 shift.
 	{ {	LTCH(KBDMAP_MODIFIER_1ST_GROUP2),	LTCH(KBDMAP_MODIFIER_1ST_GROUP2),	}, "g2latch"		},	// This is an extension to the BSD format that allows group 2 latch.
 	{ {	LOCK(KBDMAP_MODIFIER_1ST_GROUP2),	LOCK(KBDMAP_MODIFIER_1ST_GROUP2),	}, "g2lock"		},	// This is an extension to the BSD format that allows group 2 lock.
@@ -224,6 +229,7 @@ bsd_actions[]= {
 	{ {	EXTE(EXTENDED_KEY_APPLICATION),		EXTE(EXTENDED_KEY_APPLICATION),		}, "fkey64"		},
 	// In a BSD kbdmap "fkey", as can be seen above, does not necessarily mean function key.
 	// So what "fkey65" et seq. mean is undefined and unguessable.
+	// SCO Unix went up to fkey96 in its keyboard(7) doco, but only documented their meanings as far as fkey60 (sic!).
 #if 0
 	{ {	NOOP(0xFB5D41),				NOOP(0xFB5D41),				}, "fkey65"	},
 	{ {	NOOP(0xFB5D42),				NOOP(0xFB5D42),				}, "fkey66"	},
@@ -284,12 +290,12 @@ strip_field (
 }
 
 static inline
-bool 
-is_decimal ( 
-	const std::string & s 
+bool
+is_decimal (
+	const std::string & s
 ) {
 	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p)
-		if (!std::isdigit(*p)) 
+		if (!std::isdigit(*p))
 			return false;
 	return true;
 }
@@ -303,17 +309,17 @@ hexprefix (
 }
 
 static inline
-unsigned 
-hexval ( 
-	const std::string & s 
+unsigned
+hexval (
+	const std::string & s
 ) {
 	unsigned v = 0;
 	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p) {
 		const char c(*p);
-		if (std::isdigit(c)) 
+		if (std::isdigit(c))
 			v = v * 0x10 + static_cast<unsigned>(c - '0');
 		else
-		if (std::isxdigit(c)) 
+		if (std::isxdigit(c))
 			v = v * 0x10 + static_cast<unsigned>(std::tolower(c) - 'a' + 0x0A);
 		else
 			break;
@@ -322,14 +328,14 @@ hexval (
 }
 
 static inline
-unsigned 
-octval ( 
-	const std::string & s 
+unsigned
+octval (
+	const std::string & s
 ) {
 	unsigned v = 0;
 	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p) {
 		const char c(*p);
-		if (std::isdigit(c) && c < '8') 
+		if (std::isdigit(c) && c < '8')
 			v = v * 0x10 + static_cast<unsigned>(c - '0');
 		else
 			break;
@@ -352,7 +358,7 @@ action (
 	if (s.length() > 0 && is_decimal(s)) return UCSA(val(s));
 	const bsd_kbdmap_item * e(bsd_actions + sizeof bsd_actions/sizeof *bsd_actions);
 	for (const bsd_kbdmap_item * p(bsd_actions); p <  e; ++p) {
-		if (p->name == s) 
+		if (p->name == s)
 			return p->action[pc_at_addition ? 1U : 0U];
 	}
 	if ("ns" == s)
@@ -362,11 +368,12 @@ action (
 	return NOOP(0x777777);
 }
 
-static 
-bool 
+static
+bool
 process (
 	kbdmap_entry keyboard[KBDMAP_ROWS][KBDMAP_COLS],
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * name,
 	std::istream & i
 ) {
@@ -376,8 +383,7 @@ process (
 		std::getline(i, line, '\n');
 		if (i.eof()) break;
 		if (i.fail()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
+			message_fatal_errno(prog, envs, name);
 			return false;
 		}
 		line = ltrim(line);
@@ -408,7 +414,7 @@ process (
 			continue;
 		}
 		// Silently ignore attempts to map a keycode that does not occur so that our own NOP mapping for the first entry remains untouched.
-		if (0x00 == keycode) continue;	
+		if (0x00 == keycode) continue;
 		const uint16_t index(bsd_keycode_to_keymap_index(keycode));
 		if (0xFFFF == index) {
 			if (!is_all_nop)
@@ -418,16 +424,23 @@ process (
 		kbdmap_entry & e(keyboard[index >> 8U][index & 0x0F]);
 
 		if (!level3) {
-			for (unsigned j(0U); j < sizeof cmds/sizeof *cmds; ++j) 
+			for (unsigned j(0U); j < sizeof cmds/sizeof *cmds; ++j)
 				e.p[j] = cmds[j];
 		} else
 		if (!seen_scrn) {
-			for (unsigned j(0U); j < 4U; ++j) 
+			for (unsigned j(0U); j < 4U; ++j)
 				e.p[j + 4U] = cmds[j];
 		}
 
-		if ("B" == l || "N" == l)
+		if ("B" == l) {
 			e.cmd = 'n';
+			std::fprintf(stderr, "%s: WARNING: %s(%lu): %u: %s\n", prog, name, ln, keycode, "B is treated as N.");
+		} else
+		if ("N" == l)
+			e.cmd = 'n';
+		else
+		if ("L" == l)
+			e.cmd = 'l';
 		else
 		if ("C" == l)
 			e.cmd = 'c';
@@ -446,28 +459,27 @@ process (
 */
 
 void
-console_convert_kbdmap [[gnu::noreturn]] ( 
+console_convert_kbdmap [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "[file(s)...]");
+		popt::top_table_definition main_option(0, nullptr, "Main options", "[file(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	KeyboardMap map;
 	set_default(map);
 	if (args.empty()) {
-		if (!process(map, prog, "<stdin>", std::cin))
+		if (!process(map, prog, envs, "<stdin>", std::cin))
 			throw static_cast<int>(EXIT_TEMPORARY_FAILURE);	// Bernstein daemontools compatibility
 	} else {
 		for (std::vector<const char *>::const_iterator i(args.begin()); i != args.end(); ++i) {
@@ -478,7 +490,7 @@ console_convert_kbdmap [[gnu::noreturn]] (
 				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
 				throw static_cast<int>(EXIT_PERMANENT_FAILURE);	// Bernstein daemontools compatibility
 			}
-			if (!process(map, prog, name, ifs))
+			if (!process(map, prog, envs, name, ifs))
 				throw static_cast<int>(EXIT_TEMPORARY_FAILURE);	// Bernstein daemontools compatibility
 		}
 	}

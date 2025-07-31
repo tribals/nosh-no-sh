@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=NICNAME service over IP4/IP6 using djbwares geminid
+
+[Service]
+User=publicfile
+SessionLeader=yes
+EnvironmentUserOnly=true
+LimitNOFILE=8
+LimitDATA=5000000
+ExecStart=sh -c 'exec geminid ~publicfile/public'
+
+[Install]
+WantedBy=server.target

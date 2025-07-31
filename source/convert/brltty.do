@@ -13,14 +13,15 @@ read_rc() { clearenv read-conf rc.conf printenv "$1" ; }
 
 redo-ifchange rc.conf general-services "brltty@.service"
 
-r="/var/local/sv"
-e="--no-systemd-quirks --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --local-bundle"
 
-find "$r/" -maxdepth 1 -type d -name 'brltty@*' -print0 |
+find "$r/" -maxdepth 1 -type d -name 'brltty@*' -a \( -type l -o -type f \) -print0 |
 xargs -0 system-control disable --
 system-control disable brltty-log
 
-for etcdir in "/etc" "/usr/local/etc"
+for etcdir in "/usr/local/etc" "/etc" "/usr/pkg/etc"
 do
 	if ! test -e "${etcdir}"
 	then
@@ -34,13 +35,13 @@ do
 		echo >>"$3" "${etcdir}" "is not valid."
 		continue
 	fi
-	find "${etcdir}"/ -maxdepth 1 -name 'brltty*.conf' 2>>"$3"
+	find "${etcdir}"/ -maxdepth 1 -name 'brltty*.conf' -a \( -type l -o -type f \) 2>>"$3"
 done |
 while read -r i
 do
 	service="`system-control escape --prefix brltty@ \"$i\"`"
 
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 -- "$r/${service}/service/env"
 	rm -f -- "$r/${service}/log"
 	ln -s -- "../../sv/brltty-log" "$r/${service}/log"

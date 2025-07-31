@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Save/restore the system time in a persistent hardware clock
+Description=Note that this needs an %p utility that can run in the foreground.
+Before=persistent-clock-loaded.target
+WantsMountsFor=/etc
+AfterMountsFor=/etc
+Wants=persistent-clock-loaded.target
+
+[Service]
+ExecStart=%p --foreground -i
+
+[Install]
+WantedBy=workstation.target

@@ -24,15 +24,15 @@ am_in_bsd_jail ()
 	if (0 > r) return r;
 	unsigned char buf[sizeof(uint32_t)];
 	std::size_t siz(sizeof buf);
-	const int s(sysctl(oid, len, buf, &siz, 0, 0));
+	const int s(sysctl(oid, len, buf, &siz, nullptr, 0));
 	if (0 > s) return s;
 	return *reinterpret_cast<const uint32_t *>(buf);
 }
 #endif
 
 extern
-bool 
-am_in_jail(const ProcessEnvironment & envs) 
+bool
+am_in_jail(const ProcessEnvironment & envs)
 {
 #if defined(__FreeBSD__) || defined(__DragonFly__)
 	const int r(am_in_bsd_jail());

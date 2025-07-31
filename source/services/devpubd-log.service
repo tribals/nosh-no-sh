@@ -1,0 +1,20 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=devpubd daemon's logger
+DefaultDependencies=false
+After=local-fs.target
+Before=shutdown.target
+
+[Service]
+User=%p
+SessionLeader=yes
+WorkingDirectory=/var/log/sv
+ExecStart=cyclog devpubd/
+RestartSec=1
+
+[Install]
+WantedBy=sysinit.target
+StoppedBy=shutdown.target

@@ -6,6 +6,7 @@
 Description=Yellow Pages transfer daemon
 Wants=rpcbind.service ypserv.service nis_server.service
 After=nisdomain.service
+Conflicts=ypxfr.service
 
 [Service]
 Type=forking

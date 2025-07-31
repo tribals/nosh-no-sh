@@ -7,6 +7,7 @@ Description=Apple laptop hot-key daemon
 
 [Service]
 Type=dbus
+BusName=org.%p
 ExecStart=%p -d
 
 [Install]

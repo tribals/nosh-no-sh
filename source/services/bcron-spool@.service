@@ -9,6 +9,7 @@ Description=Guenter's bcron submission server
 EnvironmentDirectory=env
 LimitMEMORY=70000000
 User=cron
+SessionLeader=yes
 ExecStart=%p
 RestartSec=60
 

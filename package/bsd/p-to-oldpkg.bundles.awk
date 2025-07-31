@@ -22,55 +22,203 @@
 	gsub("\\.","_d",pwescaped3);
 	gsub("\\+","_p",pwescaped3);
 	if ("logfile_owning_user" == $1) {
-		print "@newuser",pwescaped2 "-log::::::/usr/bin/true";
+		user=pwescaped2 "-log"
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
 	} else
 	if ("file_owning_user" == $1) {
-		print "@newuser",pwescaped2 ":::::" pwescaped3 ":/usr/bin/true";
+		user=pwescaped2
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user ":::::" pwescaped3 ":/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/home/" pwescaped3,"-g",user,user;
+		}
 	} else
 	if ("non_file_owning_user" == $1) {
-		print "@newuser",pwescaped2 "::::::/usr/bin/true";
+		user=pwescaped2
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
 	} else
 	if ("user_vt_user" == $1) {
-		print "@newuser","user-vt-" pwescaped2 "::::::/usr/bin/true";
+		user="user-vt-" pwescaped2
+		if (level > 1) {
+			print "@newuser",user "in";
+		} else
+		{
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
 	} else
 	if ("user_vt_group" == $1) {
-		print "@newgroup","user-vt-" pwescaped2;
+		user="user-vt-" pwescaped2
+		if (level > 1) {
+			print "@newgroup",user;
+		} else
+		{
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
 	} else
 	if ("service_with_dedicated_logger" == $1) {
-		print "@newuser",pwescaped2 "-log::::::/usr/bin/true";
-		print "@owner",pwescaped2 "-log";
+		user=pwescaped2 "-log"
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
 		print "@mode","0755";
-		print "@dir","var/log/sv/" two;
+		if (level > 1) {
+			print "@dir","var/log/sv/" two;
+		}
 	} else
 	if ("login_service_with_dedicated_logger" == $1) {
-		print "@newuser","ttylogin_a" pwescaped2 "-log::::::/usr/bin/true";
-		print "@owner","ttylogin_a" pwescaped2 "-log";
+		user="ttylogin_a" pwescaped2 "-log"
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
 		print "@mode","0755";
-		print "@dir","var/log/sv/ttylogin@" two;
+		if (level > 1) {
+			print "@dir","var/log/sv/ttylogin@" two;
+		}
 	} else
-	if ("ktty_login_service_with_dedicated_logger" == $1) {
-		print "@newuser","ttylogin_attyC" pwescaped2 "-log::::::/usr/bin/true";
-		print "@owner","ttylogin_attyC" pwescaped2 "-log";
+	if ("kvt_login_service_with_dedicated_logger" == $1) {
+		if (level > 1) {
+			user="ttylogin_attyC" pwescaped2 "-log"
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			user="ttylogin_attyE" pwescaped2 "-log"
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
 		print "@mode","0755";
-		print "@dir","var/log/sv/ttylogin@ttyC" two;
+		if (level > 1) {
+			print "@dir","var/log/sv/ttylogin@ttyC" two;
+		}
+	} else
+	if ("kvt_realizer_service_with_dedicated_logger" == $1) {
+		if (level > 1) {
+			user="console-kvt-realizer_attyC" pwescaped2 "-log"
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			user="console-kvt-realizer_attyE" pwescaped2 "-log"
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
+		print "@mode","0755";
+		if (level > 1) {
+			print "@dir","var/log/sv/ttylogin@ttyC" two;
+		}
+	} else
+	if ("serial_tty_login_service_with_dedicated_logger" == $1) {
+		if (level > 1) {
+			user="ttylogin_atty0" pwescaped2 "-log"
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			user="ttylogin_adty0" pwescaped2 "-log"
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
+		print "@mode","0755";
+		if (level > 1) {
+			print "@dir","var/log/sv/ttylogin@tty0" two;
+		}
+	} else
+	if ("serial_tty_callout_service_with_dedicated_logger" == $1) {
+		if (level > 1) {
+			user="ttycallout_atty0" pwescaped2 "-log"
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			user="ttycallout_adty0" pwescaped2 "-log"
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
+		print "@mode","0755";
+		if (level > 1) {
+			print "@dir","var/log/sv/ttycallout@tty0" two;
+		}
 	} else
 	if ("socket_with_dedicated_logger" == $1) {
-		print "@newuser",pwescaped2 "-log::::::/usr/bin/true";
-		print "@owner",pwescaped2 "-log";
+		user=pwescaped2 "-log"
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
 		print "@mode","0755";
-		print "@dir","var/log/sv/" two;
+		if (level > 1) {
+			print "@dir","var/log/sv/" two;
+		}
 	} else
 	if ("timer_with_dedicated_logger" == $1) {
-		print "@newuser",pwescaped2 "-log::::::/usr/bin/true";
-		print "@owner",pwescaped2 "-log";
+		user=pwescaped2 "-log"
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
 		print "@mode","0755";
-		print "@dir","var/log/sv/" two;
+		if (level > 1) {
+			print "@dir","var/log/sv/" two;
+		}
 	} else
 	if ("fan_in_logger" == $1) {
-		print "@newuser",pwescaped2 "-log::::::/usr/bin/true";
-		print "@owner",pwescaped2 "-log";
+		user=pwescaped2 "-log"
+		if (level > 1) {
+			print "@newgroup",user;
+			print "@newuser",user "::::::/sbin/nologin";
+		} else
+		{
+			print "@exec","groupadd",user;
+			print "@exec","useradd","-s","/sbin/nologin","-d","/nonexistent","-g",user,user;
+		}
+		print "@owner",user;
 		print "@mode","0755";
-		print "@dir","var/log/sv/" two;
+		if (level > 1) {
+			print "@dir","var/log/sv/" two;
+		}
 	} else
 	if ("service_only" == $1) {
 		;
@@ -88,7 +236,9 @@
                 gsub("^/","",three);
 		print "@owner",pwescaped2;
 		print "@mode",four;
-		print "@dir",three;
+		if (level > 1) {
+			print "@dir",three;
+		}
 	} else
 		;
 }

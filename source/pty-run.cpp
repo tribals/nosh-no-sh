@@ -18,16 +18,130 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "ttyutils.h"
 #include "SignalManagement.h"
+#include "FileDescriptorOwner.h"
 
-enum { PTY_MASTER_FILENO = 4 };
+enum { PTY_BACK_END_FILENO = 4, CONTROL_TERMINAL_FILENO = 3 };
+
+namespace {
+
+termios original_attr;
+
+int outer_tty_fd(-1);
+
+inline
+void
+find_outer_tty()
+{
+	if (isatty(STDIN_FILENO))
+		outer_tty_fd = STDIN_FILENO;
+	else
+	if (isatty(STDOUT_FILENO))
+		outer_tty_fd = STDOUT_FILENO;
+	else
+	if (isatty(CONTROL_TERMINAL_FILENO))
+		outer_tty_fd = CONTROL_TERMINAL_FILENO;
+	else
+		outer_tty_fd = -1;
+}
+
+inline
+void
+copy_window_size()
+{
+	if (-1 == outer_tty_fd) return;
+	struct winsize size;
+	if (0 <= tcgetwinsz_nointr(outer_tty_fd, size))
+		tcsetwinsz_nointr(PTY_BACK_END_FILENO, size);
+}
+
+inline
+void
+copy_window_size_and_move_attributes()
+{
+	if (-1 == outer_tty_fd) return;
+	if (0 <= tcgetattr_nointr(outer_tty_fd, original_attr)) {
+		tcsetattr_nointr(outer_tty_fd, TCSADRAIN, make_raw(original_attr));
+		tcsetattr_nointr(PTY_BACK_END_FILENO, TCSADRAIN, original_attr);
+	}
+	struct winsize size;
+	if (0 <= tcgetwinsz_nointr(outer_tty_fd, size))
+		tcsetwinsz_nointr(PTY_BACK_END_FILENO, size);
+}
+
+inline
+void
+restore_attributes()
+{
+	if (-1 == outer_tty_fd) return;
+	tcsetattr_nointr(outer_tty_fd, TCSADRAIN, original_attr);
+}
+
+inline
+void
+handle_read (
+	std::vector<struct kevent> & ip,
+	const struct kevent & event,
+	const int write_fileno,
+	size_t & num_read,
+	char buffer[],
+	const size_t max,
+	bool & eof
+) {
+	if (num_read < max) {
+		const size_t r(max - num_read);
+		const ssize_t l(read(event.ident, buffer + num_read, r));
+		if (l > 0)
+			num_read += l;
+		else if (0 == l)
+			eof = true;
+	}
+	if (EV_EOF & event.flags)
+		eof = true;
+	// Stop polling for read if we have no more space in the buffer or have hit EOF.
+	if (num_read >= max || eof)
+		append_event(ip, event.ident, EVFILT_READ, EV_DISABLE, 0, 0, nullptr);
+	// Start polling for write to the other end if we now have things in the buffer.
+	if (num_read)
+		append_event(ip, write_fileno, EVFILT_WRITE, EV_ENABLE, 0, 0, nullptr);
+}
+
+inline
+void
+handle_write (
+	std::vector<struct kevent> & ip,
+	const struct kevent & event,
+	const int read_fileno,
+	size_t & num_read,
+	char buffer[],
+	const size_t max,
+	bool eof
+) {
+	if (num_read) {
+		const ssize_t l(write(event.ident, buffer, num_read));
+		if (l > 0) {
+			memmove(buffer, buffer + l, num_read - l);
+			num_read -= l;
+		}
+	}
+	// Stop polling for write if we have emptied the buffer.
+	if (!num_read)
+		append_event(ip, event.ident, EVFILT_WRITE, EV_DISABLE, 0, 0, nullptr);
+	// Start polling for read to the other end if we now have space in the buffer.
+	if (num_read < max && !eof)
+		append_event(ip, read_fileno, EVFILT_READ, EV_ENABLE, 0, 0, nullptr);
+}
+
+}
 
 /* Signal handling **********************************************************
 // **************************************************************************
 */
 
-static sig_atomic_t child_signalled(false), window_resized(false), program_continued(false), terminate_signalled(false), interrupt_signalled(false), hangup_signalled(false);
+namespace {
 
-static
+sig_atomic_t child_signalled(false), window_resized(false), program_continued(false), terminate_signalled(false), interrupt_signalled(false), hangup_signalled(false);
+
+inline
 void
 handle_signal (
 	int signo
@@ -42,15 +156,17 @@ handle_signal (
 	}
 }
 
+}
+
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-pty_run ( 
+pty_run (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 
@@ -63,76 +179,76 @@ pty_run (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
+	if (args.empty()) die_missing_next_program(prog, envs);
+
+	if (pass_through) {
+		find_outer_tty();
+		// Do these before any child can potentially run and look at the window size and attributes of the pseudo-terminal.
+		copy_window_size_and_move_attributes();
 	}
 
-	const int child(fork());
+	const pid_t child(fork());
 
 	if (0 > child) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "fork", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "fork");
 	}
 
 	if (0 == child) {
-		close(PTY_MASTER_FILENO);
+		close(PTY_BACK_END_FILENO);
 		return;
 	}
+
+	std::vector<struct kevent> ip;
+#if !defined(__LINUX__) && !defined(__linux__)
+	append_event(ip, child, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, nullptr);
+#endif
 
 	ReserveSignalsForKQueue kqueue_reservation(SIGINT, SIGTERM, SIGHUP, SIGPIPE, SIGCHLD, SIGCONT, SIGWINCH, 0);
 	PreventDefaultForFatalSignals ignored_signals(SIGINT, SIGTERM, SIGHUP, SIGPIPE, 0);
 
-	const int queue(kqueue());
-	if (0 > queue) {
+	const FileDescriptorOwner queue(kqueue());
+	if (0 > queue.get()) {
 		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		// The child might not have opened the front-end yet and made it its controlling terminal.
+		// This is an edge case of an edge case.
+		kill(child, SIGTERM);
+		kill(child, SIGHUP);
+		die_errno(prog, envs, error, "kqueue");
 	}
 
-	struct kevent p[16];
-	{
-		size_t index(0);
-		set_event(&p[index++], STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], STDOUT_FILENO, EVFILT_WRITE, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], PTY_MASTER_FILENO, EVFILT_READ, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], PTY_MASTER_FILENO, EVFILT_WRITE, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		if (pass_through) {
-		set_event(&p[index++], SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		set_event(&p[index++], SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-		}
-		if (0 > kevent(queue, p, index, 0, 0, 0)) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
-		}
+	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+	append_event(ip, STDOUT_FILENO, EVFILT_WRITE, EV_ADD, 0, 0, nullptr);
+	append_event(ip, PTY_BACK_END_FILENO, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+	append_event(ip, PTY_BACK_END_FILENO, EVFILT_WRITE, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	if (pass_through) {
+		append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+		append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 	}
+	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ENABLE, 0, 0, nullptr);
+	append_event(ip, PTY_BACK_END_FILENO, EVFILT_READ, EV_ENABLE, 0, 0, nullptr);
+	append_event(ip, STDOUT_FILENO, EVFILT_WRITE, EV_DISABLE, 0, 0, nullptr);
+	append_event(ip, PTY_BACK_END_FILENO, EVFILT_WRITE, EV_DISABLE, 0, 0, nullptr);
 
-	char inb[1024], outb[1024];
-	size_t inl(0), outl(0);
-	bool ine(false), oute(false);
+	char input_buffer[1024], output_buffer[8192];
+	size_t in_read(0), out_read(0);
+	bool in_eof(false), out_eof(false);
 	int status(WAIT_STATUS_RUNNING), code(0);
-	termios original_attr;
 
-	program_continued = true;
-
-	while (WAIT_STATUS_RUNNING == status || WAIT_STATUS_PAUSED == status || !oute || outl) {
+	while (WAIT_STATUS_RUNNING == status || WAIT_STATUS_PAUSED == status || !out_eof || out_read) {
 		if (terminate_signalled||interrupt_signalled||hangup_signalled) {
 			if (WAIT_STATUS_RUNNING == status || WAIT_STATUS_PAUSED == status) {
 				if (terminate_signalled) kill(child, SIGTERM);
@@ -140,120 +256,100 @@ pty_run (
 				if (hangup_signalled) kill(child, SIGHUP);
 				if (WAIT_STATUS_PAUSED == status) kill(child, SIGCONT);
 			}
-			break;
+			terminate_signalled = interrupt_signalled = hangup_signalled = false;
+		}
+		if (pass_through) {
+			if (program_continued) {
+				program_continued = false;
+				window_resized = false;	// Because we are about to copy the window size anyway.
+				copy_window_size_and_move_attributes();
+			}
+			if (window_resized) {
+				window_resized = false;
+				copy_window_size();
+			}
 		}
 		if (child_signalled) {
 			child_signalled = false;
 			for (;;) {
+				// Reap any children, in case someone designated us to be a local reaper.
 				pid_t c;
-				if (0 >= wait_nonblocking_for_anychild_stopexit(c, status, code)) break;
+				int status1, code1;
+				if (0 >= wait_nonblocking_for_anychild_stopexit(c, status1, code1)) break;
 				if (c != child) continue;
+				// But only care about the status of one specific child.
+				status = status1;
+				code = code1;
 				if (WAIT_STATUS_PAUSED == status) {
 					if (!pass_through) {
 						kill(c, SIGCONT);
 					}
 				}
 			}
-		}
-		if (pass_through && window_resized) {
-			window_resized = false;
-			static winsize size;
-			if (0 <= tcgetwinsz_nointr(STDIN_FILENO, size))
-				tcsetwinsz_nointr(PTY_MASTER_FILENO, size);
-		}
-		if (pass_through && program_continued) {
-			program_continued = false;
-			static winsize size;
-			if (0 <= tcgetattr_nointr(STDIN_FILENO, original_attr)) {
-				tcsetattr_nointr(STDIN_FILENO, TCSADRAIN, make_raw(original_attr));
-				tcsetattr_nointr(PTY_MASTER_FILENO, TCSADRAIN, original_attr);
-			}
-			if (0 <= tcgetwinsz_nointr(STDIN_FILENO, size))
-				tcsetwinsz_nointr(PTY_MASTER_FILENO, size);
+			continue;
 		}
 
-		// Read from stdin if we have emptied the in buffer and haven't hit EOF.
-		set_event(&p[0], STDIN_FILENO, EVFILT_READ, !ine && !inl ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
-		// Read from master if we have emptied the out buffer and haven't hit EOF.
-		set_event(&p[2], PTY_MASTER_FILENO, EVFILT_READ, !oute && !outl ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
-		// Write to stdout if we have things in the out buffer.
-		set_event(&p[1], STDOUT_FILENO, EVFILT_WRITE, outl ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
-		// Write to master if we have things in the in buffer.
-		set_event(&p[3], PTY_MASTER_FILENO, EVFILT_WRITE, inl ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
-
-		const int rc(kevent(queue, p, 4, p, sizeof p/sizeof *p, 0));
+		struct kevent p[8];
+		const int rc(kevent(queue.get(), ip.data(), ip.size(), p, sizeof p/sizeof *p, nullptr));
+		ip.clear();
 
 		if (0 > rc) {
 			if (EINTR == errno) continue;
+			const int error(errno);
 			if (pass_through)
-				tcsetattr_nointr(STDIN_FILENO, TCSADRAIN, original_attr);
+				restore_attributes();
+			close(PTY_BACK_END_FILENO);
 			if (WAIT_STATUS_RUNNING == status || WAIT_STATUS_PAUSED == status)
 				wait_blocking_for_exit_of(child, status, code);
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, error, "kevent");
 		}
-
-		bool stdin_ready(false), stdout_ready(false), masterin_ready(false), masterout_ready(false), master_hangup(false);
 
 		for (size_t i(0); i < static_cast<size_t>(rc); ++i) {
 			const struct kevent & e(p[i]);
-			if (EVFILT_SIGNAL == e.filter)
-				handle_signal(e.ident);
-			if (EVFILT_READ == e.filter && STDIN_FILENO == e.ident)
-				stdin_ready = true;
-			if (EVFILT_WRITE == e.filter && STDOUT_FILENO == e.ident)
-				stdout_ready = true;
-			if (EVFILT_READ == e.filter && PTY_MASTER_FILENO == e.ident) {
-				masterin_ready = true;
-				master_hangup |= EV_EOF & e.flags;
-			}
-			if (EVFILT_WRITE == e.filter && PTY_MASTER_FILENO == e.ident)
-				masterout_ready = true;
-		}
-
-		if (stdin_ready) {
-			if (!inl) {
-				const ssize_t l(read(STDIN_FILENO, inb, sizeof inb));
-				if (l > 0) 
-					inl = l;
-				else if (0 == l)
-					ine = true;
-			}
-		}
-		if (stdout_ready) {
-			if (outl) {
-				const ssize_t l(write(STDOUT_FILENO, outb, outl));
-				if (l > 0) {
-					memmove(outb, outb + l, outl - l);
-					outl -= l;
+			switch (e.filter) {
+#if !defined(__LINUX__) && !defined(__linux__)
+				case EVFILT_PROC:
+				{
+					// Reap any children, in case someone designated us to be a local reaper.
+					int status1, code1;
+					if (0 > wait_nonblocking_for_stopexit_of(e.ident, status1, code1)) break;
+					if (static_cast<pid_t>(e.ident) == child) {
+						// But only care about the status of one specific child.
+						status = status1;
+						code = code1;
+						if (WAIT_STATUS_PAUSED == status) {
+							if (!pass_through) {
+								kill(e.ident, SIGCONT);
+							}
+						}
+					}
+					break;
 				}
-			}
-		}
-		if (masterin_ready) {
-			if (!outl) {
-				const ssize_t l(read(PTY_MASTER_FILENO, outb, sizeof outb));
-				if (l > 0) 
-					outl = l;
-				else if (0 == l)
-					oute = true;
-			}
-		}
-		if (master_hangup)
-			oute = true;
-		if (masterout_ready) {
-			if (inl) {
-				const ssize_t l(write(PTY_MASTER_FILENO, inb, inl));
-				if (l > 0) {
-					memmove(inb, inb + l, inl - l);
-					inl -= l;
-				}
+#endif
+				case EVFILT_SIGNAL:
+					handle_signal(e.ident);
+					break;
+				case EVFILT_READ:
+					if (STDIN_FILENO == e.ident)
+						handle_read(ip, e, PTY_BACK_END_FILENO, in_read, input_buffer, sizeof input_buffer/sizeof *input_buffer, in_eof);
+					else
+					if (PTY_BACK_END_FILENO == e.ident)
+						handle_read(ip, e, STDOUT_FILENO, out_read, output_buffer, sizeof output_buffer/sizeof *output_buffer, out_eof);
+					break;
+				case EVFILT_WRITE:
+					if (STDOUT_FILENO == e.ident)
+						handle_write(ip, e, PTY_BACK_END_FILENO, out_read, output_buffer, sizeof output_buffer/sizeof *output_buffer, out_eof);
+					else
+					if (PTY_BACK_END_FILENO == e.ident)
+						handle_write(ip, e, STDIN_FILENO, in_read, input_buffer, sizeof input_buffer/sizeof *input_buffer, in_eof);
+					break;
 			}
 		}
 	}
 
 	if (pass_through)
-		tcsetattr_nointr(STDIN_FILENO, TCSADRAIN, original_attr);
+		restore_attributes();
+	close(PTY_BACK_END_FILENO);
 	if (WAIT_STATUS_RUNNING == status || WAIT_STATUS_PAUSED == status)
 		wait_blocking_for_exit_of(child, status, code);
 	throw WAIT_STATUS_EXITED == status ? code : static_cast<int>(EXIT_TEMPORARY_FAILURE);

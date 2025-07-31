@@ -3,11 +3,12 @@
 ## **************************************************************************
 
 [Unit]
-Description=%p plug-and-play manager daemon
+Description=Non-systemd non-socket-activated %pd plug-and-play manager daemon
 DefaultDependencies=false
 Before=shutdown.target
 After=local-fs.target local-syslog.target
 Conflicts=busybox-mdev vdev suckless-mdev systemd-udev mdevd
+Before=plug-and-play-manager.target
 
 [Service]
 RuntimeDirectory=%p

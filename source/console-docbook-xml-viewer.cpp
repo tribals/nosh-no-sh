@@ -13,14 +13,12 @@ For copyright and licensing terms, see the file named COPYING.
 #include <stdint.h>
 #include <inttypes.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>	// for struct winsize
-#include <sys/stat.h>
 #include <unistd.h>
 #include "kqueue_common.h"
 #include "popt.h"
 #include "utils.h"
 #include "fdutils.h"
-#include "ttyutils.h"
+#include "ttyname.h"
 #include "FileDescriptorOwner.h"
 #include "FileStar.h"
 #include "UTF8Decoder.h"
@@ -34,6 +32,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include "TUIVIO.h"
 #include "SignalManagement.h"
 #include "ProcessEnvironment.h"
+#include "u32string.h"
 
 /* Full-screen TUI **********************************************************
 // **************************************************************************
@@ -41,7 +40,11 @@ For copyright and licensing terms, see the file named COPYING.
 
 namespace {
 
-typedef std::basic_string<uint32_t> u32string;
+typedef short ColourPaletteIndex;
+
+enum : short { NO_COLOUR = -1 };
+
+enum { BULLET = 0x2022 };
 
 bool
 Equals (
@@ -90,10 +93,10 @@ HasNonWhitespace(
 }
 
 struct DisplayItem {
-	DisplayItem(CharacterCell::attribute_type a, uint_fast8_t c, const u32string & s) : attr(a), colour(c), text(s) {}
-	DisplayItem(CharacterCell::attribute_type a, uint_fast8_t c, const u32string::const_iterator & b, const u32string::const_iterator & e) : attr(a), colour(c), text(b, e) {}
+	DisplayItem(CharacterCell::attribute_type a, ColourPaletteIndex c, const u32string & s) : attr(a), colour_index(c), text(s) {}
+	DisplayItem(CharacterCell::attribute_type a, ColourPaletteIndex c, const u32string::const_iterator & b, const u32string::const_iterator & e) : attr(a), colour_index(c), text(b, e) {}
 	CharacterCell::attribute_type attr;
-	uint_fast8_t colour;
+	ColourPaletteIndex colour_index;
 	u32string text;
 };
 
@@ -130,25 +133,27 @@ struct Element {
 	bool query_margin() const { return margin; }
 	bool query_indent() const { return indent; }
 	bool query_outdent() const { return outdent; }
+	bool take_bullet() { const bool b(bullet); bullet = false; return b; }
 	CharacterCell::attribute_type query_attr() const { return attr; }
-	uint_fast8_t query_colour() const { return colour; }
+	ColourPaletteIndex query_colour_index() const { return colour_index; }
 	bool matches_attribute(const u32string & name, const char * value) const;
+	bool query_attribute(const u32string & name, u32string & value) const;
 	Element(const Tag & t);
-	bool has_children;
+	bool has_children, has_child_elements;
 protected:
-	bool element_content, literal, block, margin, indent, outdent;
-	uint_fast8_t colour;
+	bool element_content, literal, block, margin, indent, outdent, bullet;
+	ColourPaletteIndex colour_index;
 	CharacterCell::attribute_type attr;
 };
 
 struct DocumentParser : public UTF8Decoder::UCS32CharacterSink {
-	DocumentParser(DisplayDocument & d, unsigned long c) : doc(d), columns(c), state(CONTENT), current_line(0), content(), name(), value(), tag(false) {}
+	DocumentParser(DisplayDocument & d, unsigned long c) : doc(d), columns(c), state(CONTENT), current_line(nullptr), content(), name(), value(), tag(false) {}
 protected:
 	typedef std::list<Element> Elements;
 
 	DisplayDocument & doc;
 	unsigned long columns;
-	enum State { 
+	enum State {
 		CONTENT,
 		ENTITY,
 		LESS_THAN,
@@ -173,15 +178,15 @@ protected:
 	Tag tag;
 	Elements elements;
 
-	virtual void ProcessDecodedUTF8(uint32_t character, bool decoder_error, bool overlong);
+	virtual void ProcessDecodedUTF8(char32_t character, bool decoder_error, bool overlong);
 	void flush_content();
 	void flush_entity();
 	void flush_attribute();
 	void flush_tag();
-	void append_item_pre(CharacterCell::attribute_type a, uint_fast8_t c, const u32string::const_iterator & b, const u32string::const_iterator & e);
-	void append_item_wrap(CharacterCell::attribute_type a, uint_fast8_t c, const u32string::const_iterator & b, const u32string::const_iterator & e);
-	void append_items_pre(CharacterCell::attribute_type a, uint_fast8_t c, const u32string & s);
-	void append_items_wrap(CharacterCell::attribute_type a, uint_fast8_t c, const u32string & s);
+	void append_item_pre(CharacterCell::attribute_type a, ColourPaletteIndex c, const u32string::const_iterator & b, const u32string::const_iterator & e);
+	void append_item_wrap(CharacterCell::attribute_type a, ColourPaletteIndex c, const u32string::const_iterator & b, const u32string::const_iterator & e);
+	void append_items_pre(CharacterCell::attribute_type a, ColourPaletteIndex c, const u32string & s);
+	void append_items_wrap(CharacterCell::attribute_type a, ColourPaletteIndex c, const u32string & s);
 	void append_items(const Element & e, CharacterCell::attribute_type a, const u32string & s);
 	void append_items(const Element & e, const u32string & s);
 	void indent();
@@ -192,7 +197,7 @@ struct TUI :
 	public TUIOutputBase,
 	public TUIInputBase
 {
-	TUI(ProcessEnvironment & e, DisplayDocument & m, TUIDisplayCompositor & c, FILE * tty, unsigned long, bool, bool, bool);
+	TUI(ProcessEnvironment & e, DisplayDocument & m, TUIDisplayCompositor & comp, FILE * tty, unsigned long c, const TUIOutputBase::Options &);
 	~TUI();
 
 	bool quit_flagged() const { return pending_quit_event; }
@@ -203,7 +208,22 @@ struct TUI :
 	void handle_update_event () { immediate_update_needed = false; TUIOutputBase::handle_update_event(); }
 
 protected:
-	static const CharacterCell::colour_type black;
+	TUIInputBase::WheelToKeyboard handler0;
+	TUIInputBase::GamingToCursorKeypad handler1;
+	TUIInputBase::EMACSToCursorKeypad handler2;
+	TUIInputBase::CUAToExtendedKeys handler3;
+	TUIInputBase::LessToExtendedKeys handler4;
+	TUIInputBase::ConsumerKeysToExtendedKeys handler5;
+	TUIInputBase::CalculatorToEditingKeypad handler6;
+	class EventHandler : public TUIInputBase::EventHandler {
+	public:
+		EventHandler(TUI & i) : TUIInputBase::EventHandler(i), ui(i) {}
+		~EventHandler();
+	protected:
+		virtual bool ExtendedKey(uint_fast16_t k, uint_fast8_t m);
+		TUI & ui;
+	} handler7;
+	friend class EventHandler;
 	sig_atomic_t terminate_signalled, interrupt_signalled, hangup_signalled, usr1_signalled, usr2_signalled;
 	TUIVIO vio;
 	bool pending_quit_event, immediate_update_needed;
@@ -215,13 +235,6 @@ protected:
 	virtual void redraw_new();
 	void set_refresh_and_immediate_update_needed () { immediate_update_needed = true; TUIOutputBase::set_refresh_needed(); }
 
-	virtual void ExtendedKey(uint_fast16_t k, uint_fast8_t m);
-	virtual void FunctionKey(uint_fast16_t k, uint_fast8_t m);
-	virtual void UCS3(uint_fast32_t character);
-	virtual void Accelerator(uint_fast32_t character);
-	virtual void MouseMove(uint_fast16_t, uint_fast16_t, uint8_t);
-	virtual void MouseWheel(uint_fast8_t n, int_fast8_t v, uint_fast8_t m);
-	virtual void MouseButton(uint_fast8_t n, uint_fast8_t v, uint_fast8_t m);
 private:
 	char control_buffer[1U * 1024U];
 };
@@ -257,13 +270,15 @@ Element::Element(
 	name(t.name),
 	attributes(t.attributes),
 	has_children(false),
+	has_child_elements(false),
 	element_content(false),
 	literal(t.literal),
 	block(false),
 	margin(false),
 	indent(false),
 	outdent(false),
-	colour(COLOUR_WHITE),
+	bullet(false),
+	colour_index(NO_COLOUR),
 	attr(0)
 {
 	// Layout
@@ -289,7 +304,7 @@ Element::Element(
 		Equals(name, "tr") ||
 		false
 	;
-	const bool is_literal = 
+	const bool is_literal =
 		Equals(name, "address") ||
 		Equals(name, "literallayout") ||
 		Equals(name, "programlisting") ||
@@ -364,13 +379,22 @@ Element::Element(
 		Equals(name, "refsynopsisdiv") ||
 		Equals(name, "refnamediv") ||
 		Equals(name, "listitem") ||
+		Equals(name, "literallayout") ||
+		Equals(name, "note") ||
+		Equals(name, "table") ||
+		false
+	;
+	bullet =
+		Equals(name, "listitem") ||
 		false
 	;
 
 	// Attributes
 
 	const bool bold =
-		Equals(name, "refentrytitle") ||
+		Equals(name, "refname") ||
+		Equals(name, "thead") ||
+		Equals(name, "th") ||
 		false
 	;
 	const bool italic =
@@ -381,6 +405,8 @@ Element::Element(
 	;
 	const bool simple_underline =
 		Equals(name, "ulink") ||
+		Equals(name, "refentrytitle") ||
+		Equals(name, "manvolnum") ||
 		false
 	;
 	const bool double_underline =
@@ -404,29 +430,34 @@ Element::Element(
 	// Colours
 
 	if (Equals(name, "filename"))
-		colour = COLOUR_MAGENTA;
+		colour_index = COLOUR_MAGENTA;
 	else
 	if (Equals(name, "arg"))
-		colour = COLOUR_CYAN;
+		colour_index = COLOUR_CYAN;
+	else
+	if (Equals(name, "code"))
+		colour_index = COLOUR_LIGHT_CYAN;
 	else
 	if (Equals(name, "command")
 	||  Equals(name, "function")
 	||  Equals(name, "class")
+	||  Equals(name, "refentrytitle")
+	||  Equals(name, "manvolnum")
 	)
-		colour = COLOUR_GREEN;
+		colour_index = COLOUR_GREEN;
 	else
 	if (Equals(name, "keycap")
 	||  Equals(name, "envar")
 	)
-		colour = COLOUR_YELLOW;
+		colour_index = COLOUR_YELLOW;
 	else
 	if (Equals(name, "userinput"))
-		colour = COLOUR_DARK_VIOLET;
+		colour_index = COLOUR_DARK_VIOLET;
 	else
 	if (Equals(name, "warning")
 	||  Equals(name, "caution")
 	)
-		colour = COLOUR_DARK_ORANGE3;
+		colour_index = COLOUR_DARK_ORANGE3;
 }
 
 bool
@@ -439,24 +470,41 @@ Element::matches_attribute(
 	return Equals(i->second, value);
 }
 
+bool
+Element::query_attribute(
+	const u32string & attribute_name,
+	u32string & value
+) const {
+	const Attributes::const_iterator i(attributes.find(attribute_name));
+	if (attributes.end() == i) return false;
+	value = i->second;
+	return true;
+}
+
 void
 DocumentParser::indent()
 {
 	std::size_t spaces(0U);
+	bool bullet(false);
 	for (Elements::iterator ep(elements.begin()), ee(elements.end()); ee != ep; ++ep) {
 		if (ep->query_indent() && spaces + 2U < columns)
 			spaces += 2U;
 		if (ep->query_outdent() && spaces >= 2U)
 			spaces -= 2U;
+		if (!bullet) bullet = ep->take_bullet();
 	}
-	if (spaces)
-		current_line->push_back(DisplayItem(0, COLOUR_WHITE, u32string(spaces, SPC)));
+	if (spaces) {
+		u32string s(spaces, SPC);
+		if (spaces > 1U && bullet)
+			s[spaces - 2U] = BULLET;
+		current_line->push_back(DisplayItem(0, NO_COLOUR, s));
+	}
 }
 
 void
 DocumentParser::append_item_pre(
 	CharacterCell::attribute_type a,
-	uint_fast8_t c,
+	ColourPaletteIndex c,
 	const u32string::const_iterator & b,
 	const u32string::const_iterator & e
 ) {
@@ -471,7 +519,7 @@ DocumentParser::append_item_pre(
 void
 DocumentParser::append_item_wrap(
 	CharacterCell::attribute_type a,
-	uint_fast8_t c,
+	ColourPaletteIndex c,
 	const u32string::const_iterator & b,
 	const u32string::const_iterator & e
 ) {
@@ -491,7 +539,7 @@ DocumentParser::append_item_wrap(
 void
 DocumentParser::append_items_pre(
 	CharacterCell::attribute_type a,
-	uint_fast8_t c,
+	ColourPaletteIndex c,
 	const u32string & s
 ) {
 	u32string::const_iterator b(s.begin()), p(b);
@@ -500,7 +548,7 @@ DocumentParser::append_items_pre(
 		if (IsNewline(character)) {
 			append_item_pre(a, c, b, p);
 			b = p + 1;
-			current_line = 0;
+			current_line = nullptr;
 		}
 	}
 	append_item_pre(a, c, b, p);
@@ -509,7 +557,7 @@ DocumentParser::append_items_pre(
 void
 DocumentParser::append_items_wrap(
 	CharacterCell::attribute_type a,
-	uint_fast8_t c,
+	ColourPaletteIndex c,
 	const u32string & s
 ) {
 	u32string::const_iterator b(s.begin()), e(s.end()), p(b);
@@ -533,9 +581,9 @@ DocumentParser::append_items(
 	const u32string & s
 ) {
 	if (e.query_literal())
-		append_items_pre(a, e.query_colour(), s);
+		append_items_pre(a, e.query_colour_index(), s);
 	else
-		append_items_wrap(a, e.query_colour(), s);
+		append_items_wrap(a, e.query_colour_index(), s);
 }
 
 void
@@ -544,14 +592,15 @@ DocumentParser::append_items(
 	const u32string & s
 ) {
 	if (e.query_literal())
-		append_items_pre(e.query_attr(), e.query_colour(), s);
+		append_items_pre(e.query_attr(), e.query_colour_index(), s);
 	else
-		append_items_wrap(e.query_attr(), e.query_colour(), s);
+		append_items_wrap(e.query_attr(), e.query_colour_index(), s);
 }
 
 namespace {
 	const u32string choice(Make("choice"));
 	const u32string repeat(Make("repeat"));
+	const u32string url(Make("url"));
 }
 
 void
@@ -564,27 +613,73 @@ DocumentParser::flush_tag()
 		if (Equals(tag.name, "refnamediv")) {
 			u32string s;
 			Copy(s, "Name");
-			current_line = 0;
-			append_items(element, CharacterCell::INVERSE, s);
-			doc.append_line();
-			current_line = 0;
+			current_line = nullptr;
+			append_items(element, element.query_attr() ^ CharacterCell::INVERSE, s);
+			current_line = doc.append_line();
 		}
 		if (Equals(tag.name, "refsynopsisdiv")) {
 			u32string s;
 			Copy(s, "Synopsis");
-			current_line = 0;
-			append_items(element, CharacterCell::INVERSE, s);
-			doc.append_line();
-			current_line = 0;
+			current_line = nullptr;
+			append_items(element, element.query_attr() ^ CharacterCell::INVERSE, s);
+			current_line = doc.append_line();
+		}
+		if (Equals(tag.name, "thead")
+		) {
+			u32string s(3U, 0x2501);
+			s[0] = 0x250D;
+			current_line = nullptr;
+			append_items(element, s);
+		}
+		if (Equals(tag.name, "tbody")
+		) {
+			u32string s(3U, 0x2501);
+			s[0] = 0x251D;
+			current_line = nullptr;
+			append_items(element, s);
 		}
 
 		if (element.query_block())
-			current_line = 0;
+			current_line = nullptr;
 
-		// inline prefixes
+		// inline prefixes that check the parent element
+		if (Equals(tag.name, "term")
+		||  Equals(tag.name, "refname")
+		) {
+			if (!elements.empty()) {
+				const Element & parent(elements.back());
+				if (parent.has_child_elements && current_line) {
+					u32string s(1U, ',');
+					append_items(element, s);
+				}
+			}
+		}
+		if (Equals(tag.name, "arg")
+		||  Equals(tag.name, "group")
+		) {
+			if (!elements.empty()) {
+				const Element & parent(elements.back());
+				if (Equals(parent.name, "group") && Equals(tag.name, "arg")) {
+					if (parent.has_child_elements) {
+						u32string s(1U, '|');
+						append_items(element, s);
+					}
+				}
+			}
+		}
+
+		if (!elements.empty()) {
+			Element & parent(elements.back());
+			parent.has_children = true;
+			parent.has_child_elements = true;
+		}
+		elements.push_back(element);
+
+		// inline prefixes that might need to have the same indent
 		if (Equals(tag.name, "refpurpose")) {
 			u32string s;
 			Copy(s, " - ");
+			s[1] = 0x2014;
 			append_items(element, s);
 		}
 		if (Equals(tag.name, "manvolnum")) {
@@ -596,12 +691,12 @@ DocumentParser::flush_tag()
 			append_items(element, s);
 		}
 		if (Equals(tag.name, "arg")
-		|| Equals(tag.name, "group")
+		||  Equals(tag.name, "group")
 		) {
 			if (element.matches_attribute(choice, "opt")) {
 				u32string s(1U, '[');
 				append_items(element, s);
-			}
+			} else
 			if (element.matches_attribute(choice, "req")) {
 				u32string s(1U, '{');
 				append_items(element, s);
@@ -610,22 +705,24 @@ DocumentParser::flush_tag()
 		if (Equals(tag.name, "note")) {
 			u32string s;
 			Copy(s, "Note: ");
-			append_items(element, s);
+			append_items(element, element.query_attr() ^ CharacterCell::BOLD, s);
 		}
 		if (Equals(tag.name, "tip")) {
 			u32string s;
 			Copy(s, "Tip: ");
-			append_items(element, s);
+			append_items(element, element.query_attr() ^ CharacterCell::BOLD, s);
 		}
 		if (Equals(tag.name, "important")) {
 			u32string s;
 			Copy(s, "Important: ");
+			append_items(element, element.query_attr() ^ CharacterCell::BOLD, s);
+		}
+		if (Equals(tag.name, "tr")) {
+			u32string s;
+			Copy(s, "| ");
+			s[0] = 0x2502;
 			append_items(element, s);
 		}
-
-		if (!elements.empty())
-			elements.back().has_children = true;
-		elements.push_back(element);
 	}
 	if (tag.closing) {
 		if (elements.empty())
@@ -635,6 +732,9 @@ DocumentParser::flush_tag()
 			throw "Mismatched closing tag.";
 
 		// inline suffixes
+		if (Equals(tag.name, "refpurpose")) {
+			current_line = nullptr;
+		}
 		if (Equals(tag.name, "manvolnum")) {
 			u32string s(1U, ')');
 			append_items(element, s);
@@ -643,17 +743,13 @@ DocumentParser::flush_tag()
 			u32string s(1U, 0x2019);
 			append_items(element, s);
 		}
-		if (Equals(tag.name, "term")) {
-			u32string s(1U, ',');
-			append_items(element, s);
-		}
 		if (Equals(tag.name, "arg")
-		|| Equals(tag.name, "group")
+		||  Equals(tag.name, "group")
 		) {
 			if (element.matches_attribute(choice, "opt")) {
 				u32string s(1U, ']');
 				append_items(element, s);
-			}
+			} else
 			if (element.matches_attribute(choice, "req")) {
 				u32string s(1U, '}');
 				append_items(element, s);
@@ -662,6 +758,24 @@ DocumentParser::flush_tag()
 				u32string s(1U, 0x2026);
 				append_items(element, s);
 			}
+		}
+		if (Equals(tag.name, "ulink")) {
+			u32string attrvalue;
+			if (element.query_attribute(url, attrvalue)) {
+				u32string s(1U, '(');
+				append_items(element, s);
+				append_items(element, attrvalue);
+				s[0] = ')';
+				append_items(element, s);
+			}
+		}
+		if (Equals(tag.name, "th")
+		||  Equals(tag.name, "td")
+		) {
+			u32string s;
+			Copy(s, " | ");
+			s[1] = 0x2502;
+			append_items(element, s);
 		}
 
 		if (element.query_block()) {
@@ -725,7 +839,7 @@ DocumentParser::flush_content()
 
 	if (element.query_literal()) {
 		if (!content.empty()) {
-			append_items_pre(element.query_attr(), element.query_colour(), content);
+			append_items_pre(element.query_attr(), element.query_colour_index(), content);
 			content.clear();
 			element.has_children = true;
 		}
@@ -752,7 +866,7 @@ DocumentParser::flush_content()
 
 	// Only element-content elements (as opposed to mixed-content elements) have ignorable whitespace.
 	if (HasNonWhitespace(content) || !element.query_element_content())
-		append_items_wrap(element.query_attr(), element.query_colour(), content);
+		append_items_wrap(element.query_attr(), element.query_colour_index(), content);
 	content.clear();
 	element.has_children = true;
 }
@@ -807,7 +921,7 @@ DocumentParser::flush_entity()
 
 void
 DocumentParser::ProcessDecodedUTF8 (
-	uint32_t character,
+	char32_t character,
 	bool decoder_error,
 	bool /*overlong*/
 ) {
@@ -943,7 +1057,7 @@ DocumentParser::ProcessDecodedUTF8 (
 			}
 			break;
 		case TAG_WHITESPACE:
-			if ('>' == character) 
+			if ('>' == character)
 				goto tag_closing;
 			else
 			if ('/' == character) {
@@ -1016,13 +1130,19 @@ TUI::TUI(
 	TUIDisplayCompositor & comp,
 	FILE * tty,
 	unsigned long c,
-	bool cursor_application_mode,
-	bool calculator_application_mode,
-	bool alternate_screen_buffer
+	const TUIOutputBase::Options & options
 ) :
 	TerminalCapabilities(e),
-	TUIOutputBase(*this, tty, false /* no bold as colour */, false /* no faint as colour */, cursor_application_mode, calculator_application_mode, alternate_screen_buffer, comp),
+	TUIOutputBase(*this, tty, options, comp),
 	TUIInputBase(static_cast<const TerminalCapabilities &>(*this), tty),
+	handler0(*this),
+	handler1(*this),
+	handler2(*this),
+	handler3(*this),
+	handler4(*this),
+	handler5(*this),
+	handler6(*this),
+	handler7(*this),
 	terminate_signalled(false),
 	interrupt_signalled(false),
 	hangup_signalled(false),
@@ -1038,6 +1158,7 @@ TUI::TUI(
 	current_row(0U),
 	current_col(0U)
 {
+	comp.set_screen_flags(options.scnm ? ScreenFlags::INVERTED : 0U);
 }
 
 TUI::~TUI(
@@ -1070,22 +1191,32 @@ TUI::handle_signal (
 		case SIGHUP:	hangup_signalled = true; break;
 		case SIGUSR1:	usr1_signalled = true; break;
 		case SIGUSR2:	usr2_signalled = true; break;
-		case SIGTSTP:	exit_full_screen_mode(); raise(SIGSTOP); break;
-		case SIGCONT:	enter_full_screen_mode(); invalidate_cur(); set_update_needed(); break;
+		case SIGTSTP:	tstp_signal(); break;
+		case SIGCONT:	continued(); break;
 	}
 }
-
-const CharacterCell::colour_type TUI::black(Map256Colour(COLOUR_BLACK));
 
 void
 TUI::redraw_new (
 ) {
 	TUIDisplayCompositor::coordinate y(current_row), x(current_col);
 	// The window includes the cursor position.
-	if (window_y > y) window_y = y; else if (window_y + c.query_h() <= y) window_y = y - c.query_h() + 1;
-	if (window_x > x) window_x = x; else if (window_x + c.query_w() <= x) window_x = x - c.query_w() + 1;
+	if (window_y > y) {
+		optimize_scroll_up(window_y - y);
+		window_y = y;
+	} else
+	if (window_y + c.query_h() <= y) {
+		optimize_scroll_down(y - c.query_h() - window_y + 1);
+		window_y = y - c.query_h() + 1;
+	}
+	if (window_x > x) {
+		window_x = x;
+	} else
+	if (window_x + c.query_w() <= x) {
+		window_x = x - c.query_w() + 1;
+	}
 
-	erase_new_to_backdrop();
+	vio.CLSToSpace(ColourPair::white_on_black);
 
 	std::size_t nr(0U);
 	for (DisplayDocument::const_iterator rb(doc.begin()), re(doc.end()), ri(rb); re != ri; ++ri, ++nr) {
@@ -1096,243 +1227,175 @@ TUI::redraw_new (
 		long col(-window_x);
 		for (DisplayLine::const_iterator fb(r.begin()), fe(r.end()), fi(fb); fe != fi; ++fi) {
 			const DisplayItem & f(*fi);
-			const ColourPair pair(ColourPair(Map256Colour(f.colour), black));
-			vio.Print(row, col, f.attr, pair, f.text.c_str(), f.text.length());
+			const ColourPair pair(ColourPair(f.colour_index < 0 ? CharacterCell::colour_type::default_foreground : Map256Colour(f.colour_index), CharacterCell::colour_type::default_background));
+			vio.PrintCharStrAttr(row, col, f.attr, pair, f.text.c_str(), f.text.length());
 		}
+		if (col < c.query_w())
+			vio.PrintNCharsAttr(row, col, 0U, ColourPair::def, SPC, c.query_w() - col);
 	}
 
 	c.move_cursor(y - window_y, x - window_x);
 	c.set_cursor_state(CursorSprite::BLINK|CursorSprite::VISIBLE, CursorSprite::BOX);
 }
 
-void
-TUI::ExtendedKey(
+bool
+TUI::EventHandler::ExtendedKey(
 	uint_fast16_t k,
-	uint_fast8_t /*m*/
+	uint_fast8_t m
 ) {
 	switch (k) {
+		// The viewer does not have an execute command.
+		case EXTENDED_KEY_PAD_ENTER:
+		case EXTENDED_KEY_EXECUTE:
+		default:	return TUIInputBase::EventHandler::ExtendedKey(k, m);
 		case EXTENDED_KEY_LEFT_ARROW:
-		case EXTENDED_KEY_PAD_LEFT:
-			if (current_col > 0) { --current_col; set_refresh_and_immediate_update_needed(); }
-			break;
+			if (ui.current_col > 0) { --ui.current_col; ui.set_refresh_and_immediate_update_needed(); }
+			return true;
 		case EXTENDED_KEY_RIGHT_ARROW:
-		case EXTENDED_KEY_PAD_RIGHT:
-			if (current_col + 1 < columns) { ++current_col; set_refresh_and_immediate_update_needed(); }
-			break;
+			if (ui.current_col + 1 < ui.columns) { ++ui.current_col; ui.set_refresh_and_immediate_update_needed(); }
+			return true;
 		case EXTENDED_KEY_DOWN_ARROW:
-		case EXTENDED_KEY_PAD_DOWN:
-			if (current_row + 1 < doc.size()) { ++current_row; set_refresh_and_immediate_update_needed(); }
-			break;
+			if (ui.current_row + 1 < ui.doc.size()) { ++ui.current_row; ui.set_refresh_and_immediate_update_needed(); }
+			return true;
 		case EXTENDED_KEY_UP_ARROW:
-		case EXTENDED_KEY_PAD_UP:
-			if (current_row > 0) { --current_row; set_refresh_and_immediate_update_needed(); }
-			break;
+			if (ui.current_row > 0) { --ui.current_row; ui.set_refresh_and_immediate_update_needed(); }
+			return true;
 		case EXTENDED_KEY_END:
-		case EXTENDED_KEY_PAD_END:
-			if (std::size_t s = doc.size()) {
-				if (current_row + 1 != s) { current_row = s - 1; set_refresh_and_immediate_update_needed(); }
-				break;
-			} else 
-				[[clang::fallthrough]];
+			if (m & INPUT_MODIFIER_CONTROL) {
+				if (ui.current_col + 1 != ui.columns) {
+					ui.current_col = ui.columns - 1;
+					ui.set_refresh_and_immediate_update_needed();
+				}
+			} else
+			if (std::size_t s = ui.doc.size()) {
+				if (ui.current_row + 1 != s) { ui.current_row = s - 1; ui.set_refresh_and_immediate_update_needed(); }
+			} else
+			if (ui.current_row != 0) {
+				ui.current_row = 0U;
+				ui.set_refresh_and_immediate_update_needed();
+			}
+			return true;
 		case EXTENDED_KEY_HOME:
-		case EXTENDED_KEY_PAD_HOME:
-			if (current_row != 0) { current_row = 0U; set_refresh_and_immediate_update_needed(); }
-			break;
+			if (m & INPUT_MODIFIER_CONTROL) {
+				if (ui.current_col != 0) { ui.current_col = 0; ui.set_refresh_and_immediate_update_needed(); }
+			} else
+			if (ui.current_row != 0) {
+				ui.current_row = 0U;
+				ui.set_refresh_and_immediate_update_needed();
+			}
+			return true;
 		case EXTENDED_KEY_PAGE_DOWN:
-		case EXTENDED_KEY_PAD_PAGE_DOWN:
-			if (doc.size() && current_row + 1 < doc.size()) {
-				unsigned n(c.query_h());
-				if (current_row + n < doc.size())
-					current_row += n;
+			if (ui.doc.size() && ui.current_row + 1 < ui.doc.size()) {
+				unsigned n(ui.c.query_h() - 1U);
+				if (ui.current_row + n < ui.doc.size())
+					ui.current_row += n;
 				else
-					current_row = doc.size() - 1;
-				set_refresh_and_immediate_update_needed();
+					ui.current_row = ui.doc.size() - 1;
+				ui.set_refresh_and_immediate_update_needed();
 			}
-			break;
+			return true;
 		case EXTENDED_KEY_PAGE_UP:
-		case EXTENDED_KEY_PAD_PAGE_UP:
-			if (current_row > 0) {
-				unsigned n(c.query_h());
-				if (current_row > n)
-					current_row -= n;
+			if (ui.current_row > 0) {
+				unsigned n(ui.c.query_h() - 1U);
+				if (ui.current_row > n)
+					ui.current_row -= n;
 				else
-					current_row = 0;
-				set_refresh_and_immediate_update_needed();
+					ui.current_row = 0;
+				ui.set_refresh_and_immediate_update_needed();
 			}
-			break;
+			return true;
+		case EXTENDED_KEY_BACKSPACE:
+			if (ui.current_col > 0) {
+				--ui.current_col;
+				ui.set_refresh_and_immediate_update_needed();
+			} else
+			if (ui.current_row > 0) {
+				ui.current_col = ui.columns - 1;
+				--ui.current_row;
+				ui.set_refresh_and_immediate_update_needed();
+			}
+			return true;
+		case EXTENDED_KEY_PAD_SPACE:
+			if (ui.current_col + 1 < ui.columns) {
+				++ui.current_col;
+				ui.set_refresh_and_immediate_update_needed();
+				return true;
+			} else
+				[[clang::fallthrough]];
+		case EXTENDED_KEY_APP_RETURN:
+		case EXTENDED_KEY_RETURN_OR_ENTER:
+			if (ui.current_row + 1 < ui.doc.size()) {
+				if (!(m & INPUT_MODIFIER_CONTROL)) ui.current_col = 0;
+				++ui.current_row;
+				ui.set_refresh_and_immediate_update_needed();
+			}
+			return true;
+		case EXTENDED_KEY_CANCEL:
+		case EXTENDED_KEY_CLOSE:
+		case EXTENDED_KEY_EXIT:
+			ui.pending_quit_event = true;
+			return true;
+		case EXTENDED_KEY_STOP:
+			ui.suspend_self();
+			return true;
+		case EXTENDED_KEY_REFRESH:
+			ui.invalidate_cur();
+			ui.set_update_needed();
+			return true;
 	}
 }
 
-void
-TUI::FunctionKey(
-	uint_fast16_t /*k*/,
-	uint_fast8_t /*m*/
-) {
-}
-
-void
-TUI::UCS3(
-	uint_fast32_t character
-) {
-	switch (character) {
-		case EM:	// Control+Y
-		case SUB:	// Control+Z
-			killpg(0, SIGTSTP);
-			break;
-		case ETX:	// Control+C
-		case EOT:	// Control+D
-		case FS:	// Control+\ .
-		case 'Q': case 'q':
-			pending_quit_event = true;
-			break;
-		case 'W': case 'w': case 'J': case'j':
-			ExtendedKey(EXTENDED_KEY_UP_ARROW, 0U);
-			break;
-		case 'S': case 's': case 'K': case 'k':
-			ExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U);
-			break;
-		case 'A': case 'a': case 'H': case'h':
-			ExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U);
-			break;
-		case 'D': case 'd': case 'L': case 'l':
-			ExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U);
-			break;
-		case STX:	// Control+B
-		case CAN:	// Control+P
-			ExtendedKey(EXTENDED_KEY_PAGE_UP, 0U);
-			break;
-		case ACK:	// Control+F
-		case SO:	// Control+N
-			ExtendedKey(EXTENDED_KEY_PAGE_DOWN, 0U);
-			break;
-	}
-}
-
-void
-TUI::Accelerator(
-	uint_fast32_t character
-) {
-	switch (character) {
-		case 'W': case 'w':
-		case 'Q': case 'q':
-			pending_quit_event = true;
-			break;
-	}
-}
-
-void 
-TUI::MouseMove(
-	uint_fast16_t /*row*/,
-	uint_fast16_t /*col*/,
-	uint8_t /*modifiers*/
-) {
-}
-
-void 
-TUI::MouseWheel(
-	uint_fast8_t wheel,
-	int_fast8_t value,
-	uint_fast8_t /*modifiers*/
-) {
-	switch (wheel) {
-		case 0U:
-			while (value < 0) {
-				ExtendedKey(EXTENDED_KEY_UP_ARROW, 0U);
-				++value;
-			}
-			while (0 < value) {
-				ExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U);
-				--value;
-			}
-			break;
-		case 1U:
-			while (value < 0) {
-				ExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U);
-				++value;
-			}
-			while (0 < value) {
-				ExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U);
-				--value;
-			}
-			break;
-	}
-}
-
-void 
-TUI::MouseButton(
-	uint_fast8_t /*button*/,
-	uint_fast8_t /*value*/,
-	uint_fast8_t /*modifiers*/
-) {
-}
-
-namespace {
-	inline
-	unsigned long
-	get_columns (
-		const ProcessEnvironment & envs,
-		int fd
-	) {
-		unsigned long columns(80UL);
-		// The COLUMNS environment variable takes precedence, per the Single UNIX Specification ("Environment variables").
-		const char * c = envs.query("COLUMNS"), * s(c);
-		if (c)
-			columns = std::strtoul(c, const_cast<char **>(&c), 0);
-		if (c == s || *c) {
-			winsize size;
-			if (0 <= tcgetwinsz_nointr(fd, size))
-				columns = size.ws_col;
-			else
-				columns = 80UL;
-		}
-		return columns;
-	}
-}
+// Seat of the class
+TUI::EventHandler::~EventHandler() {}
 
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-console_docbook_xml_viewer [[gnu::noreturn]] 
-( 
+console_docbook_xml_viewer [[gnu::noreturn]]
+(
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	bool cursor_application_mode(false);
-	bool calculator_application_mode(false);
-	bool no_alternate_screen_buffer(false);
+	TUIOutputBase::Options options;
 	try {
-		popt::bool_definition cursor_application_mode_option('\0', "cursor-keypad-application-mode", "Set the cursor keypad to application mode instead of normal mode.", cursor_application_mode);
-		popt::bool_definition calculator_application_mode_option('\0', "calculator-keypad-application-mode", "Set the calculator keypad to application mode instead of normal mode.", calculator_application_mode);
-		popt::bool_definition no_alternate_screen_buffer_option('\0', "no-alternate-screen-buffer", "Prevent switching to the XTerm alternate screen buffer.", no_alternate_screen_buffer);
-		popt::definition * top_table[] = {
+		popt::bool_definition cursor_application_mode_option('\0', "cursor-keypad-application-mode", "Set the cursor keypad to application mode instead of normal mode.", options.cursor_application_mode);
+		popt::bool_definition calculator_application_mode_option('\0', "calculator-keypad-application-mode", "Set the calculator keypad to application mode instead of normal mode.", options.calculator_application_mode);
+		popt::bool_definition no_alternate_screen_buffer_option('\0', "no-alternate-screen-buffer", "Prevent switching to the XTerm alternate screen buffer.", options.no_alternate_screen_buffer);
+		popt::bool_string_definition scnm_option('\0', "inversescreen", "Switch inverse screen mode on/off.", options.scnm);
+		popt::tui_level_definition tui_level_option('T', "tui-level", "Specify the level of TUI character set.");
+		popt::definition * tui_table[] = {
 			&cursor_application_mode_option,
 			&calculator_application_mode_option,
 			&no_alternate_screen_buffer_option,
+			&scnm_option,
+			&tui_level_option,
+		};
+		popt::table_definition tui_table_option(sizeof tui_table/sizeof *tui_table, tui_table, "Terminal quirks options");
+		popt::definition * top_table[] = {
+			&tui_table_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{file(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
+		options.tui_level = tui_level_option.value() < options.TUI_LEVELS ? tui_level_option.value() : options.TUI_LEVELS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	const char * tty(envs.query("TTY"));
 	if (!tty) tty = "/dev/tty";
 	FileStar control(std::fopen(tty, "w+"));
 	if (!control) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, tty, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, tty);
 	}
 
 	const unsigned long columns(get_columns(envs, fileno(control)));
@@ -1352,8 +1415,7 @@ console_docbook_xml_viewer [[gnu::noreturn]]
 				&&  S_ISCHR(s0.st_mode)
 				&&  (s0.st_rdev == st.st_rdev)
 				) {
-					std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, tty, "The controlling terminal cannot be both standard input and control input.");
-					throw EXIT_FAILURE;
+					die_invalid(prog, envs, tty, "The controlling terminal cannot be both standard input and control input.");
 				}
 			}
 			unsigned long long line(1ULL);
@@ -1364,8 +1426,7 @@ console_docbook_xml_viewer [[gnu::noreturn]]
 				}
 				if (std::ferror(stdin)) throw std::strerror(errno);
 			} catch (const char * s) {
-				std::fprintf(stderr, "%s: FATAL: %s(%llu): %s\n", prog, "<stdin>", line, s);
-				throw EXIT_FAILURE;
+				die_parser_error(prog, envs, "<stdin>", line, s);
 			}
 		} else
 		{
@@ -1382,8 +1443,7 @@ console_docbook_xml_viewer [[gnu::noreturn]]
 					}
 					if (std::ferror(f)) throw std::strerror(errno);
 				} catch (const char * s) {
-					std::fprintf(stderr, "%s: FATAL: %s(%llu): %s\n", prog, file, line, s);
-					throw EXIT_FAILURE;
+					die_parser_error(prog, envs, file, line, s);
 				}
 			}
 		}
@@ -1391,25 +1451,23 @@ console_docbook_xml_viewer [[gnu::noreturn]]
 
 	const FileDescriptorOwner queue(kqueue());
 	if (0 > queue.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 	std::vector<struct kevent> ip;
 
-	append_event(ip, fileno(control), EVFILT_READ, EV_ADD, 0, 0, 0);
+	append_event(ip, fileno(control), EVFILT_READ, EV_ADD, 0, 0, nullptr);
 	ReserveSignalsForKQueue kqueue_reservation(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, SIGWINCH, SIGTSTP, SIGCONT, 0);
 	PreventDefaultForFatalSignals ignored_signals(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, 0);
-	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
+	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	TUIDisplayCompositor compositor(false /* no software cursor */, 24, 80);
-	TUI ui(envs, doc, compositor, control, columns, cursor_application_mode, calculator_application_mode, !no_alternate_screen_buffer);
+	TUI ui(envs, doc, compositor, control, columns, options);
 
 	// How long to wait with updates pending.
 	const struct timespec short_timeout = { 0, 100000000L };
@@ -1422,19 +1480,17 @@ console_docbook_xml_viewer [[gnu::noreturn]]
 		ui.handle_resize_event();
 		ui.handle_refresh_event();
 
-		const struct timespec * timeout(ui.immediate_update() ? &immediate_timeout : ui.has_update_pending() ? &short_timeout : 0);
+		const struct timespec * timeout(ui.immediate_update() ? &immediate_timeout : ui.has_update_pending() ? &short_timeout : nullptr);
 		const int rc(kevent(queue.get(), ip.data(), ip.size(), p.data(), p.size(), timeout));
 		ip.clear();
 
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
+			if (EINTR == errno) continue;
 #if defined(__LINUX__) || defined(__linux__)
-			if (EINVAL == error) continue;	// This works around a Linux bug when an inotify queue overflows.
-			if (0 == error) continue;	// This works around another Linux bug.
+			if (EINVAL == errno) continue;	// This works around a Linux bug when an inotify queue overflows.
+			if (0 == errno) continue;	// This works around another Linux bug.
 #endif
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, "kevent");
 		}
 
 		if (0 == rc) {

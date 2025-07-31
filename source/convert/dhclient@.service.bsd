@@ -11,7 +11,7 @@ PartOf=netif@%i
 [Service]
 EnvironmentDirectory=env
 ExecStart=%p -d '%I'
-RestartSec=10
+RestartSec=4
 
 [Install]
 WantedBy=netif@%i

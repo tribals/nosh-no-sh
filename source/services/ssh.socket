@@ -8,7 +8,7 @@ Description=SSH socket
 [Socket]
 UCSPIRules=true
 LogUCSPIRules=yes
-ListenStream=22
+ListenStream=ssh
 BindIPv6Only=both
 Accept=true
 

@@ -1,0 +1,21 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+#After=console-input-method@.service
+
+[Service]
+PermissionsStartOnly=yes
+EnvironmentDirectory=env/
+User=user-vt-evdev-realizer
+Group=user-vt-realizer
+ExecStart=%p ${flags} '/dev/input/%I'
+# When the device is of the wrong type, the daemon exits failure.
+# When the device detaches, the daemon exits success.
+# There is a window of opportunity of several seconds where devd/devpubd has not yet stopped the service during which re-opening the device and restarting the daemon will continually fail.
+# We don't want the daemon auto-restarting in either case.
+# But we do want a SIGTERM to auto-restart it.
+Restart=on-signal
+
+[Install]

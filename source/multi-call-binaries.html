@@ -1,0 +1,103 @@
+<link rel="Up" href="index.html" title="nosh Guide" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Multi-call binaries</title>
+<h1 class="Ruled">
+Multi-call binaries
+</h1>
+
+<p>
+Like BusyBox, ToyBox, all of the rescue(8) utilities in FreeBSD and NetBSD, and many other tools for Linux-based operating systems and Unices; the programs in the nosh toolset are <em>multi-call binaries</em> whose behaviour is dictated by the command name (the "zeroth argument") they are invoked by.
+They are not, however, all one big single multi-call binary.
+Moreover, sometimes a binary is hard-linked to a particular command name, and sometimes it is a symbolic link.
+</p>
+
+<h2 class="Ruled" id="Builtins">
+"Built-in" commands
+</h2>
+
+<p>
+As the <a href="commands/exec.xml"><code>exec</code></a> manual page states, the chain loading tools can chain directly to each other, without going through the operating system.
+They are "built-in" commands that are always accessible.
+This ability is subject to two conditions.
+The chained-from and chained-to commands must be within a single multi-call binary, and the chained-to command must be invoked without any pathname prefix (neither relative nor absolute) to the command name.
+</p>
+
+<p>
+Most of the commands that will be used in the construction of the <code>start</code>, <code>run</code>, <code>restart</code>, and <code>stop</code> scripts, are collected together into one single multi-call binary and <a href="anatomy-of-regular-service.html">in a regular service</a> these scripts invoke the successive commands by their bare names.
+This results in a single script internally chaining from one command to the next without calling the operating system's <code>execve()</code> function to overlay a new process image file at every step in the chain.
+This is a benefit because the work done by most of the commands that affect process state is far outweighed by the runtime library re-initializing a fresh program image just to execute the handful of system calls that are the core of the command.
+</p>
+
+<p class="note">
+For example:
+The <a href="commands/umask.xml"><code>umask</code></a> command only needs to make one system call to do its actual job, but will nonetheless do all of the runtime library's setup and teardown of the stack, heap, thread, and signal management in order to just make that one system call in the middle.
+Accessed as a "built-in" chain-loading command, it does none of the setup and teardown, but simply transfers internally from the previous and to the next "built-in" command in the chain.
+</p>
+
+<h3 class="Ruled" id="SpecialBuiltins">
+Special "built-in" commands
+</h3>
+
+<p>
+There are two special, undocumented, built-in commands that are not exposed directly as names in the filesystem one can simply invoke the programs by.
+The are <code>version</code> and <code>builtins</code>, reporting the (toolset) version information of the binary and what built-in commands it contains.
+As of version 1.41 of the toolset, you are encouraged to use the <a href="https://pubs.opengroup.org/onlinepubs/9799919799/utilities/what.html">standard Unix <code>what</code> utility</a> because a proper version identification string for that utility to recognize is now embedded into the binaries.
+</p>
+
+<h2 class="Ruled" id="MultipleBinaries">
+Multiple binaries
+</h2>
+
+<p>
+Nonetheless, the commands in the toolset are not all collected into one single binary with every command.
+</p>
+
+<p>
+The commands that use the ncurses library (principally <a href="commands/console-ncurses-realizer.xml"><code>console-ncurses-realizer</code></a> are separated out into their own binary.
+This means that most commands will not dynamically load the ncurses shared library.
+</p>
+
+<p>
+The <a href="commands/system-manager.xml"><code>system-manager</code></a> is in its own executable, with the few commands that it invokes as direct sub-processes (e.g. <a href="commands/system-control.xml"><code>system-control</code></a>, <a href="commands/service-manager.xml"><code>service-manager</code></a>, <a href="commands/cyclog.xml"><code>cyclog</code></a>, and control groups commands) being "built-in" with it.
+Likewise, the <a href="commands/emergency-login.xml"><code>emergency-login</code></a> command is in its own executable.
+Both, as well, have copies installed into <code>/sbin</code> and <code>/bin</code>.
+See <a href="emergency-and-rescue-modes.html">emergency startup mode</a> for the reasons behind this.
+</p>
+
+<h2 class="Ruled" id="CommandLinks">
+Links and symbolic links for commands
+</h2>
+
+<p>
+When <a href="building-from-source.html">built from source</a>, <a href="https://jdebp.uk/FGA/slashpackage.html">slashpackage-style</a>, everything in the <code>command/</code> directory is a normal (hard) link to a multi-call binary.
+No symbolic links are used.
+The <code>command/</code> directory has no concerns over possibly clashing with names from other toolsets, or with system programs.
+That is one of the fundamental aspects of the slashpackage design.
+</p>
+
+<p>
+However, the binary packages, if one builds them, place files into places on the <code>PATH</code> such as <code>/usr/local/sbin</code>, <code>/usr/local/bin</code>, <code>/usr/pkg/sbin</code>, and <code>/usr/pkg/bin</code>; and thus are sensitive to clashes with names used by other packages and toolsets &mdash; especially the packages that explicitly install shim workalikes for other toolsets and for the system commands from various (usually foreign) operating systems.
+The shim workalike names are left out of the main binaries installation packages.
+To eliminate the need for the shim-providing packages to carry separate copies of the multi-call binaries, and because operating system package installation systems are not broadly good with hard linking to things outwith a package's own manifest, the shims packages install the shims as symbolic links to the multi-call binaries installed by the main packages where the commands exist, but unexposed as filenames.
+</p>
+
+<p class="note">
+Note:
+Operating systems may choose to package things differently.
+But out of the box, if one builds from source using the toolset-supplied package-building procedures, there are three main binaries packages (exec, system management, and terminal management), and several shim packages (for, amongst others, Debian, OpenRC, OpenBSD, FreeBSD, GNU coreutils, util-linux, Upstart, SunOS/Illumos SMF, and net-tools).
+</p>
+
+<h2 class="Ruled" id="SharedLibraryMislocations">
+Shared library mis-locations
+</h2>
+
+<p>
+The <a href="commands/system-manager.xml"><code>system-manager</code></a> and <a href="commands/emergency-login.xml"><code>emergency-login</code></a> executables are statically linked on FreeBSD.
+This is because FreeBSD (up to and including version 14) puts the clang libc++ runtime library in <code>/usr/lib</code> (even though various parts of base are written in C++ and the C library is in <code>/lib</code>), and the clang libc++ runtime library still depends from the GNU C runtime library <code>libgcc_s.so</code> (instead of clang's own <code>libcxxrt.so</code> &mdash; <a href="https://github.com/llvm/llvm-project/issues/51425">a known bug</a> filed in 2021 and <a href="https://forums.freebsd.org/threads/why-do-we-need-libgcc_s.65041/">mentioned for FreeBSD</a> as long ago as 2018) which FreeBSD puts in <code>/usr/local/lib</code>.
+</p>
+
+<p>
+Both of these need to be in <code>/lib</code> for <code>system-manager</code> and <code>emergency-login</code> to be dynamically linkable on a machine bootstrapped into emergency mode when the disc volume containing <code>/usr</code> may not be mounted.
+Although the standard configuration for root-on-ZFS has, since the time of PC-BSD, been to have <code>/usr/lib</code> and <code>/usr/local/lib</code> on the root ZFS filesystem, with no separate <code>/usr</code> mount point, bootstrapping from UFS does not have this convention ab initio (it having quite the opposite one, in fact) and one cannot assume that mounting (solely) the root volume always makes <code>/usr/lib</code> and <code>/usr/local/lib</code> available.
+</p>
+

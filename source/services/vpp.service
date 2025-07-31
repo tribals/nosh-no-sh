@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Vector Packet Processing Process
+After=auditd.service
+Wants=kmod@uio_pci_generic
+
+[Service]
+ExecStartPre=rm -f /dev/shm/db /dev/shm/global_vm /dev/shm/vpe-api
+ExecStart=%p -c /etc/%p/startup.conf
+Type=simple
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=workstation.target

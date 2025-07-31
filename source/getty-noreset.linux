@@ -1,9 +1,14 @@
 #!/bin/sh -e
 exec \
 /bin/exec \
-vc-get-tty -- "$1" \
-open-controlling-tty \
+vc-get-terminal -- "$1" \
+setsid \
+open-controlling-terminal \
 \
-\
-login-banner /etc/issue \
-login
+login-envuidgid \
+local-reaper yes \
+login-giveown-controlling-terminal \
+setuidgid-fromenv \
+userenv-fromenv --default-locale --default-path --default-tools --default-timezone --set-xdg --set-dbus --set-other --toolkit-pager \
+chdir-home \
+login-shell

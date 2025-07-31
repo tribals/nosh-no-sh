@@ -7,7 +7,7 @@ Description=KF service
 
 [Service]
 EnvironmentDirectory=env
-ExecStart=%p
+ExecStart=/usr/libexec/%p
 
 [Install]
 WantedBy=server.target

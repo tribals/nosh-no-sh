@@ -1,0 +1,7 @@
+#!/bin/sh
+
+console-flat-table-viewer --header-count 1 --format space << EOF
+ITEM	PRICE
+Cola\040bottle	\M-B\M-#\0401.50
+Cherry\040tomatoes	£\0407.50
+EOF

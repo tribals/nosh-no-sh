@@ -5,7 +5,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #include <vector>
 #include <cstddef>
-#include "utils.h"
+#include "builtins.h"
 
 /* Table of commands ********************************************************
 // **************************************************************************
@@ -13,9 +13,11 @@ For copyright and licensing terms, see the file named COPYING.
 
 // These are the built-in commands visible in the BSD/SystemV compatibility utilities.
 
+extern void builtins ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void reboot_poweroff_halt_command ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void rcctl ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void wrap_system_control_subcommand ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
+extern void wrap_initctl_subcommand ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void shutdown ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void telinit ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void runlevel ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
@@ -25,13 +27,18 @@ extern void initctl ( const char * & , std::vector<const char *> &, ProcessEnvir
 extern void svcadm ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void invoke_rcd ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void update_rcd ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
+extern void deb_systemd_invoke ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void rc_update ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void initctl_read ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void foreground ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
+extern void system_version ( const char * & , std::vector<const char *> &, ProcessEnvironment & );
 
-extern const
-struct command 
+const
+struct command
 commands[] = {
+	{	"builtins",		builtins				},
+	{	"version",		system_version				},
+
 	// These are personalities that are also available as built-in commands.
 	{	"shutdown",		shutdown				},
 	{	"reboot",		reboot_poweroff_halt_command		},
@@ -56,6 +63,7 @@ commands[] = {
 	{	"svcadm",		svcadm					},
 	{	"invoke-rc.d",		invoke_rcd				},
 	{	"update-rc.d",		update_rcd				},
+	{	"deb-systemd-invoke",	deb_systemd_invoke			},
 	{	"rc-update",		rc_update				},
 	{	"rc-service",		service					},
 	{	"rcctl",		rcctl					},
@@ -66,10 +74,11 @@ commands[] = {
 };
 const std::size_t num_commands = sizeof commands/sizeof *commands;
 
-// There are no extra personalities over and above the built-in commands.
-extern const
-struct command 
+const
+struct command
 personalities[] = {
-	{	0,			0,			},
+	{	"start",		wrap_initctl_subcommand			},
+	{	"stop",			wrap_initctl_subcommand			},
+	{	"status",		wrap_initctl_subcommand			},
 };
-const std::size_t num_personalities = 0;
+const std::size_t num_personalities = sizeof personalities/sizeof *personalities;

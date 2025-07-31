@@ -5,7 +5,7 @@
 [Unit]
 Description=Set the dynamic hostname
 DefaultDependencies=false
-Before=multi-user-pre.target
+Before=multi-user-pre.target hostname.target
 Wants=local-fs.target
 After=local-fs.target
 
@@ -14,7 +14,6 @@ Type=oneshot
 EnvironmentDirectory=env
 ExecStart=set-dynamic-hostname
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

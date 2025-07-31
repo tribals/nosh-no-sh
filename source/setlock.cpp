@@ -17,10 +17,10 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-setlock ( 
+setlock (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool non_blocking(false);
@@ -35,19 +35,17 @@ setlock (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{filename} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing file name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "file name");
 	}
 	const char * filename(args.front());
 	args.erase(args.begin());
@@ -55,9 +53,7 @@ setlock (
 	const int fd((non_blocking ? open_lockfile_at : open_lockfile_or_wait_at)(AT_FDCWD, filename));
 	if (0 > fd) {
 		if (ignore) throw EXIT_SUCCESS;
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, filename, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, filename);
 	}
 	set_close_on_exec(fd, false);
 }

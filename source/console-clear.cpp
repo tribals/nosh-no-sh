@@ -19,10 +19,10 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-console_clear ( 
+console_clear (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool c1_7bit(false);
@@ -37,30 +37,26 @@ console_clear (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 	// This order of all before scrollback is important for PuTTY for some reason.
-	args.insert(args.end(), "foreground");
-	args.insert(args.end(), "console-control-sequence");
-	if (c1_7bit) args.insert(args.end(), "--7bit");
-	if (c1_8bit) args.insert(args.end(), "--8bit");
-	args.insert(args.end(), "--clear");
-	args.insert(args.end(), "all");
-	args.insert(args.end(), ";");
-	args.insert(args.end(), "console-control-sequence");
-	if (c1_7bit) args.insert(args.end(), "--7bit");
-	if (c1_8bit) args.insert(args.end(), "--8bit");
-	args.insert(args.end(), "--clear");
-	args.insert(args.end(), "scrollback");
+	args.push_back("foreground");
+	args.push_back("console-control-sequence");
+	if (c1_7bit) args.push_back("--7bit");
+	if (c1_8bit) args.push_back("--8bit");
+	args.push_back("--clear");
+	args.push_back("all");
+	args.push_back(";");
+	args.push_back("console-control-sequence");
+	if (c1_7bit) args.push_back("--7bit");
+	if (c1_8bit) args.push_back("--8bit");
+	args.push_back("--clear");
+	args.push_back("scrollback");
 	next_prog = arg0_of(args);
 }

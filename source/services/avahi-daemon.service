@@ -8,6 +8,7 @@ After=polkitd.service
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.Avahi
 RuntimeDirectory=%p
 RuntimeDirectoryMode=02755
 RuntimeDirectoryOwner=avahi

@@ -1,10 +1,11 @@
-<title>Per-user system services</title>
 <link rel="Up" href="per-user-stuff.html" title="Stuff converted for each user" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Per-user system services</title>
+<h1 class="Ruled">
 Per-user system services
 </h1>
 
-<h2>
+<h2 class="Ruled">
 Services created
 </h2>
 
@@ -12,7 +13,7 @@ Services created
 The configuration import subsystem creates several services at the system level for each user.
 </p>
 
-<h3>
+<h3 class="Ruled">
 <code>user@</code><i>name</i>: user target
 </h3>
 
@@ -21,7 +22,7 @@ An umbrella target named <code>user@</code><i>name</i> encompasses all of the ot
 Starting the target auto-starts all of the other services, if they are enabled.
 </p>
 
-<h3>
+<h3 class="Ruled">
 <code>user-runtime@</code><i>name</i>: per-user runtime area
 </h3>
 
@@ -32,7 +33,7 @@ It wants and is ordered before any mount service for <code>/run/user/</code><i>n
 The import subsystem does not generate or supply such mount services.
 </p>
 
-<h3>
+<h3 class="Ruled">
 <code>user-services@</code><i>name</i>: per-user manager
 </h3>
 
@@ -41,7 +42,7 @@ This service runs an instance of <a href="commands/per-user-manager.xml"><code>p
 This in turn runs an instance of <a href="commands/service-manager.xml"><code>service-manager</code></a> that manages <a href="per-user-user-services.html">the per-user services</a>.
 </p>
 
-<h3>
+<h3 class="Ruled">
 <code>user-dbus-daemon@</code><i>name</i>: per-user Desktop Bus broker
 </h3>
 
@@ -57,7 +58,7 @@ It is usually not used in favour of a broker service that is run by the per-user
 The twain should not be used simultaneously.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Usage
 </h2>
 
@@ -67,6 +68,16 @@ If you want a user <code>fred</code>'s per-user service management to be auto-st
 
 <p>
 To have user <code>fred</code>'s per-user service management start when <code>fred</code> first logs in, have <code>system-control start user@fred</code> (run by the superuser, of course) as part of the login process.
+</p>
+
+<p>
+One easy way to do this is to run <a href="commands/login-monitor-active.xml"><code>login-monitor-active</code></a> as a service.
+This is effectively an equivalent to an UPSERT/DELETE trigger on the active logins table in <a href="https://jdebp.uk/FGA/unix-login-database.html">Unix login database</a>.
+Whenever anything uses the <a href="https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/utmpx.h.html">standard "utmpx" Unix API</a> to manipulate that table, <code>login-monitor-active</code> notices and spawns <a href="commands/system-control.xml"><code>system-control</code></a> if any users have wholly (on all terminals) logged out or newly logged in.
+</p>
+<p class="note"> <strong> Note: </strong>
+<a href="commands/login-monitor-active.xml"><code>login-monitor-active</code></a> does not start the old-style per-user broker service.
+You must use the new-style of a user-level <code>dbus-daemon</code> service if you use <code>login-monitor-active</code>.
 </p>
 
 <p>

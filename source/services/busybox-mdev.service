@@ -8,6 +8,7 @@ DefaultDependencies=false
 Before=shutdown.target
 After=local-fs.target
 Conflicts=udev vdev suckless-mdev systemd-udev mdevd
+Before=plug-and-play-manager.target
 
 [Service]
 ExecStart=clearenv --keep-path plug-and-play-event-handler --verbose busybox mdev

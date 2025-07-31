@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=IP version 6 router solicitation daemon for interface %i
+Wants=cyclog@%p.service
+After=cyclog@%p.service ifconfig@%i
+PartOf=netif@%i
+
+[Service]
+EnvironmentDirectory=env
+# The old Mewburn rc scripts invoked ifconfig accept_rtadv explicitly, but rtsold's -F option has rtsold do that itself.
+ExecStart=%p -F -f '%I'
+ExecStopPost=ifconfig '%I' inet6 -accept_rtadv
+
+[Install]
+WantedBy=netif@%i

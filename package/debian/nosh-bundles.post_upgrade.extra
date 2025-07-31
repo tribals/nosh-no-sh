@@ -11,9 +11,9 @@ for I in \
 	lvm \
 	;
 do
-	i="`escape "$I"`"
+	i="`pwescape "$I"`-log"
 	test -d /var/log/sv/"$I"/ && rmdir /var/log/sv/"$I"
-	del_user "$i"-log
+	del_user "$i"
 done
 # Adjust to new relationships.
 for I in \
@@ -21,10 +21,10 @@ for I in \
 	dbus-daemon \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/workstation
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation
 	fi
 done
 for I in \
@@ -53,8 +53,8 @@ do
 	if system-control find "$I".target >/dev/null 2>&1
 	then
 		system-control disable "$I".target
-		rm -f -- /etc/service-bundles/targets/"$I"/wanted-by/sysinit
-		rm -f -- /etc/service-bundles/targets/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit
 	fi
 done
 for I in \
@@ -64,10 +64,10 @@ for I in \
 	lircd \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
 		system-control disable "$I".service
-		rm -f -- /var/sv/"$I"/wanted-by/server
+		rm -f -- "${svcdir}"/wanted-by/server
 	fi
 done
 # adjust to new log users
@@ -87,6 +87,7 @@ do
 		done
 	fi
 done
+
 # Re-apply presets to services that are cut-out by a special preset in the run-via-systemd package.
 system-control preset sysinit.target dbus.socket local-syslog.target
 system-control preset static-networking.target
@@ -97,3 +98,5 @@ system-control preset suckless-mdev.socket suckless-mdev-log.service suckless-md
 system-control preset mdevd.service mdevd-log.service mdevd-rescan.service
 system-control preset vdev.socket vdev-log.service
 
+# Do not set up http and ftp access control defaults.
+# Do not set up head0.

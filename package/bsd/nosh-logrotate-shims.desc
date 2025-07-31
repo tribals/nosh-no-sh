@@ -1,0 +1,2 @@
+ This package is an empty package that resolves a package dependency from packages like mgetty and rabbitmq-server.
+ These packages force a dependency upon logrotate even though their service bundles use cyclog and logrotate is nowhere involved.

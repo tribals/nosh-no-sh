@@ -1,0 +1,3 @@
+ This package causes udev to be run as the plug-and-play device manager.
+ .
+ For systemd's udev, use the nosh-run-systemd-udev package instead.

@@ -3,15 +3,16 @@
 ## **************************************************************************
 
 [Unit]
-Description=devd daemon
+Description=%p daemon
 DefaultDependencies=false
 Before=shutdown.target remote-fs-pre.target
 After=local-fs.target
+Before=plug-and-play-manager.target
 
 [Service]
 EnvironmentDirectory=env
 ExecStartPre=sysctl hw.bus.devctl_disable=0
-ExecStart=%p -d
+ExecStart=%p ${flags}
 ExecStopPost=sysctl hw.bus.devctl_disable=1
 
 [Install]

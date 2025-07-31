@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=GEMINI service over IP4/IP6 using djbwares
+
+[Service]
+User=publicfile
+SessionLeader=yes
+EnvironmentDirectory=env
+EnvironmentUserOnly=true
+LimitNOFILE=8
+LimitDATA=5000000
+ExecStart=sh -c 'exec geminid ~publicfile/public'
+
+[Install]
+WantedBy=server.target

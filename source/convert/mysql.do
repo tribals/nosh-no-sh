@@ -50,9 +50,14 @@ list_instances() {
 				;;
 			\!includedir\ *)
 				l="${l#!includedir }"
-				if test -d "$l"
+				if ! test -e "$l"
 				then
+					redo-ifcreate "$l"
+				elif ! test -d "$l"
+				then
+					# We only want to be sensitive to changes of a potentially containing directory if it is not a directory at the moment.
 					redo-ifchange "$l"
+				else
 					list_instances "$l"/*.cnf
 				fi
 				;;
@@ -63,8 +68,9 @@ list_instances() {
 
 redo-ifchange rc.conf general-services "mysql@.service"
 
-r="/var/local/sv"
-e="--no-systemd-quirks --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 find "$r/" -maxdepth 1 -type d -name 'mysql@*' -print0 |
 xargs -0 system-control disable --
@@ -73,7 +79,7 @@ xargs -0 system-control disable --
 
 install -d -m 0755 -- "/var/log/mysql/sv"
 
-for etcdir in "/etc" "/etc/mysql" "/usr/local/etc" "/usr/local/etc/mysql"
+for etcdir in "/usr/local/etc" "/usr/local/etc/mysql" "/etc" "/etc/mysql" "/usr/pkg/etc" "/usr/pkg/etc/mysql"
 do
 	if ! test -e "${etcdir}"
 	then
@@ -81,12 +87,14 @@ do
 		echo >>"$3" "${etcdir}" "does not exist."
 		continue
 	fi
-	if ! test -x "${etcdir}"/
+	if ! test -d "${etcdir}"
 	then
+		# We only want to be sensitive to changes of a potentially containing directory if it is not a directory at the moment.
 		redo-ifchange "${etcdir}"
 		echo >>"$3" "${etcdir}" "is not valid."
 		continue
 	fi
+	echo >>"$3" "Config in" "${etcdir}" "."
 	list_instances "${etcdir}/my.cnf" 2>>"$3"
 done |
 while read -r i
@@ -129,14 +137,14 @@ do
 	fi
 	mysqld=""
 
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 -- "$r/${service}/service/env"
 	rm -f -- "$r/${service}/log"
 	ln -s -- "../${log}" "$r/${service}/log"
 
 	install -d -m 0755 -o mysql-log -- "/var/log/mysql/sv/${service}"
 
-	system-control convert-systemd-units $e "$r/" "./${log}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${log}.service"
 	install -d -m 0755 -- "$r/${log}/service/env"
 	rm -f -- "$r/${log}/main"
 	ln -s -- "/var/log/mysql/sv/${service}" "$r/${log}/main"

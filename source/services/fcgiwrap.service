@@ -9,6 +9,7 @@ Description=nginx's Fast CGI wrapper server
 # FIXME: Is this really needed?
 systemdUserEnvironment=true
 User=http
+SessionLeader=yes
 ExecStart=%p
 PrivateTmp=true
 StandardInput=socket

@@ -4,7 +4,9 @@
 
 [Unit]
 Description="HAL" daemon
-After=local-syslog.target extra-shared-libraries.target usbd devd moused webcamd
+After=local-syslog.target extra-shared-libraries.target
+Wants=plug-and-play-manager.target
+After=plug-and-play-manager.target
 
 [Service]
 Type=dbus

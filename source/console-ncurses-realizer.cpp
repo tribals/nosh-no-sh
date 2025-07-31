@@ -179,7 +179,7 @@ void
 Realizer::redraw (
 ) {
 	werase(window);
-	const unsigned cols(vt.query_w()), rows(vt.query_h());
+	const unsigned cols(vt.query_size().w), rows(vt.query_size().h);
 	wresize(window, rows, cols);
 	for (unsigned source_row(0); source_row < rows; ++source_row) {
 		const unsigned dest_row(wrong_way_up ? rows - source_row - 1U : source_row);
@@ -189,12 +189,12 @@ Realizer::redraw (
 			const unsigned char fg_cga(cga_colour_from(c.foreground));
 			const unsigned char bg_cga(cga_colour_from(c.background));
 			cchar_t cc;
-			setcchar(&cc, ws, attributes_from(c.attributes), colour_pair(fg_cga, bg_cga), 0);
+			setcchar(&cc, ws, attributes_from(c.attributes), colour_pair(fg_cga, bg_cga), nullptr);
 			// This doesn't necessarily do the right thing with control, combining, and zero-width code points, but they are unlikely to occur in the buffer in the first place as the terminal emulator will have dealt with them.
 			mvwadd_wch(window, dest_row, col, &cc);
 		}
 	}
-	wmove(window, wrong_way_up ? rows - vt.query_cursor_y() - 1U : vt.query_cursor_y(), vt.query_cursor_x());
+	wmove(window, wrong_way_up ? rows - vt.query_cursor().y - 1U : vt.query_cursor().y, vt.query_cursor().x);
 	if (!(CursorSprite::VISIBLE & vt.query_cursor_attributes()))
 		set_cursor_visibility(0);
 	else if (!(CursorSprite::BLINK & vt.query_cursor_attributes()))
@@ -245,7 +245,7 @@ Realizer::MessageFromNCursesKey (
 		case KEY_SHOME:		return MessageForExtendedKey(EXTENDED_KEY_PAD_HOME, INPUT_MODIFIER_LEVEL2);
 		case KEY_END:		return MessageForExtendedKey(EXTENDED_KEY_PAD_END, 0);
 		case KEY_SEND:		return MessageForExtendedKey(EXTENDED_KEY_PAD_END, INPUT_MODIFIER_LEVEL2);
-		case KEY_NPAGE:		return MessageForExtendedKey(EXTENDED_KEY_PAD_PAGE_DOWN, 0);	
+		case KEY_NPAGE:		return MessageForExtendedKey(EXTENDED_KEY_PAD_PAGE_DOWN, 0);
 		case KEY_PPAGE:		return MessageForExtendedKey(EXTENDED_KEY_PAD_PAGE_UP, 0);
 		case KEY_ENTER:		return MessageForExtendedKey(EXTENDED_KEY_PAD_ENTER, 0);
 		case KEY_A1:		return MessageForExtendedKey(EXTENDED_KEY_PAD_HOME, 0);
@@ -263,7 +263,7 @@ Realizer::MessageFromNCursesKey (
 		case KEY_IC:		return MessageForExtendedKey(EXTENDED_KEY_INS_CHAR, 0);
 		case KEY_SIC:		return MessageForExtendedKey(EXTENDED_KEY_INS_CHAR, INPUT_MODIFIER_LEVEL2);
 #if 0
-		case KEY_EIC:		return MessageForExtendedKey(EXTENDED_KEY_, 0);	
+		case KEY_EIC:		return MessageForExtendedKey(EXTENDED_KEY_, 0);
 #endif
 		case KEY_FIND:		return MessageForExtendedKey(EXTENDED_KEY_FIND, 0);
 		case KEY_SFIND:		return MessageForExtendedKey(EXTENDED_KEY_FIND, INPUT_MODIFIER_LEVEL2);
@@ -271,12 +271,12 @@ Realizer::MessageFromNCursesKey (
 		case KEY_SHELP:		return MessageForExtendedKey(EXTENDED_KEY_HELP, INPUT_MODIFIER_LEVEL2);
 		case KEY_CANCEL:	return MessageForExtendedKey(EXTENDED_KEY_CANCEL, 0);
 		case KEY_SCANCEL:	return MessageForExtendedKey(EXTENDED_KEY_CANCEL, INPUT_MODIFIER_LEVEL2);
-		case KEY_COPY:		return MessageForExtendedKey(EXTENDED_KEY_COPY, 0);	
+		case KEY_COPY:		return MessageForExtendedKey(EXTENDED_KEY_COPY, 0);
 		case KEY_SCOPY:		return MessageForExtendedKey(EXTENDED_KEY_COPY, INPUT_MODIFIER_LEVEL2);
 		case KEY_UNDO:		return MessageForExtendedKey(EXTENDED_KEY_UNDO, 0);
 		case KEY_SUNDO:		return MessageForExtendedKey(EXTENDED_KEY_UNDO, INPUT_MODIFIER_LEVEL2);
 		case KEY_SELECT:	return MessageForExtendedKey(EXTENDED_KEY_SELECT, 0);
-		case KEY_NEXT:		return MessageForExtendedKey(EXTENDED_KEY_NEXT, 0);	
+		case KEY_NEXT:		return MessageForExtendedKey(EXTENDED_KEY_NEXT, 0);
 		case KEY_SNEXT:		return MessageForExtendedKey(EXTENDED_KEY_NEXT, INPUT_MODIFIER_LEVEL2);
 		case KEY_PREVIOUS:	return MessageForExtendedKey(EXTENDED_KEY_PREVIOUS, 0);
 		case KEY_SPREVIOUS:	return MessageForExtendedKey(EXTENDED_KEY_PREVIOUS, INPUT_MODIFIER_LEVEL2);
@@ -298,11 +298,11 @@ Realizer::MessageFromNCursesKey (
 		case KEY_SMOVE:		return MessageForExtendedKey(EXTENDED_KEY_MOVE, INPUT_MODIFIER_LEVEL2);
 		case KEY_OPEN:		return MessageForExtendedKey(EXTENDED_KEY_OPEN, 0);
 		case KEY_OPTIONS:	return MessageForExtendedKey(EXTENDED_KEY_OPTIONS, 0);
-		case KEY_SOPTIONS:	return MessageForExtendedKey(EXTENDED_KEY_OPTIONS, INPUT_MODIFIER_LEVEL2);	
+		case KEY_SOPTIONS:	return MessageForExtendedKey(EXTENDED_KEY_OPTIONS, INPUT_MODIFIER_LEVEL2);
 		case KEY_REDO:		return MessageForExtendedKey(EXTENDED_KEY_REDO, 0);
-		case KEY_SREDO:		return MessageForExtendedKey(EXTENDED_KEY_REDO, INPUT_MODIFIER_LEVEL2);	
+		case KEY_SREDO:		return MessageForExtendedKey(EXTENDED_KEY_REDO, INPUT_MODIFIER_LEVEL2);
 		case KEY_REFERENCE:	return MessageForExtendedKey(EXTENDED_KEY_REFERENCE, 0);
-		case KEY_REFRESH:	return MessageForExtendedKey(EXTENDED_KEY_REFRESH, 0);	
+		case KEY_REFRESH:	return MessageForExtendedKey(EXTENDED_KEY_REFRESH, 0);
 		case KEY_REPLACE:	return MessageForExtendedKey(EXTENDED_KEY_REPLACE, 0);
 		case KEY_SREPLACE:	return MessageForExtendedKey(EXTENDED_KEY_REPLACE, INPUT_MODIFIER_LEVEL2);
 		case KEY_RESTART:	return MessageForExtendedKey(EXTENDED_KEY_RESTART, 0);
@@ -323,7 +323,9 @@ Realizer::MessageFromNCursesKey (
 		case KEY_CATAB:		return MessageForExtendedKey(EXTENDED_KEY_CLEAR_TABS, 0);
 		case KEY_MOUSE:		// not convertible yet
 		case KEY_RESIZE:	// not applicable
+#if defined(KEY_EVENT)
 		case KEY_EVENT:		// not applicable
+#endif
 		default:
 			return 0;
 	}
@@ -352,10 +354,10 @@ Realizer::ncurses_keypress(
 */
 
 void
-console_ncurses_realizer [[gnu::noreturn]] ( 
+console_ncurses_realizer [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool wrong_way_up(false);
@@ -370,57 +372,42 @@ console_ncurses_realizer [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{dirname}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing file name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "file name");
 	}
 	const char * dirname(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	const int queue(kqueue());
 	if (0 > queue) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 	std::vector<struct kevent> ip;
 
 	FileDescriptorOwner vt_dir_fd(open_dir_at(AT_FDCWD, dirname));
 	if (0 > vt_dir_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, dirname, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname);
 	}
 	FileDescriptorOwner buffer_fd(open_read_at(vt_dir_fd.get(), "display"));
 	if (0 > buffer_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "display", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "display");
 	}
 	FileStar buffer_file(fdopen(buffer_fd.get(), "r"));
 	if (!buffer_file) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "display", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "display");
 	}
 	buffer_fd.release();
 	FileDescriptorOwner input_fd(display_only ? -1 : open_writeexisting_at(vt_dir_fd.get(), "input"));
 	if (!display_only && input_fd.get() < 0) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "input", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "input");
 	}
 	vt_dir_fd.release();
 
@@ -428,18 +415,18 @@ console_ncurses_realizer [[gnu::noreturn]] (
 	std::setlocale(LC_ALL, "");
 
 	if (!display_only)
-		append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, 0);
+		append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, nullptr);
 	ReserveSignalsForKQueue kqueue_reservation(SIGWINCH, 0);
 	PreventDefaultForFatalSignals ignored_signals(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, 0);
-	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
+	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	VirtualTerminalBackEnd vt(dirname, buffer_file.release(), input_fd.release());
-	append_event(ip, vt.query_buffer_fd(), EVFILT_VNODE, EV_ADD|EV_ENABLE|EV_CLEAR, NOTE_WRITE, 0, 0);
-	append_event(ip, vt.query_input_fd(), EVFILT_WRITE, EV_ADD|EV_DISABLE, 0, 0, 0);
+	append_event(ip, vt.query_buffer_fd(), EVFILT_VNODE, EV_ADD|EV_ENABLE|EV_CLEAR, NOTE_WRITE, 0, nullptr);
+	append_event(ip, vt.query_input_fd(), EVFILT_WRITE, EV_ADD|EV_DISABLE, 0, 0, nullptr);
 
 	Realizer realizer(wrong_way_up, vt);
 
@@ -450,21 +437,18 @@ console_ncurses_realizer [[gnu::noreturn]] (
 			break;
 		realizer.handle_resize_event();
 		realizer.handle_refresh_event();
-		realizer.handle_update_event();
 
 		struct kevent p[3];
-		const int rc(kevent(queue, ip.data(), ip.size(), p, sizeof p/sizeof *p, vt.query_reload_needed() ? &immediate_timeout : 0));
+		const int rc(kevent(queue, ip.data(), ip.size(), p, sizeof p/sizeof *p, vt.query_reload_needed() || realizer.has_update_pending() ? &immediate_timeout : nullptr));
 		ip.clear();
 
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
+			if (EINTR == errno) continue;
 #if defined(__LINUX__) || defined(__linux__)
-			if (EINVAL == error) continue;	// This works around a Linux bug when an inotify queue overflows.
-			if (0 == error) continue;	// This works around another Linux bug.
+			if (EINVAL == errno) continue;	// This works around a Linux bug when an inotify queue overflows.
+			if (0 == errno) continue;	// This works around another Linux bug.
 #endif
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "poll", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, "kevent");
 		}
 
 		if (0 == rc) {
@@ -472,6 +456,7 @@ console_ncurses_realizer [[gnu::noreturn]] (
 				vt.reload();
 				realizer.set_refresh_needed();
 			}
+			realizer.handle_update_event();
 			continue;
 		}
 
@@ -482,7 +467,7 @@ console_ncurses_realizer [[gnu::noreturn]] (
 					realizer.handle_signal(e.ident);
 					break;
 				case EVFILT_VNODE:
-					if (vt.query_buffer_fd() == static_cast<int>(e.ident)) 
+					if (vt.query_buffer_fd() == static_cast<int>(e.ident))
 						vt.set_reload_needed();
 					break;
 				case EVFILT_READ:
@@ -498,12 +483,12 @@ console_ncurses_realizer [[gnu::noreturn]] (
 
 		if (vt.MessageAvailable()) {
 			if (!vt.query_polling_for_write()) {
-				append_event(ip, vt.query_input_fd(), EVFILT_WRITE, EV_ENABLE, 0, 0, 0);
+				append_event(ip, vt.query_input_fd(), EVFILT_WRITE, EV_ENABLE, 0, 0, nullptr);
 				vt.set_polling_for_write(true);
 			}
 		} else {
 			if (vt.query_polling_for_write()) {
-				append_event(ip, vt.query_input_fd(), EVFILT_WRITE, EV_DISABLE, 0, 0, 0);
+				append_event(ip, vt.query_input_fd(), EVFILT_WRITE, EV_DISABLE, 0, 0, nullptr);
 				vt.set_polling_for_write(false);
 			}
 		}

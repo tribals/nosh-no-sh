@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="list-logins">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>list-logins</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">administrator commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>list-logins</refname>
+<refpurpose>login listing tool</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>list-logins</command>
+<arg choice="opt">--field <replaceable>name</replaceable></arg>
+<arg choice="opt">--time-format <replaceable>formatstring</replaceable></arg>
+<arg choice="opt">--no-init</arg>
+<arg choice="opt" repeat="rep"><replaceable>line(s)</replaceable></arg>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Description</title>
+
+<para>
+<command>list-logins</command> is a tool for listing login information.
+Its output is machine-parseable and suitable for <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> with 1 header line and <arg choice='plain'>--format tabbed</arg> or <citerefentry><refentrytitle>awk</refentrytitle><manvolnum>1</manvolnum></citerefentry> with <arg choice='plain'>-F'\t'</arg>.
+</para>
+
+<para>
+The <arg choice="plain"><replaceable>line</replaceable></arg> command-line arguments are a filter set that is matched against the line names, enabling the selection of individual login records.
+If there are no <arg choice="plain"><replaceable>line</replaceable></arg> arguments, the entire list is output, unfiltered.
+It is not an error for a filter item not to match a line.
+</para>
+
+<para>
+The <arg choice="plain">--field</arg> command-line option specifies a list of fields by <arg choice="plain"><replaceable>name</replaceable></arg>.
+What exactly the fields are varies from operating system to operating system.
+There is a basic common set:
+<arg choice="plain">line</arg>,
+<arg choice="plain">user</arg>,
+<arg choice="plain">host</arg>, and
+<arg choice="plain">time</arg>.
+</para>
+
+<para>
+The <arg choice="plain">--time-format</arg> command-line option specifies an alternative display format to be employed for all time fields, <arg choice="plain"><replaceable>formatstring</replaceable></arg>, in the form employed by the <citerefentry><refentrytitle>strftime</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
+</para>
+
+<para>
+The <arg choice="plain">--no-init</arg> command-line option has no effect on most BSDs, where the concept is meaningless.
+On Linux-based operating systems, it excludes <code>INIT_PROCESS</code> and <code>LOGIN_PROCESS</code> records, <citerefentry><refentrytitle>login-process</refentrytitle><manvolnum>1</manvolnum></citerefentry> and the programs that it is compatible with.
+With modern systems with modern system managers, this option is either meaningless or moot.
+</para>
+
+</refsection>
+
+<refsection><title>Output</title>
+
+<para>
+The output format is variable-length records terminated by LF containing TAB-separated fields.
+Fields are output as if passed through the BSD <citerefentry><refentrytitle><code>vis</code></refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
+They are thus unambiguously machine-parseable, because any whitespace in the field itself is encoded by <citerefentry><refentrytitle><code>vis</code></refentrytitle><manvolnum>3</manvolnum></citerefentry>.
+After separating out an individual field, its contents can (for example) be decoded in shell script using the <citerefentry><refentrytitle><code>unvis</code></refentrytitle><manvolnum>1</manvolnum></citerefentry> utility (which is supplied by FreeBSD).
+</para>
+
+<para>
+The field names are transformed to uppercase for the initial header record.
+</para>
+
+</refsection>
+
+<refsection><title>Examples</title>
+
+<informalexample>
+<para>
+This command uses <command>list-logins</command> to produce similar output to <citerefentry><refentrytitle>who</refentrytitle><manvolnum>1</manvolnum></citerefentry> with its <arg choice="plain">-H</arg> option.
+</para>
+<literallayout><computeroutput>$ </computeroutput><userinput>list-logins --field name --field line --field time --field host |</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>awk '{ if (1 == NR) print; else printf "%s\t%s\t%s\t(%s)\n",$1,$2,$3,$4; }' |</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>unvis</userinput></literallayout>
+</informalexample>
+
+<informalexample>
+<para>
+This command uses <command>list-logins</command> to display a continually updated table similar to <citerefentry><refentrytitle>who</refentrytitle><manvolnum>1</manvolnum></citerefentry> with its <arg choice="plain">-H</arg> option.
+</para>
+<literallayout><computeroutput>$ </computeroutput><userinput>while list-logins --field pid --field name --field line --field time --field host |</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>awk '{ if ( 2 > NR ) printf "\f%s\n",$0; else printf "%s\t%s\t%s\t%s\t%s\t(%s)\n",$1,$2,$3,$4,$5,$6; }'</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>do</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>    sleep 5</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>done |</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>console-flat-table-viewer --format tabbed --header-count 1</userinput></literallayout>
+</informalexample>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

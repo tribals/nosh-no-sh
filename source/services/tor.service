@@ -8,6 +8,7 @@ Description=TOR daemon
 [Service]
 EnvironmentDirectory=env
 User=_tor
+SessionLeader=yes
 ExecStart=%p -f "${conf:-/usr/local/etc/%p/%prc}" --RunAsDaemon 0 ${datadir:+--DataDirectory "${datadir}"} ${loglevel:+--+Log "${loglevel}" file "${logfile}"}
 
 [Install]

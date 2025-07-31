@@ -22,17 +22,18 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>userenv-fromenv</command> 
-<arg choice='opt'>--no-set-user</arg> 
-<arg choice='opt'>--no-set-shell</arg> 
-<arg choice='opt'>--set-path</arg> 
-<arg choice='opt'>--set-tools</arg> 
-<arg choice='opt'>--set-term</arg> 
-<arg choice='opt'>--set-locale</arg> 
-<arg choice='opt'>--set-xdg</arg> 
-<arg choice='opt'>--set-dbus</arg> 
-<arg choice='opt'>--set-timezone</arg> 
-<arg choice='opt'>--set-other</arg> 
+<command>userenv-fromenv</command>
+<arg choice='opt'>--no-set-user</arg>
+<arg choice='opt'>--no-set-shell</arg>
+<arg choice='opt'>--default-locale</arg>
+<arg choice='opt'>--default-path</arg>
+<arg choice='opt'>--default-term</arg>
+<arg choice='opt'>--default-timezone</arg>
+<arg choice='opt'>--default-tools</arg>
+<arg choice='opt'>--set-xdg</arg>
+<arg choice='opt'>--set-dbus</arg>
+<arg choice='opt'>--set-other</arg>
+<arg choice='opt'>--toolkit-pager</arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -40,7 +41,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>userenv-fromenv</command> is a chain-loading utility that sets environment variables and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>userenv-fromenv</command> is a chain-loading utility that sets environment variables and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -48,9 +49,18 @@
 </para>
 
 <para>
-<command>userenv-fromenv</command> takes the value given in the <envar>UID</envar> environment variable as a user ID to look up in the user account database.
-That variable can be set by commands such as <citerefentry><refentrytitle>getuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-From the contents of that account database record, it sets these environment variables.
+<command>userenv-fromenv</command> takes the value given in the <envar>UID</envar> environment variable as a user ID to look up in the system account database.
+That variable can be set by commands such as <citerefentry><refentrytitle>getuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>. or <citerefentry><refentrytitle>login-envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+It first looks up the account record whose name matches the value given in the <envar>LOGNAME</envar> environment variable, if that variable is set.
+If that account record's user ID field has the desired ID, it uses that record; otherwise, it looks up the account record by user ID.
+</para>
+<note>
+This lookup by name falling back to lookup by ID allows for systems where multiple user names map to the same user ID in the system account database.
+It ensures that the right account record, with the desired name, home directory, and shell fields, is found and used.
+</note>
+
+<para>
+From the contents of the account database record, it sets these environment variables.
 </para>
 
 <refsection><title>User account database variables</title>
@@ -89,7 +99,7 @@ Set to the pathname of the user's shell program, as given in the system account 
 </refsection><refsection><title>Path variables</title>
 
 <para>
-The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--set-path</arg> command-line option is used:
+The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--default-path</arg> command-line option is used and they are not already set:
 </para>
 <variablelist>
 
@@ -99,6 +109,12 @@ The following environment variables are set from the <citerefentry><refentrytitl
 </varlistentry><varlistentry>
 <term><envar>MANPATH</envar></term>
 <listitem><para>Set to the value of the <code>manpath</code> capability, defaulting to unset if there is no capability.</para></listitem>
+</varlistentry><varlistentry>
+<term><envar>TERMPATH</envar></term>
+<listitem><para>Set to the value of the <code>termpath</code> capability, defaulting if there is no capability to <filename>/usr/local/etc/termcap</filename>:<filename>/etc/termcap</filename>:<filename>/usr/pkg/etc/termcap</filename>:<filename>/usr/share/misc/termcap</filename>.</para></listitem>
+</varlistentry><varlistentry>
+<term><envar>TERMINFO_DIRS</envar></term>
+<listitem><para>Set to the value of the <code>terminfopath</code> capability, defaulting if there is no capability to <filename>/usr/local/etc/terminfo</filename>:<filename>/etc/terminfo</filename>:<filename>/usr/pkg/etc/terminfo</filename>:<filename>/usr/share/misc/terminfo</filename>.</para></listitem>
 </varlistentry>
 
 </variablelist>
@@ -106,23 +122,32 @@ The following environment variables are set from the <citerefentry><refentrytitl
 </refsection><refsection><title>Tools variables</title>
 
 <para>
-The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--set-tools</arg> command-line option is used:
+The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--default-tools</arg> command-line option is used and they are not already set:
 </para>
 <variablelist>
 
 <varlistentry>
 <term><envar>EDITOR</envar></term>
-<listitem><para>Set to the value of the <code>editor</code> capability, defaulting if there is no capability to <command>ex</command>. 
-(POSIX gives two choices of universally available line editor.  
-This is the one that is not <citerefentry><refentrytitle>ed</refentrytitle><manvolnum>1</manvolnum></citerefentry>.)</para></listitem>
+<listitem><para>
+Set to the value of the <code>editor</code> capability, defaulting if there is no capability to <command>ex</command>.
+(POSIX gives two choices of universally available line editor.
+This is the one that is not <citerefentry><refentrytitle>ed</refentrytitle><manvolnum>1</manvolnum></citerefentry>.)
+</para></listitem>
 </varlistentry><varlistentry>
 <term><envar>VISUAL</envar></term>
-<listitem><para>Set to the value of the <code>visual</code> capability, defaulting if there is no capability to <command>vi</command>.
+<listitem><para>
+Set to the value of the <code>visual</code> capability, defaulting if there is no capability to <command>vi</command>.
 (POSIX gives one choice of universally available full-screen editor.)
 </para></listitem>
 </varlistentry><varlistentry>
 <term><envar>PAGER</envar></term>
-<listitem><para>Set to the value of the <code>pager</code> capability, defaulting if there is no capability to <command>more</command>.</para></listitem>
+<listitem><para>
+Set to the value of the <code>pager</code> capability, defaulting if there is no capability to <command>more</command>.
+(The Single Unix Specification dropped <command>pg</command> in 2017.
+<command>less</command> is not universal, and where it is available it is usually also available as <command>more</command> anyway.
+<command>most</command> is likewise not universal.)
+If the <arg choice='plain'>--toolkit-pager</arg> command-line option is used that default changes from the standard <citerefentry><refentrytitle>more</refentrytitle><manvolnum>1</manvolnum></citerefentry> to the <citerefentry><refentrytitle>console-tty37-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> that comes in the same toolkit as <command>userenv-fromenv</command>.
+</para></listitem>
 </varlistentry>
 
 </variablelist>
@@ -130,7 +155,7 @@ This is the one that is not <citerefentry><refentrytitle>ed</refentrytitle><manv
 </refsection><refsection><title>Terminal variables</title>
 
 <para>
-The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--set-term</arg> command-line option is used:
+The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--default-term</arg> command-line option is used and they are not already set:
 </para>
 <variablelist>
 
@@ -139,9 +164,8 @@ The following environment variables are set from the <citerefentry><refentrytitl
 <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry>
 </term>
 <listitem><para>
-Set to the value of the <code>term</code> capability, defaulting to unset if there is no capability.
-Generally, this is inappropriate, as the <envar>TERM</envar> variable will have been set for the login session by the TTY login system.
-Moreover: The <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database usually does not have a <code>term</code> capability configured, which ends up <emphasis>unsetting</emphasis> the environment variable instead of leaving it as it was.
+Set to the value of the <code>term</code> capability, defaulting if there is no capability to <code>ansi</code>.
+The <envar>TERM</envar> variable will have been set for a login session by the TTY login system, and this default will thus not be required.
 </para></listitem>
 </varlistentry>
 
@@ -150,7 +174,7 @@ Moreover: The <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>
 </refsection><refsection><title>Locale variables</title>
 
 <para>
-The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--set-locale</arg> command-line option is used:
+The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--default-locale</arg> command-line option is used and they are not already set:
 </para>
 <variablelist>
 
@@ -167,7 +191,7 @@ The following environment variables are set from the <citerefentry><refentrytitl
 </refsection><refsection><title>Timezone variables</title>
 
 <para>
-The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--set-timezone</arg> command-line option is used:
+The following environment variables are set from the <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> database if the <arg choice='plain'>--default-timezone</arg> command-line option is used and they are not already set:
 </para>
 <variablelist>
 
@@ -191,7 +215,9 @@ The following environment variables are set if the <arg choice='plain'>--set-xdg
 </varlistentry>
 <varlistentry>
 <term><envar>XDG_CONFIG_DIRS</envar></term>
-<listitem><para>Set to <filename>/usr/local/etc/xdg</filename> on the BSDs, unset (so applications use the default of <filename>/etc/xdg</filename>) on other operating systems.</para></listitem>
+<listitem><para>Set to <filename>/usr/local/etc/xdg:/etc/xdg:/usr/pkg/etc/xdg</filename>.</para></listitem>
+The addition of <filename>/usr/local/etc</filename> comes from the BSDs.
+<filename>/usr/pkg/etc</filename> is the conventional <filename><replaceable>$LOCALBASE</replaceable>/etc</filename> from NetBSD pkgsrc.
 </varlistentry>
 <varlistentry>
 <term><envar>XDG_CONFIG_HOME</envar></term>
@@ -200,15 +226,37 @@ The following environment variables are set if the <arg choice='plain'>--set-xdg
 <varlistentry>
 <term><envar>XDG_DATA_DIRS</envar></term>
 <listitem><para>
-Set to <filename>/usr/local/share</filename>:<filename>/usr/share</filename>:<filename>/share</filename>.
+Set to <filename>/usr/local/share</filename>:<filename>/usr/pkg/share</filename>:<filename>/usr/share</filename>:<filename>/share</filename>.
 The addition of <filename>/share</filename> comes from TrueOS Desktop.
-Note that TrueOS Desktop orders the directories the other way around, giving operating system data files priority over "site local" ones.
+<filename>/usr/pkg/share</filename> is the conventional <filename><replaceable>$LOCALBASE</replaceable>/share</filename> from NetBSD pkgsrc.
+</para><note>
+TrueOS Desktop ordered the directories the other way around, giving operating system data files priority over "site local" ones.
 This ordering, on the other hand, is the ordering that is used in the XDG Desktop Specification.
-</para></listitem>
+</note></listitem>
 </varlistentry>
 <varlistentry>
 <term><envar>XDG_DATA_HOME</envar></term>
 <listitem><para>Unset, so that applications use the default of <filename><replaceable>$HOME</replaceable>/.local/share</filename>.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><envar>XDG_STATE_HOME</envar></term>
+<listitem><para>Unset, so that applications use the default of <filename><replaceable>$HOME</replaceable>/.local/state</filename>.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><envar>XDG_CACHE_HOME</envar></term>
+<listitem><para>Unset, so that applications use the default of <filename><replaceable>$HOME</replaceable>/.cache</filename>.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><envar>PATH</envar></term>
+<listitem><para>The value <filename><replaceable>$HOME</replaceable>/.local/bin</filename> is prepended, after any <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> processing has been done.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><envar>MANPATH</envar></term>
+<listitem><para>The value <filename><replaceable>$HOME</replaceable>/.local/share/man</filename> is prepended, after any <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> processing has been done.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><envar>TERMPATH</envar></term>
+<listitem><para>The value <filename><replaceable>$HOME</replaceable>/.config/termcap</filename> is prepended, after any <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> processing has been done.</para></listitem>
 </varlistentry>
 
 </variablelist>

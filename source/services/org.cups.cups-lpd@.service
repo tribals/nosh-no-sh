@@ -10,6 +10,7 @@ Description=Common Unix Printing Service's LPD shim
 systemdUserEnvironment=true
 EnvironmentDirectory=env
 User=lp
+SessionLeader=yes
 ExecStart=cupsd-lpd
 
 [Install]

@@ -22,19 +22,19 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>tcp-socket-connect</command> 
-<arg choice='opt'>--verbose</arg> 
-<arg choice='opt'>--local-name <replaceable>name</replaceable></arg> 
-<arg choice='opt'>--local-address <replaceable>address</replaceable></arg> 
-<arg choice='opt'>--local-port <replaceable>port</replaceable></arg> 
-<arg choice='opt'>--numeric-host</arg> 
-<arg choice='opt'>--numeric-service</arg> 
-<arg choice='opt'>--check-interfaces</arg> 
-<arg choice='opt'>--no-keepalives</arg> 
-<arg choice='opt'>--no-kill-IP-options</arg> 
-<arg choice='opt'>--no-delay</arg> 
-<arg choice='req'><replaceable>host</replaceable></arg> 
-<arg choice='req'><replaceable>service</replaceable></arg> 
+<command>tcp-socket-connect</command>
+<arg choice='opt'>--verbose</arg>
+<arg choice='opt'>--local-name <replaceable>name</replaceable></arg>
+<arg choice='opt'>--local-address <replaceable>address</replaceable></arg>
+<arg choice='opt'>--local-port <replaceable>port</replaceable></arg>
+<arg choice='opt'>--numeric-host</arg>
+<arg choice='opt'>--numeric-service</arg>
+<arg choice='opt'>--check-interfaces</arg>
+<arg choice='opt'>--no-keepalives</arg>
+<arg choice='opt'>--no-kill-IP-options</arg>
+<arg choice='opt'>--no-delay</arg>
+<arg choice='req'><replaceable>host</replaceable></arg>
+<arg choice='req'><replaceable>service</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -42,9 +42,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>tcp-socket-connect</command> is a chain-loading utility that opens a TCP socket, connects it to <replaceable>host</replaceable> and <replaceable>service</replaceable> with <citerefentry><refentrytitle>connect</refentrytitle><manvolnum>3</manvolnum></citerefentry>, sets the socket to file descriptors 6 and 7 (closing whatever those descriptors were), and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
-It sets up various conventional UCSPI environment variables that describe the local and remote ends of the connection.
-By UCSPI convention the chained-to program is expected to use file descriptor 6 for reading from the server and file descriptor 7 for writing to the server.
+<command>tcp-socket-connect</command> is a chain-loading utility that opens a TCP socket, connects it to <replaceable>host</replaceable> and <replaceable>service</replaceable> with <citerefentry><refentrytitle>connect</refentrytitle><manvolnum>3</manvolnum></citerefentry>, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function, having set up I/O and environment variables per the UCSPI conventions.
 </para>
 
 <para>
@@ -62,21 +60,37 @@ The <arg choice='plain'>--check-interfaces</arg> option prevents the use of any 
 </para>
 
 <para>
-Following the UCSPI conventions, <command>tcp-socket-connect</command> sets up several environment variables containing information about the TCP connection.
+If the <arg choice='plain'>--verbose</arg> option is used, <command>tcp-socket-connect</command> logs information about connections made.
+</para>
+
+<para>
+The <arg choice='plain'>--no-keepalives</arg>, <arg choice='plain'>--no-kill-IP-options</arg>, and <arg choice='plain'>--no-delay</arg> command line options set options on the connected socket.
+The first disables the use of TCP keepalive probes (which are used by default to ensure that dead connections are noticed and eliminated); the second permits IP options (which are removed by default) so that clients can set source routes; and the third disables the "Nagle" delay algorithm used for slow clients.
+</para>
+
+<refsection><title>UCSPI (specifically UCSPI-TCP) conventions</title>
+
+<para>
+<replaceable>next-prog</replaceable> is expected to follow the UCSPI conventions: standard input, output, and error are the same as whatever <command>tcp-socket-connect</command> inherited; file descriptors 6 and 7 are (respectively) reading from and writing to the connected socket, which it should treat as generic I/O streams and not expect to be a socket; and information about the local and remote ends of the connected socket is in environment variables.
+Whatever <command>tcp-socket-connect</command> itself inherited as file descriptors 6 and 7 is closed.
+</para>
+
+<para>
+<command>tcp-socket-connect</command> obtains information about the local socket connection using the <citerefentry><refentrytitle><code>getpeername</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> and <citerefentry><refentrytitle><code>getsockname</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> library functions, and sets up the UCSPI-TCP conventional environment variables as follows:
 </para>
 
 <variablelist>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>PROTO</envar>
 </term><listitem>
 <para>
-This always has the value <code>TCP</code>.
+This always has the value <code>TCP</code>, indicating the prefix to the names of the remaining environment variables.
 </para>
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPLOCALIP</envar>
 </term><listitem>
 <para>
@@ -86,7 +100,7 @@ Normally, the operating system assigns this; but an explicit assignment can be r
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPLOCALPORT</envar>
 </term><listitem>
 <para>
@@ -96,7 +110,7 @@ Normally, the operating system assigns this; but an explicit assignment can be r
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPLOCALHOST</envar>
 </term><listitem>
 <para>
@@ -105,7 +119,7 @@ The value of <replaceable>name</replaceable> set by the <arg choice='plain'>--lo
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEIP</envar>
 </term><listitem>
 <para>
@@ -114,7 +128,7 @@ The remote (server) IP address of the connected socket, in human-readable form.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEPORT</envar>
 </term><listitem>
 <para>
@@ -123,7 +137,7 @@ The remote (server) port number of the connected socket.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEINFO</envar>
 </term><listitem>
 <para>
@@ -132,7 +146,7 @@ Guaranteed unset.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEHOST</envar>
 </term><listitem>
 <para>
@@ -143,14 +157,13 @@ Guaranteed unset.
 
 </variablelist>
 
-<para>
-If the <arg choice='plain'>--verbose</arg> option is used, <command>tcp-socket-connect</command> logs information about connections made.
-</para>
+<warning>
+In the 21st century Internet, remote user account information and even host name information are attacker-supplied data and <emphasis>must not</emphasis> be expected by a UCSPI-TCP client, let alone relied upon.
+Even attempting to find out such information can involve contacting potentially malicious servers.
+<command>tcp-socket-connect</command> performs no lookups for such information.
+</warning>
 
-<para>
-The <arg choice='plain'>--no-keepalives</arg>, <arg choice='plain'>--no-kill-IP-options</arg>, and <arg choice='plain'>--no-delay</arg> command line options set options on the connected socket.
-The first disables the use of TCP keepalive probes (which are used by default to ensure that dead connections are noticed and eliminated); the second permits IP options (which are removed by default) so that clients can set source routes; and the third disables the "Nagle" delay algorithm used for slow clients.
-</para>
+</refsection>
 
 </refsection><refsection><title>Author</title>
 <para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>

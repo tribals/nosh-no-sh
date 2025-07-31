@@ -3,12 +3,13 @@
 ## **************************************************************************
 
 [Unit]
-Description=Bernstein's qmail SMTP Relay daemon
+Description=Bernstein's qmail SMTP Submission daemon
 
 [Service]
 EnvironmentDirectory=env
 LimitMEMORY=70000000
 User=qmaild
+SessionLeader=yes
 ExecStart=qmail-smtpd
 
 [Install]

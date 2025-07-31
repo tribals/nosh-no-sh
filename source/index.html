@@ -1,10 +1,11 @@
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
 <title>nosh Guide</title>
-<h1>nosh Guide</h1>
+<h1 class="Ruled">nosh Guide</h1>
 
 <p>
 This is a guide to the nosh package.
 You can find reference documentation in the package itself.
-Each command has a manual page, accessible through the normal <code>man</code> or <code>info</code> commands.
+Each command has a manual page, accessible through the normal <code>man</code> command, and the original DocBook XML form of the same, readable with any XML viewer (including WWW browsers).
 </p>
 
 <ul style="column-width:25em; list-style-position:inside;">
@@ -18,7 +19,13 @@ Each command has a manual page, accessible through the normal <code>man</code> o
 	<li><a href="logging-cheatsheet.html">Logging cheatsheet</a></li>
 	</ul>
 </li>
-<li><a href="commands.html">Command and tool list</a></li>
+<li><a href="commands.html">Command and tool list</a>
+	<ul>
+	<li><a href="multi-call-binaries.html">Multi-call binaries</a></li>
+	</ul>
+</li>
+<li><a href="non-commands.html">Non-command documentation list</a></li>
+<li><a href="gazetteer.html">Gazetteer</a></li>
 <li>Anatomy &hellip;
 	<ul>
 	<li><a href="anatomy-of-regular-service.html">&hellip; of a typical service</a></li>
@@ -59,6 +66,7 @@ Each command has a manual page, accessible through the normal <code>man</code> o
 <li>Startup and shutdown
 	<ul>
 	<li><a href="startup-and-shutdown.html">&hellip; where system manager is in charge</a></li>
+	<li><a href="emergency-and-rescue-modes.html">Emergency and rescue startup modes</a></li>
 	<li><a href="svscan-startup.html">Compatible old-style startup</a></li>
 	</ul>
 </li>
@@ -82,21 +90,46 @@ Each command has a manual page, accessible through the normal <code>man</code> o
 <li><a href="timestamps.html">Timestamps</a></li>
 <li><a href="terminals.html">Terminals</a></li>
 	<ul>
-	<li><a href="virtual-terminal-login.html">Virtual terminal login</a></li>
-	<li><a href="kernel-virtual-terminals.html">Kernel virtual terminals</a></li>
-	<li><a href="user-virtual-terminals.html">User-space virtual terminals</a></li>
+	<li>virtual terminals:
+		<ul>
+		<li><a href="kernel-virtual-terminals.html">Kernel virtual terminals</a>
+			<ul>
+			<li><a href="kernel-virtual-terminal-configuration.html">configuration</a></li>
+			</ul>
+		</li>
+		<li><a href="user-virtual-terminals.html">User-space virtual terminals</a>
+			<ul>
+			<li><a href="user-virtual-terminal-configuration.html">configuration</a></li>
+			<li><a href="user-virtual-terminal-enhancements.html">enhancements</a></li>
+			</ul>
+		</li>
+		</ul>
+	</li>
+	<li>log-in and call-out:
+		<ul>
+		<li><a href="virtual-terminal-login.html">Virtual terminal login</a></li>
+		<li><a href="real-terminal-login.html">Real terminal login</a></li>
+		<li><a href="real-terminal-call-out.html">Real terminal call-out</a></li>
+		<li><a href="login-conf.html">login.conf</a></li>
+		</ul>
+	</li>
 	<li><a href="terminal-resources.html">Terminal resources</a></li>
-	<li><a href="real-terminal-login.html">Real terminal login</a></li>
 	</ul>
-<li><a href="gazetteer.html">Gazetteer</a></li>
-<li><a href="packages-and-ports.html">Packages and Ports</a></li>
+<li>Building and packaging things
+	<ul>
+	<li><a href="packages-and-ports.html">Packages and Ports</a></li>
+	<li><a href="building-from-source.html">Building the toolset from source</a></li>
+	</ul>
+</li>
 <li><a href="troubleshooting.html">Troubleshooting</a></li>
 <li>Service notes:</li>
 	<ul>
 	<li><a href="services/appcafe.html">appcafe</a></li>
 	<li><a href="services/djbdns.html">dnscache, tinydns, and axfrdns</a></li>
+	<li><a href="services/taiclock.html">sntpclock, taiclock, taiclockd, and fake-hwclock</a></li>
 	<li><a href="services/linux-lockfiles.html">linux-lockfiles</a></li>
 	<li><a href="services/polkitd.html">polkitd</a></li>
+	<li><a href="services/systemd-logind.html">systemd-logind and elogind</a></li>
 	<li><a href="services/uhidd.html">uhidd</a></li>
 	<li><a href="services/urxvtd.html">urxvtd</a></li>
 	<li><a href="services/head0.html">head0</a></li>

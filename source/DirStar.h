@@ -12,15 +12,15 @@ For copyright and licensing terms, see the file named COPYING.
 /// \brief A wrapper for DIR * that automatically closes the directory in its destructor.
 struct DirStar {
 	operator DIR * () const { return d ; }
-	DirStar(DIR * dp = 0) : d(dp) {}
+	DirStar(DIR * dp = nullptr) : d(dp) {}
 	DirStar(FileDescriptorOwner & fdo) : d(fdopendir(fdo.get())) { if (d) fdo.release(); }
 #if 0
 	DirStar(int fd) : d(fdopendir(fd)) {}
 #endif
-	DIR * release() { DIR *dp(d); d = 0; return dp; }
+	DIR * release() { DIR *dp(d); d = nullptr; return dp; }
 	int fd() const { return dirfd(d); }
 	DirStar & operator= ( DIR * n ) { assign(n); return *this; }
-	~DirStar() { assign(0); }
+	~DirStar() { assign(nullptr); }
 protected:
 	DIR * d;
 	void assign(DIR * n) { if (d) closedir(d); d = n; }

@@ -1,0 +1,308 @@
+<link rel="Up" href="terminals.html" title="Terminals" />
+<link rel="Prev" href="user-virtual-terminals.html" title="user virtual terminals" />
+<link rel="Prev" href="user-virtual-terminal-enhancements.html" title="user virtual terminal enhancements" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>user-space virtual terminal configuration</title>
+<h1 class="Ruled">
+user-space virtual terminal configuration
+</h1>
+
+<p>
+The components of <a href="user-virtual-terminals.html">user-space virtual terminals</a> are configurable.
+</p>
+
+<p>
+The configuration mechanism allows the system administrator flexibility in user virtual terminal configuration policy, ranging from a loose but risky configuration to a secure but tight one.
+</p>
+
+<h2 class="Ruled">
+Policy
+</h2>
+
+<h3 class="Ruled">
+Countering malicious HIDs
+</h3>
+
+<p>
+The old model of kernel virtual terminals is that any and all attached input devices are automatically merged into a single input stream, as if there were a single keyboard and mouse.
+(See kbdmux(4), sysmouse(4), and moused(8) on FreeBSD, for example.)
+</p>
+
+<p>
+This has several problems for the privacy and security conscious, in that any human-input device can be plugged into the system by anyone with merely <em>exterior</em> physical access to the system.
+Such devices can include "mouse jigglers" that generate tiny fake mouse motions to make it seem that a user is physically still present and "bad USB" devices that in various ways (too many to list here) act under the covers as illicit USB Human Input Devices that inject keystrokes and mouse events to perform various actions.
+</p>
+
+<p class="note">
+N.B.:
+The exterior physical access allowing attackers to (covertly) plug in a PS/2 keyboard or PS/2 mouse provides equal ability to generate malicious input.
+This is not a problem that is limited to USB.
+It is simply more commonly exploited, and made much easier to disguise from victims, in the USB world.
+</p>
+
+<p>
+The configuration system for user-space virtual terminals allows one to set up things in a loose fashion, that risks malicious USB or PS/2 input, or in a tighter fashion, at the expense of having to adjust the system configuration every time that one physically connects USB or PS/2 devices differently.
+</p>
+
+<h3 class="Ruled">
+Accommodating hetereogeneous HIDs
+</h3>
+
+<p>
+The old model of kernel virtual terminals is that all keyboards share a single keyboard map, and affect a single modifier state.
+This means that a modifier key on any keyboard modifies the other keys on that and any other keyboard; that all keyboards share a single modifier lock (and thus keyboard lights) state.
+</p>
+
+<p>
+The configuration system for user-space virtual terminals allows one to set up things such that which keyboard map is used for a device is based upon what the device's Vendor/Product IDs are, or on what position on the bus it is plugged in.
+</p>
+
+<h3 class="Ruled">
+Coping with oddball HIDs
+</h3>
+
+<p>
+There exist various kinds of USB HID &mdash; namely add-on numeric keypads, mice-with-keypads, "calculator keypads" that are fully functional standalone calculators, and similar "calculator mice" &mdash; that are sensitive to the NumLock LED state.
+They might not physically have lights, but pretend to do so in order to receive messages from the host whenever the NumLock state changes.
+</p>
+
+<p>
+Some "calculator" devices, where the numeric keypad does not double up as cursor/editing keys in the same way as on a PC keyboard, will take the current state into account and attempt to fake NumLock keypresses in order to send the intended keystrokes.
+Other "calculator" devices will refuse to enter their host-controlled "PC" mode unless NumLock is on (but ironically lack a NumLock key of their own for turning it on &mdash; the shared modifier state when all keyboards are combined being their saving grace, allowing NumLock to be turned on by another keyboard).
+</p>
+
+<p>
+The configuration system for user-space virtual terminals detects devices that declare that they have a NumLock LED but do not have a NumLock key, and automatically forces the NumLock state on for such devices.
+It also allows for such devices to have their own private keyboard modifier states if desired, so that this automatic force of NumLock does not propagate to other keyboard devices.
+</p>
+
+<h2 class="Ruled">
+Mechanisms
+</h2>
+
+<p>
+Reconfiguring user-space virtual terminal components is a matter of adjusting a service configuration and restarting the service, which can be done on the fly without affecting the applications running in any TUI login sessions.
+</p>
+
+<h3 class="Ruled">
+multiplexor services
+</h3>
+
+<p>
+A <code>console-multiplexor@<i>name</i></code> service bundle expects to find symbolic links matching the shell wildcard <code>vc[0-9]*</code> in its service directory, pointing to the virtual terminals that it is multiplexing amongst.
+These are passed on the command line to <a href="commands/console-multiplexor.xml"><code>console-multiplexor</code></a> as the virtual terminals for it to multiplex into the <code><i>name</i>mux</code> virtual terminal.
+</p>
+
+
+<h3 class="Ruled">
+input method services
+</h3>
+
+<p>
+A <code>console-input-method@<i>upper</i></code> service bundle is configured with several (service-private) environment variables:
+</p>
+<dl>
+<dt><code>lower</code></dt>
+<dd><p>the name of the lower virtual terminal</p></dd>
+<dt><code>chinese1</code></dt>
+<dd><p>the optional name of the <a href="commands/cin.xml">CIN data file</a> to use for the 1st Hanzi/Kanji/Hanja conversion mode</p></dd>
+<dt><code>chinese2</code></dt>
+<dd><p>the optional name of the CIN data file to use for the 2nd Hanzi/Kanji/Hanja conversion mode</p></dd>
+<dt><code>kana</code></dt>
+<dd><p>the optional names of the two CIN data files to use for the Hiragana and Katakana conversion modes</p></dd>
+<dt><code>hangeul</code></dt>
+<dd><p>the optional names of the CIN data file to use for the Hangeul conversion mode</p></dd>
+<dt><code>romaji</code></dt>
+<dd><p>the optional names of the CIN data file to use for the Romaji conversion mode</p></dd>
+</dl>
+<p>
+These and <i>upper</i> are combined and passed on the command line to <a href="commands/console-input-method.xml"><code>console-input-method</code></a>.
+</p>
+<p>
+<a href="terminal-resources.html#FEP">CIN data files are mainly third party terminal resources.</a> that must be obtained and configured manually.
+</p>
+
+
+<h3 class="Ruled">
+realizer services
+</h3>
+
+<p>
+A <code>console-fb-realizer@<i>fbdev</i></code> service bundle is configured with several (service-private) environment variables:
+</p>
+<dl>
+<dt><code>FONTS</code></dt>
+<dd>
+<p>the optional command-line options and arguments specifying <a href="terminal-resources.html#fonts">font files</a> to load</p>
+<p>For example:
+One might want to use the 16&times;16 Commodore PET character set for regular medium characters, the 16&times;16 BBC Micro character set for regular bold characters (both BBC and PET character sets taken from the 2.1.1f fork of Unscii), fall back to Unscii version 2.1.1f where possible for other medium characters, fall back to GNU Unifont version 16 after that, and use the narrower UbuntuMono for faint and italic.
+For this, one would have a <code>FONTS</code> setting like (all one line):
+</p>
+<blockquote><code>--vtfont-regular-r fonts/unscii-16-pet-and-bbcg.fnt --vtfont-regular-r fonts/unscii-16.fnt --vtfont-regular-r fonts/unifont-16.0.03.fnt --vtfont-regular-r fonts/unifont_upper-16.0.03.fnt --vtfont-regular-i fonts/UbuntuMono-r.fnt --vtfont-faint-r fonts/UbuntuMono-i.fnt</code></blockquote>
+<p class="note">
+N.B.:
+The old home computer character sets were designed for square aspect ratio character cells, and work particularly well with the framebuffer realizer.
+The PET font has a thinner stroke width than the BBC font, and they together work well as a medium and bold pair.
+Unscii 2.1.1f employs other tricks like using the Dragon 32/64 font for Unicode's "monospace" mathematical-formula characters, giving them a visual distinction that GNU Unifont does not.
+</p>
+</dd>
+</dl>
+<p>
+These and <i>fbdev</i> are combined and passed on the command line to <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a>.
+</p>
+
+<p>
+A <code>console-kvt-realizer@<i>kvt</i></code> service bundle is configured with several (service-private) environment variables:
+</p>
+<dl>
+<dt><code>FONTS</code></dt>
+<dd><p>the optional command-line options and arguments specifying <a href="terminal-resources.html#fonts">font files</a> to load</p></dd>
+<dt><code>FLAGS</code></dt>
+<dd><p>any ancillary flags (e.g. <code>--mouse-primary</code>)</p></dd>
+</dl>
+<p>
+These and <i>kvt</i> are combined and passed on the command line to <a href="commands/console-kvt-realizer.xml"><code>console-kvt-realizer</code></a>.
+</p>
+
+<p>
+Realizers also employ <a href="commands/user-vt-realizer-configuration.xml">user-space virtual terminal configuration</a>, thus relying upon <code>kbdmaps</code>, <code>fonts</code>, <code>keyboards-aggregate</code>, <code>mice-aggregate</code>, and <code>vcs</code> subdirectories of their service directories.
+Conventionally these are all symbolic links to subdirectories of the same names under <code>/etc/system-control/convert/user-vt/</code>, providing a single global place to tweak configuration.
+In turn, the global configuration is set up so that the relevant <code>/etc/system-control/convert/user-vt/vcs/<i>something</i></code> autoconfiguration symbolic links point to <code>/run/dev/head0</code> for <a href="services/head0.html">head0</a>.
+</p>
+
+<p>
+<a href="terminal-resources.html#kbdmaps">Keyboard files are mainly third party terminal resources.</a> that are imported by <a href="external-formats.html">the external configuration import mechanism</a>.
+</p>
+
+<h2 class="Ruled">
+Choices of approach
+</h2>
+
+<h3 class="Ruled">
+Replicating the old model, risks included
+</h3>
+
+<p>
+Replicating the old model involves creating all of the final default <a href="commands/user-vt-realizer-configuration.xml">user-space virtual terminal configuration</a> settings, so that all realizers are connected to a single keyboard state file, a single mouse state file, a single keyboard map, and the same user-space virtual terminal directory.
+The simplest way to achieve this is for every realizer's <code>kbdmaps</code>, <code>fonts</code>, <code>keyboards-aggregate</code>, <code>mice-aggregate</code>, and <code>vcs</code> subdirectories of their service directories to point to a single global set of such directories, where each has a <code>default</code> file (for state aggregation) or symbolic link (for keyboard maps and virtual terminal pointers).
+</p>
+
+<p>
+More explicitly:
+In every realizer's service directory <code>kbdmaps</code>, <code>fonts</code>, <code>keyboards-aggregate</code>, <code>mice-aggregate</code>, and <code>vcs</code> are symbolic links to subdirectories of the same name under (for example) <code>/etc/system-control/convert/user-vt/</code>, and in that tree, in turn:
+</p>
+<ul>
+<li><p><code>kbdmaps/default</code> is a symbolic link to the single all-keyboards keyboard map, e.g. <code>../../kbdmaps/uk.105.kbd</code>;</p></li>
+<li><p><code>keyboards-aggregate/default</code> is a single shared regular file;</p></li>
+<li><p><code>mice-aggregate/default</code> is a single shared regular file; and</p></li>
+<li><p><code>vcs/default</code> is a symbolic link to the single all-HIDs virtual terminal, e.g. <code>/run/dev/head0</code> for <a href="services/head0.html">head0</a>.</p></li>
+</ul>
+
+<p class="note">
+N.B.:
+The problems of this loose accept-all-devices model have been known since the 2010s.
+The nosh toolkit does <em>not</em> configure this model out of the box.
+Out of the box, no (not already aggregated) USB, PC/AT, or PS/2 input device will be automatically attached to any virtual terminal.
+</p>
+
+<p class="note">
+Caution:
+HID aggregators like FreeBSD's <code>/dev/sysmouse</code> or <code>/dev/kbdmux0</code> have these security problems, and are best disabled wherever possible and avoided.
+</p>
+
+<h3 class="Ruled">
+The fully "opt-in" model
+</h3>
+
+<p>
+Since <a href="commands/user-vt-realizer-configuration.xml">user-space virtual terminal configuration</a> settings can be based upon specific device addresses, instead of using <code>default</code> settings everywhere, specific devices can be configured based upon their connectivity.
+So the system can be configured such that only a human-input device plugged into one exact single physical port will be connected to <code>/run/dev/head0</code> by (for example):
+</p>
+<ul>
+<li><p><code>kbdmaps/usb.ugen.B0004.A0004</code> is a symbolic link to that specific port's keyboard map, e.g. <code>../../kbdmaps/jp.109.kbd</code>;</p></li>
+<li><p><code>keyboards-aggregate/usb.ugen.B0004.A0004</code> is a regular file;</p></li>
+<li><p><code>mice-aggregate/usb.ugen.B0004.A0004</code> is a regular file; and</p></li>
+<li><p><code>vcs/usb.ugen.B0004,A0004</code> is a symbolic link to <code>/run/dev/head0</code>.</p></li>
+</ul>
+
+<p class="note">
+N.B.:
+Although all of the configuration items are necessary, the primary line of defence against malicious HIDs is not configuring a virtual terminal setting.
+However, one <em>should not</em> use loose <code>default</code> (or even unqualified <code>usb.ugen</code> and <code>usb.hid</code>) configurations for keyboard and mouse state files.
+Malicious devices should not be able even to affect keyboard and mouse states.
+</p>
+
+<p>
+Extending this to additional specific keyboards/mice is a simple matter of adding other bus/address combinations:
+</p>
+<ul>
+<li><p><code>kbdmaps/usb.ugen.B0004.A0003</code> is a symbolic link to that specific port's keyboard map, e.g. <code>../../kbdmaps/jp.109.kbd</code>;</p></li>
+<li><p><code>keyboards-aggregate/usb.ugen.B0004.A0003</code> is a regular file;</p></li>
+<li><p><code>mice-aggregate/usb.ugen.B0004.A0003</code> is a regular file; and</p></li>
+<li><p><code>vcs/usb.ugen.B0004.A0003</code> is a symbolic link to <code>/run/dev/head0</code>.</p></li>
+</ul>
+
+<p>
+This fully isolates the additional keyboard/mouse device.
+It shares no state with the original.
+If this is not desired, then the two <code>usb.ugen.B0004.A0004</code> and <code>usb.ugen.B0004.A0003</code> state files in each of <code>keyboards-aggregate/</code> and <code>mice-aggregate/</code> should be links to a single multiply-linked regular file.
+</p>
+
+<p>
+Indeed, if this is not done then modifier keys (stored in the keyboard state file) will not affect mouse input unless a device <em>is itself</em> a combined keyboard+mouse device in one; and even then only modifier keys (if any) <em>on the device itself</em> will affect its mouse input.
+A general rule of thumb is that if the <code>vcs/<i>configpath</i></code> symbolic links for multiple HIDs point to the same user-space virtual terminal, generally the keyboard and mouse state files for those HIDs will be links to a single regular file (each).
+</p>
+
+<p class="note">
+Caution:
+Keyboard and mouse state files are not interchangeable.
+Do not link them to each other.
+Only link multiple keyboard state files together; and likewise for mouse state files.
+</p>
+
+<h3 class="Ruled">
+When to use different keyboard maps for different keyboards
+</h3>
+
+<p>
+In the aforegiven fully "opt-in" examples, each device has its own keyboard map.
+If all keyboards ever attached are likely to be the same type (out of 104-key, 105-key, 106-key, 107-key, and 109-key) and country layout, then this can be reduced to a single <code>kbdmaps/default</code> symbolic link as the old all-merged model.
+However, one might have two or more keyboards of different types.
+These can be auto-assigned individual layouts.
+</p>
+
+<p>
+If, for example, one had both an ABNT2 keyboard from one vendor and a Japanese keyboard from another:
+</p>
+<ul>
+<li><p><code>kbdmaps/usb.ugen.B0004.A0003.V03f0.P0024</code> would be a symbolic link to the Brazilian 106-key keyboard map, i.e.  <code>../../kbdmaps/br.106.kbd</code>; and</p></li>
+<li><p><code>kbdmaps/usb.ugen.B0004.A0004.V04f3.P0103</code> would be a symbolic link to the Japanese 109-key keyboard map, i.e. <code>../../kbdmaps/jp.109.kbd</code>; and</p></li>
+</ul>
+
+<p class="note">
+N.B.:
+This is an extreme example for illustrative purposes, although it was actually a test case in development.
+But more realistic examples are more common than one might think.
+In particular, whilst one might have (say) a full-sized European 105-key keyboard with a German keyboard map, many add-on "air mouse" and "wireless miniature keyboard+trackball" devices only come in U.S. 104-key forms.
+(The 105th key is the one nominally at ISO/IEC 9995-3 position B00.)
+A single universal map would mean either applying the German layout to the 104-key device, or applying a U.S. layout to the 105-key device.
+</p>
+
+<h3 class="Ruled">
+Shared and unshared frame buffers, and the primary mouse
+</h3>
+
+<p>
+As the <a href="commands/console-kvt-realizer.xml">console-kvt-realizer</a>/<a href="commands/console-fb-realizer.xml">console-fb-realizer</a> manual explains, sometimes the framebuffer is dedicated to <em>only</em> realizing a user-space virtual terminal, and sometimes it is a shared resource that is also accessed by either an X11 server or an actual <em>kernel</em> virtual terminal subsystem.
+The latter is almost always the case on FreeBSD; although on Linux it is possible to have isolated framebuffer devices not assigned to either X11 or KVTs.
+</p>
+
+<p>
+When multiple realizers share a single mouse state file, exactly one realizer service must be run with the <code>--mouse-primary</code> command-line option.
+This is the realizer that transmits the actual mouse events to the input FIFO of the virtual terminal.
+With fewer than one primary mouse, no mouse events will be sent; with more than one primary mouse, duplicate mouse events, especially clicks, will be sent.
+</p>
+
+<p>
+When <a href="commands/console-kvt-realizer.xml">console-kvt-realizer</a> is being employed, this is the obvious choice for primary mouse realizer.
+</p>

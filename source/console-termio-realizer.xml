@@ -31,21 +31,30 @@
 <arg choice='opt'>--cursor-keypad-application-mode</arg>
 <arg choice='opt'>--calculator-keypad-application-mode</arg>
 <arg choice='opt'>--no-alternate-screen-buffer</arg>
+<arg choice='opt'>--inversescreen <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--tui-level <replaceable>level</replaceable></arg>
+<arg choice='opt'>--mouse-primary</arg>
 <arg choice='req'><replaceable>vcname</replaceable></arg>
+<arg choice='req'><replaceable>keyboard-state-file</replaceable></arg>
+<arg choice='req'><replaceable>mouse-state-file</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsection><title>Description</title>
 
 <para>
-<command>console-termio-realizer</command> is the I/O back-end for a (user-space) virtual terminal, that realizes the virtual terminal on another terminal.
+<command>console-termio-realizer</command> is the I/O back end for a (user-space) virtual terminal, that realizes the virtual terminal on another terminal.
 It expects that other terminal to be already connected to its standard input and standard output, and its type to be specified in the <envar>TERM</envar> environment variable.
 It only uses its standard error for diagnostic messages.
 </para>
 
 <para>
 It opens the character/attribute buffer file <filename><replaceable>vcname</replaceable>/display</filename> and the input FIFO <filename><replaceable>vcname</replaceable>/input</filename>.
-These are the "master side" interfaces of the user-space virtual terminal, as detailed in <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+These are the back-end interfaces of the user-space virtual terminal, as detailed in <citerefentry><refentrytitle>user-vt</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+</para>
+
+<para>
+It opens the <filename><replaceable>keyboard-state-file</replaceable></filename> and <filename><replaceable>mouse-state-file</replaceable></filename>, which are (potentially shared) keyboard modifier and mouse state files, as described in <citerefentry><refentrytitle>user-vt-realizer-configuration</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
 </para>
 
 <para>
@@ -62,36 +71,46 @@ It then enters a loop where it simultaneously:
 
 <listitem>
 <para>
+(if the <arg choice='plain'>--mouse-primary</arg> option is used) writes all mouse state changes recorded in the <filename><replaceable>mouse-state-file</replaceable></filename> to the input FIFO; and
+</para>
+</listitem>
+
+<listitem>
+<para>
 writes the contents of the character/attribute buffer file to its standard output.
 </para>
 </listitem>
 
 </itemizedlist>
 
+<refsection><title>Widgets</title>
+
 <para>
-Various workarounds for deficiencies in the realizing terminal are available.
-The <arg choice='plain'>--bold-as-colour</arg> and <arg choice='plain'>--faint-as-colour</arg> command-line options accomodate terminals that do not yet implement the <code>bold</code> and <code>faint</code> SGR attributes that were standardized by ECMA-48 in 1976.
-The <arg choice='plain'>--permit-fake-truecolour</arg> command-line option permits the use of ISO 8613-6 Direct colour control sequences even on terminals which are known to fake this by mapping 24-bit RGB colours to entries in their 8-bit colour palettes.
+Next to the virtual terminal area it displays, if there is room, a toolbar of widgets: various indicators and buttons.
 </para>
 
 <para>
-The <arg choice='plain'>--wrong-way-up</arg> command-line option causes the display to be realized the wrong way up, swapping the direction of increasing line numbers.
-This is an oft-requested terminal feature, albeit by people who have never actually experienced it.
+The indicators show the current (shared) keyboard state as read from <filename><replaceable>keyboard-state-file</replaceable></filename>: the <keycap>&#x21ed;&#160;Num&#160;Lock</keycap>, <keycap>&#x21ec;&#160;Caps&#160;Lock</keycap>, <keycap>&#x21eb;&#160;Level&#160;2&#160;Shift&#160;Lock</keycap>, <keycap>&#x21ef;&#160;Level&#160;3&#160;Shift&#160;Lock</keycap>, the <keycap>&#x21d2;&#160;Group&#160;2</keycap> latch, and the states of the <keycap>&#x2388;&#160;Control</keycap>, <keycap>&#x21e7;&#160;Level&#160;2&#160;shift</keycap>, <keycap>&#x21ee;&#160;Level&#160;3&#160;shift</keycap>, <keycap>&#x2318;&#160;Super</keycap>, and <keycap>&#x2387;&#160;Alt</keycap> keys.
+These are what real HIDs would display using lights on a panel.
 </para>
+<note>
+These <emphasis>are not</emphasis> the keyboard states of the local terminal.
+<command>console-termio-realizer</command> has no access to local terminal transient keyboard modifier state; as that is not part of the I/O protocol for terminals.
+It does not apply these states to input that it reads from the terminal.
+</note>
 
 <para>
-The <arg choice='plain'>--cursor-keypad-application-mode</arg> and <arg choice='plain'>--calculator-keypad-application-mode</arg> command-line options instruct <command>console-termio-realizer</command> to switch, respectively, the cursor keypad and the calculator keypad of the realizing terminal into their "application" modes.
-Otherwise it switches them into their "normal" modes.
-"application" mode is generally not useful to <command>console-termio-realizer</command>, since it makes cursor and calculator keys indistinguishable from accelerator keys.
-The <arg choice='plain'>--no-alternate-screen-buffer</arg> command-line option instructs <command>console-termio-realizer</command> to not switch to the alternative screen buffer.
-This works around problems with some (yet more!) broken terminal emulators that attempt to be and fail at being like XTerm, which forcibly change cursor and editing keys into application mode when the alternative screen buffer is active.
+The buttons can be clicked with the mouse, if the realized-upon terminal supports mouse input.
+These send multiplexor control commands to the user-space virtual terminal, to switch to the start/previous/next session; and likewise input method control commands, to select conversion mode.
 </para>
 
-<refsection><title>I/O protocol</title>
+</refsection>
+
+<refsection id="IOPROTOCOL" xreflabel="IOPROTOCOL"><title>I/O protocol</title>
 
 <para>
 <command>console-termio-realizer</command> has a slightly more powerful rendering mechanism than <citerefentry><refentrytitle>console-ncurses-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, because it does not use (wide character) ncurses.
-It instead uses straight terminal I/O, with ECMA and ISO standard output control sequences, DEC VT input and output control sequences, and SCO Console input control sequences.
+It instead uses straight terminal I/O, with ECMA and ISO standard output control sequences, DEC VT input and output control sequences, and SCO Unix Multiscreen virtual terminal input control sequences.
 </para>
 
 <itemizedlist>
@@ -111,30 +130,120 @@ If the terminal distinguishes between calculator keypad keys (in application mod
 
 <listitem>
 <para>
-It will attempt to use the correct ECMA-48 control sequencs for underline and italics.
+It will attempt to use the correct ECMA-48 control sequencs for underline, italics, framed, and encircled.
 </para>
 </listitem>
 
 <listitem>
 <para>
-If the terminal supports them, it uses ISO 8613-6 SGR indexed and direct colour extensions for 8-bit palette look-up or 24-bit RGB.
+If the terminal supports them, it uses ISO 8613-6/ITU T.416 SGR indexed and direct colour extensions for 8-bit palette look-up or 24-bit RGB.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Where the terminal family is known to support it, it will attempt to pass through things like the SGR 4 sub-parameter extensions for various different kinds of underlining.
 </para>
 </listitem>
 </itemizedlist>
 
 <para>
-The disadvantage of not using ncurses is that <command>console-termio-realizer</command> will not interoperate with terminals that do not adhere to the ISO and ECMA standards, and to the DEC VT and SCO Console conventions.
+The disadvantage of not using ncurses is that <command>console-termio-realizer</command> will not interoperate with terminals that do not adhere to the ISO and ECMA standards, and to the DEC VT and SCO Unix Multiscreen virtual terminal conventions.
 However, such terminals whilst possible to regularly encounter in the 1960s and 1970s are exceedingly rare nowadays.
 </para>
+
 </refsection>
 
 </refsection>
+
+<refsection><title>Terminal quirks</title>
 
 <para>
 What the terminal supports is determined from the terminal type specified in the <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry> environment variable.
 Terminal types are, per <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry>, assumed to comprise "families" that share a common name as a prefix (e.g. <code>gnome</code> and <code>gnome-256color</code>)
 <command>console-termio-realizer</command> mainly only looks at these families, not the trailing "subfamily" denotations (with a couple of exceptions such as checking for "256color").
 </para>
+
+<refsection><title>Display elements</title>
+
+<para>
+Virtual terminal display buffers encompass various kinds of glyph for the cursor and the pointer.
+The support for these is completely dependent from the capabilities of the realized-upon terminal.
+Cursor glyphs and attributes are requested largely as-is from the realized-upon terminal, excepting that some non-DEC or non-XTerm extensions are reduced to their DEC/XTerm equivalents as appropriate for the terminal type family.
+The same goes for pointer glyphs.
+</para>
+
+<para>
+Virtual terminal display buffers also encompass a "light/dark background" screen flag.
+Many terminal <emphasis>emulators</emphasis> get this flag backwards, relative to a DEC VT.
+They also disagree on whether this should swap all foreground and background colours of all text (Konsole); swap indexed colours 0 and 7, indexed colours 8 and 15, and the foreground and background of default-coloured text (XTerm); or only swap the foreground and background of default-coloured text (rxvt).
+<command>console-termio-realizer</command> handles this flag itself, therefore, for consistency across realized-upon terminals and with other realizers.
+It swaps all foreground and background colours, which is also what a DEC VT is documented as doing.
+</para>
+
+<para>
+A "default" foreground or background cell colour is realized using the realized-upon terminal's own default colour.
+This produces a more visually acceptable effect on terminal emulators which come up in reverse video screen mode, at the expense of the "default" colour not being the same across multiple realizations of the same user-space virtual terminal.
+</para>
+
+</refsection>
+
+<refsection><title>Function keys</title>
+
+<para>
+Modern GUI terminal emulators, such as XTerm since the 1990s, work like the DEC VT420 did in its native mode.
+The <keycap>F1</keycap> to <keycap>F12</keycap> keys on the keyboard do not change numbers when modifiers are used.
+The terminal emulators encode modifier key information in the control sequences that they send, and thus leave it to the receiver to process the difference between (say) <keycap>&#x2388;&#160;Control</keycap>+<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>F<replaceable>N</replaceable></keycap> and just plain <keycap>F<replaceable>N</replaceable></keycap>.
+</para>
+
+<para>
+<command>console-termio-realizer</command> decodes the modifier information and simply passes it along to the user-space virtual terminal's input as part of the input message.
+There is thus a relatively "straight paper path", when it comes to function keys, between the realizing terminal and what the applications on the far side of the user-space virtual terminal see.
+(Teken emulation by the user-space virtual terminal confounds this somewhat.)
+</para>
+
+<para>
+Old-fashioned GUI terminal emulators, which unfortunately still includes rxvt and Unicode rxvt, swallow parts of the modifier information.
+They do so on the supposition that the GUI input device is a supposed IBM Model F (PC/XT) keyboard with 10 function keys.
+They use the <keycap>&#x21e7;&#160;Shift</keycap> modifier to internally map those 10 function keys onto the 20 function keys of a DEC VT.
+This causes significant confusion on modern keyboards derived from the IBM Model M (PC/AT) keyboard with 12 instead of 10 function keys.
+</para>
+
+<para>
+<command>console-termio-realizer</command> receives only part of the modifier information, and is told about a confusing set of function keys where <keycap>F11</keycap> and <keycap>F12</keycap> behave especially oddly.
+Teken emulation by the user-space virtual terminal makes this even worse.
+</para>
+
+</refsection>
+
+<refsection><title>Workarounds</title>
+
+<para>
+Various workarounds for deficiencies in the realizing terminal are available.
+The <arg choice='plain'>--bold-as-colour</arg> and <arg choice='plain'>--faint-as-colour</arg> command-line options accomodate terminals that do not yet implement the <code>bold</code> and <code>faint</code> SGR attributes that were standardized by ECMA-48 in 1976.
+The <arg choice='plain'>--permit-fake-truecolour</arg> command-line option permits the use of ISO 8613-6/ITU T.416 Direct colour control sequences even on terminals which are known to fake this by mapping 24-bit RGB colours to entries in their 8-bit colour palettes.
+</para>
+
+<para>
+The <arg choice='plain'>--wrong-way-up</arg> command-line option causes the display to be realized the wrong way up, swapping the direction of increasing line numbers.
+This is an oft-requested terminal feature, albeit by people who have never actually experienced it.
+</para>
+
+<para>
+The <arg choice='plain'>--cursor-keypad-application-mode</arg> and <arg choice='plain'>--calculator-keypad-application-mode</arg> command-line options instruct <command>console-termio-realizer</command> to switch, respectively, the cursor keypad and the calculator keypad of the realizing terminal into their "application" modes.
+Otherwise it switches them into their "normal" modes.
+"application" mode is generally not useful to <command>console-termio-realizer</command>, since it makes cursor and calculator keys indistinguishable from accelerator keys.
+The <arg choice='plain'>--no-alternate-screen-buffer</arg> command-line option instructs <command>console-termio-realizer</command> to not switch to the alternative screen buffer.
+This has two uses.
+First, it allows one to retain visibility of displayed information after the program has exited (although <citerefentry><refentrytitle>setterm</refentrytitle><manvolnum>1</manvolnum></citerefentry> provides access to the alternative screen buffer).
+Second, it works around problems with some (yet more!) broken terminal emulators that attempt to be and fail at being like XTerm, which forcibly change cursor and editing keys into application mode when the alternative screen buffer is active.
+The <arg choice='plain'>--inversescreen</arg> command-line option instructs <command>console-termio-realizer</command> to switch the DECSCNM ("light"/"dark" screen mode) private mode on or off.
+The <arg choice='plain'>--tui-level</arg> command-line option constrains the use of MouseText or Unicode block graphics and line drawing characters in TUI widgets and the mouse pointer.
+</para>
+
+</refsection>
+
+</refsection>
 
 <refsection><title>Security</title>
 

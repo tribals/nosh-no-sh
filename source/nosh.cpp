@@ -17,21 +17,7 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-/// We need to keep these around after the function exits.
-static std::vector<std::string> arg_strings;
-
-static inline
-std::vector<const char *>
-convert (
-	const std::vector<std::string> & s
-) {
-	std::vector<const char *> r(s.size());
-	for (size_t i(s.size()); i > 0 ; ) {
-		--i;
-		r[i] = s[i].c_str();
-	}
-	return r;
-}
+namespace {
 
 #if defined(__LINUX__) || defined(__linux__)
 #	define FD_PREFIX "/proc/self/fd/"
@@ -39,7 +25,7 @@ convert (
 #	define FD_PREFIX "/dev/fd/"
 #endif
 
-static inline
+inline
 void
 undo_open_exec_fd_bodge(
 	const char * name
@@ -57,24 +43,30 @@ undo_open_exec_fd_bodge(
 	set_close_on_exec(fd, true);
 }
 
+}
+
 void
-nosh ( 
+nosh (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
-	const char * prog(basename_of(args[0]));
-	if (2 != args.size()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Incorrect number of arguments.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
-	arg_strings = read_file(prog, args[1]);
-	std::vector<const char *> new_args(convert(arg_strings));
+	const char * prog(basename_of(args.front()));
+	args.erase(args.begin());
+
+	if (args.empty()) die_missing_argument(prog, envs, "script name");
+	const char * const name(args.front());
+	args.erase(args.begin());
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
+
+	// These must have static storage duration as we are using them in args.
+	static std::vector<std::string> args_storage;
+	args_storage = read_file(prog, envs, name);
+	const std::vector<const char *> new_args(convert_args_storage(args_storage));
 	if (new_args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "No arguments in script.");
-		throw EXIT_FAILURE;
+		die_usage(prog, envs, "No arguments in script.");
 	}
-	undo_open_exec_fd_bodge(args[1]);
+	undo_open_exec_fd_bodge(name);
 	args = new_args;
 	next_prog = arg0_of(args);
 }

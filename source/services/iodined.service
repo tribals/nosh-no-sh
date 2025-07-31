@@ -1,0 +1,13 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=A daemon for tunneling traffic over DNS queries
+
+[Service]
+RuntimeDirectory=iodine
+ExecStart=%p -f -u iodine -t %t/iodine ${IODINED_ARGS} ${IODINED_PASSWORD:+-P "${IODINED_PASSWORD}"}
+
+[Install]
+WantedBy=server.target

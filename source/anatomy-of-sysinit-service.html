@@ -1,8 +1,9 @@
-<title>Anatomy of a sysinit service</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
 <link rel="Prev" href="anatomy-of-system-target.html" title="Anatomy of a system target" />
 <link rel="Next" href="creating-bundles.html" title="Creating bundles" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Anatomy of a sysinit service</title>
+<h1 class="Ruled">
 Anatomy of a sysinit service
 </h1>
 
@@ -33,7 +34,7 @@ Most "sysinit" services are single-shot services that do their work and then exi
 Only a few, such as the log services and the plug and play manager service, have long-lived d&aelig;mon processes.
 </p>
 
-<h2 id="etc">
+<h2 class="Ruled" id="etc">
 location
 </h2>
 
@@ -47,7 +48,7 @@ For the same reasons, the supervise directories for "sysinit" services live unde
 The service manager is told to load them, and thus needs to create their control/status API files, <a href="startup-and-shutdown.html#sysinit">first thing in the bootstrap procedure</a>.
 </p>
 
-<h2 id="logging">
+<h2 class="Ruled" id="logging">
 logging
 </h2>
 

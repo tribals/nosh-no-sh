@@ -1,0 +1,87 @@
+<link rel="Up" href="index.html" title="nosh Guide" />
+<link rel="Next" href="svscan-startup.html" title="Compatible old-style startup" />
+<link rel="Prev" href="startup-and-shutdown.html" title="Startup and shutdown" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Emergency and rescue mode startup</title>
+<h1 class="Ruled">
+Emergency and rescue mode startup
+</h1>
+
+<p>
+The "emergency" and "rescue" startup modes (<a href="https://jdebp.uk/FGA/emergency-and-rescue-mode-bootstrap.html">which superseded "single-user" mode in the 1990s</a>) are two of the three <a href="startup-and-shutdown.html">system startup</a> modes, the third being "normal" mode.
+They are usually signalled by flags such as <code>-b</code> or <code>-s</code> being passed as command-line arguments to the first user process, running <a href="commands/system-manager.xml"><code>system-manager</code></a>, which in turn passes them along to the <code>init</code> subcommand of <a href="commands/system-control.xml"><code>system-control</code></a>.
+These flags originate in an "Initial RAM disc" system, the kernel, or often in the operating system's boot loader; passing through this chain to reach the system manager as process 1.
+</p>
+
+<p>
+As mentioned in the <a href="commands/shutdown.xml"><code>shutdown</code></a> manual, these are <em>startup</em> modes, not <em>shutdown</em> modes.
+One can only start up into them, not shut down to them.
+</p>
+
+<h2 class="Ruled">
+Emergency mode
+</h2>
+
+<p>
+The <code>emergency</code> target wants a service named <code>emergency-login@console</code>, an emergency login service instatiated against the system console device.
+(See <a href="commands/freebsd-console.xml"><code>freebsd-console</code></a> and <a href="commands/linux-console.xml"><code>linux-console</code></a>.)
+</p>
+
+<p>
+The main command that this runs is <a href="commands/emergency-login.xml"><code>emergency-login</code></a>, to check the password of the superuser, and do a minimal login dialogue with "glass TTY" semantics and fixed to the "root" superuser account in the system account database.
+It inherits the minimal environment set up by <a href="commands/system-manager.xml"><code>system-manager</code></a>, as modified by <a href="commands/vc-get-terminal.xml"><code>vc-get-terminal</code></a>.
+Elsewhere in this service, <a href="commands/setsid.xml"><code>setsid</code></a> makes the process a session leader, <a href="commands/open-controlling-terminal.xml"><code>open-controlling-terminal</code></a> sets up the system console as the controlling terminal for the session, and <a href="commands/setlogin.xml"><code>setlogin</code></a> sets the login name for the session.
+</p>
+
+<p>
+"emergency" mode brings up no other services, and thus mounts no (non-"API") filesystems, and does not even necessarily make the root filesystem available read-write.
+</p>
+
+<p>
+As these are <a href="multi-call-binaries.html">multi-call binaries</a> with the subordinate commands that they require built-in, accidentally deleting the subordinate commands from the default <code>PATH</code> will not render a system unbootable.
+Moreover, there are a limited number of files that need to be repaired on a very broken system in order to make it at least bootable into emergency startup mode.
+They are (the copies on the root volume of) the system manager, the <code>emergency-login</code> service bundle, the <code>nosh</code> script interpreter for the <code>run</code> script that invokes emergency login, the <code>emergency-login</code> command, and the program for whatever shell <code>emergency-login</code> in its turn invokes.
+</p>
+
+<h3 class="Ruled">
+Emergency mode tips
+</h3>
+
+<p>
+In shells such as the Korn, Bourne Again, and Watanabe shells, POSIX-conformant mode can be turned off once the shell is running with <tt>set +o posix</tt>.
+In shells such as Debian Almquist and Almquist shells, there is effectively no <em>non-</em>POSIX-conformant mode.
+</p>
+
+<p>
+It is possible to use the <code>shell</code> setting in the <code>login.conf</code> subsystem to differentiate the emergency-mode shell from the rescue and normal mode shells.
+This can permit, for example, the emergency mode shell to be statically linked whilst the rescue and normal mode shells are dynamically linked.
+</p>
+<p class="note">
+<strong>Note:</strong>
+On FreeBSD until 2021, this required setting up <code>root</code> and <code>toor</code> with distinct login classes in <code>login.conf</code> .
+Until 2021, FreeBSD stuck with the long-standing convention of the <code>root</code> account's login shell being the C shell, and this is still assumed for a lot of FreeBSD documentation.
+After 2021 on FreeBSD, this merely requires a modification to the <code>root</code> entry in the global <code>login.conf</code>.
+</p>
+<p class="note">
+<strong>Note:</strong>
+NetBSD uses its Almquist <tt>sh</tt> for the login shell of both the <code>root</code> and <code>toor</code> accounts.
+As of 2023 it already configures, out of the box, its <code>toor</code> account to specify a statically linked build of its Almquist <tt>sh</tt> as the account's login shell to run.
+</p>
+
+<h2 class="Ruled">
+Rescue mode
+</h2>
+
+<p>
+The <code>rescue</code> target is a more conventional TUI login service, like the <code>ttylogin@<i>device</i></code> services used for <a href="virtual-terminal-login.html">virtual terminal login</a> but instantiated against the system console.
+It expects the system account database to be functional, and permits logging in to accounts other than the superuser.
+The login dialogue that this presents is displayed by <a href="commands/login-envuidgid.xml"><code>login-envuidgid</code></a>, and it expects the console to be a "modern" terminal capable of 1980s cursor addressibility, colours, and character attributes; and of 1990s Unicode.
+<p class="note">
+<strong>Note:</strong>
+If the <a href="commands/freebsd-console.xml"><code>freebsd-console</code></a> or <a href="commands/linux-console.xml"><code>linux-console</code></a> is a serial or parallel device, the DTE at the other end of the wire is expected to be capable of speaking UTF-8.
+This is the 21st century, of course; even Microsoft HyperTerminal was capable of handling UTF-8 on Windows XP.
+</p>
+
+<p>
+"rescue" mode brings up local mounted filesystems, runs checks, and does basic system intializations such as services that set the dynamic hostname and machine ID.
+</p>

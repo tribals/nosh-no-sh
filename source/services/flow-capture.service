@@ -9,6 +9,7 @@ Description=%p daemon for capturing flow data
 EnvironmentDirectory=env
 ExecStart=%p $flags ${datadir:+-w "${datadir}"} "${localip}/${remoteip}/${port}"
 User=%p
+SessionLeader=yes
 
 [Install]
 WantedBy=workstation.target

@@ -16,9 +16,9 @@ dirname_of (
 ) {
 	const char * p(s.c_str());
 	const char * b(basename_of(p));
-	if (p + 1 < b) 
+	if (p + 1 < b)
 		return std::string(p, b - 1);
-	else if (p < b) 
+	else if (p < b)
 		return std::string(p, b);
 	else
 		return ".";

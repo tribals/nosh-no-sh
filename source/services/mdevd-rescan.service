@@ -7,6 +7,7 @@ Description=Laurent Bercot's mdevd plug-and-play manager one-shot initialization
 DefaultDependencies=false
 Before=shutdown.target
 After=local-fs.target mdevd.service
+After=plug-and-play-manager.target plug-and-play-rescan-pre.target
 
 [Service]
 Type=oneshot

@@ -1,0 +1,13 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Automatically renew any certbot certificates found
+
+[Service]
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
+EnvironmentDirectory=env
+ExecStart=certbot renew --noninteractive --no-random-sleep-on-renew ${flags} $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+
+[Install]

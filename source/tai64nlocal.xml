@@ -27,7 +27,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>tai64nlocal</command> reads a series of lines.  
+<command>tai64nlocal</command> reads a series of lines.
 For each line that begins with an <code>@</code> character and a TAI64N timestamp in external form (16 hexadecimal digits of seconds and 8 hexadecimal digits of nanoseconds) it replaces the timestamp with a broken down calendar date and time in human-readable form.
 </para>
 
@@ -61,7 +61,7 @@ The daemontools and daemontools-encore <citerefentry><refentrytitle>tai64nlocal<
 </para>
 
 <para>
-See <ulink url="timestamps.html">the timestamps section of the <citetitle>nosh Guide</citetitle></ulink> for detailed information on the differences from daemontools, daemontools-encore, and other toolsets in how <command>tai64nlocal</command> handles TAI.
+See <ulink url="timestamps.html">the <citetitle>timestamps</citetitle> section of the nosh Guide</ulink> for detailed information on the differences from daemontools, daemontools-encore, and other toolsets in how <command>tai64nlocal</command> handles TAI.
 </para>
 
 </refsection><refsection><title>Author</title>

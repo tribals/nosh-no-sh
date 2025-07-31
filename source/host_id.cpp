@@ -7,6 +7,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cstring>
 #include <fstream>
 #include "host_id.h"
+#include "utils.h"
 #include "CubeHash.h"
 
 /* library functions for accessing an outdated ID ***************************
@@ -36,6 +37,7 @@ calculate_host_id (
 void
 write_non_volatile_hostid (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	uint32_t hostid
 ) {
 #if defined(__LINUX__) || defined(__linux__)
@@ -49,12 +51,11 @@ write_non_volatile_hostid (
 		|| (0 > mount(volatile_hostid_filename, non_volatile_hostid_filename, "bind", MS_BIND, 0))
 #endif
 	   ) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, non_volatile_hostid_filename, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, non_volatile_hostid_filename);
 	}
 #else
 	static_cast<void>(prog);	// Silences a compiler warning.
+	static_cast<void>(envs);	// Silences a compiler warning.
 	static_cast<void>(hostid);	// Silences a compiler warning.
 #endif
 }
@@ -62,27 +63,24 @@ write_non_volatile_hostid (
 void
 write_volatile_hostid (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	uint32_t hostid
 ) {
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__) || defined(__NetBSD__)
 	int oid[2] = {CTL_KERN, KERN_HOSTID};
 #if !defined(__OpenBSD__)
-	const 
+	const
 #endif
 		unsigned long h(hostid);
-	if (0 > sysctl(oid, sizeof oid/sizeof *oid, 0, 0, &h, sizeof h)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kern.hostid", std::strerror(error));
-	}
+	if (0 > sysctl(oid, sizeof oid/sizeof *oid, nullptr, nullptr, &h, sizeof h))
+		die_errno(prog, envs, "kern.hostid");
 #elif defined(__LINUX__) || defined(__linux__)
 	std::ofstream s(volatile_hostid_filename);
 	if (!s.fail()) {
 		s.write(reinterpret_cast<const char *>(&hostid), sizeof hostid);
 		return;
 	}
-	const int error(errno);
-	std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, non_volatile_hostid_filename, std::strerror(error));
-	throw EXIT_FAILURE;
+	die_errno(prog, envs, non_volatile_hostid_filename);
 #else
 #error "Don't know how to manipulate host ID on your platform."
 #endif

@@ -14,87 +14,81 @@ For copyright and licensing terms, see the file named COPYING.
 #include "Monospace16x16Font.h"
 #include "FileDescriptorOwner.h"
 
+/// \brief A font that is under the covers a composite of multiple different font file providers
 class CombinedFont :
 	public Monospace16x16Font
 {
 public:
+	/// \brief the abstract base class for font file providers
 	struct Font {
+		/// \brief a mapping from a range of Unicode code points to a range of font glyphs
 		struct UnicodeMapEntry {
 			uint32_t codepoint;
 			std::size_t glyph_number, count;
 			bool operator < ( const UnicodeMapEntry & ) const ;
 			bool Contains (uint32_t) const;
 		};
+		/// \brief a Unicode map is an ordered set of such ranges that can be searched with std::lower_bound<>
 		typedef std::vector<UnicodeMapEntry> UnicodeMap;
+
 		enum Weight { LIGHT, MEDIUM, DEMIBOLD, BOLD, NUM_WEIGHTS };
 		enum Slant { UPRIGHT, ITALIC, OBLIQUE, NUM_SLANTS };
 
-		Font ( Weight w, Slant s ) : weight(w), slant(s) {}
+		Font ( Slant s ) : slant(s) {}
 		virtual ~Font() = 0;
 
-		Weight query_weight() const { return weight; }
 		Slant query_slant() const { return slant; }
 
-		virtual bool Read(uint32_t, uint16_t b[16], unsigned short &, unsigned short &) = 0;
-		virtual bool empty() const = 0;
+		virtual bool Read(uint32_t, Weight weight, uint16_t b[16], unsigned short & h, unsigned short & w) = 0;
 	protected:
-		Weight weight;
 		Slant slant;
-		void AddMapping(UnicodeMap & unicode_map, uint32_t character, std::size_t glyph_number, std::size_t count);
+		static void AddMapping(UnicodeMap & unicode_map, uint32_t character, std::size_t glyph_number, std::size_t count);
 	};
-	struct MemoryFont : public Font {
-		MemoryFont(Weight w, Slant s, unsigned short y, unsigned short x, void * b, std::size_t z, std::size_t o) : Font(w, s), base(b), size(z), offset(o), height(y), width(x) {}
-		void AddMapping(uint32_t c, std::size_t g, std::size_t l) { Font::AddMapping(unicode_map, c, g, l); }
+	/// \brief the base class for memory mapped fonts
+	struct MemoryMappedFont : public Font {
+		MemoryMappedFont(Slant s, unsigned short h, unsigned short w, const void * b, const void * rb, std::size_t z, std::size_t o) : Font(s), base(b), real_base(rb), size(z), offset(o), height(h), width(w) {}
 	protected:
-		void * base;
-		std::size_t size, offset;
-		unsigned short height, width;
-		UnicodeMap unicode_map;
-		~MemoryFont() {}
-		virtual bool Read(uint32_t, uint16_t b[16], unsigned short &, unsigned short &);
-		virtual bool empty() const { return unicode_map.empty(); }
-	};
-	struct MemoryMappedFont : public MemoryFont {
-		MemoryMappedFont(Weight w, Slant s, unsigned short y, unsigned short x, void * b, std::size_t z, std::size_t o) : MemoryFont(w, s, y, x, b, z, o) {}
-	protected:
+		const void * const base, * const real_base;
+		const std::size_t size, offset;
+		const unsigned short height, width;
 		~MemoryMappedFont();
 	};
-	struct FileFont : public Font, public FileDescriptorOwner {
-		FileFont(int f, Weight w, Slant s, unsigned short y, unsigned short x);
-		off_t GlyphOffset(std::size_t g) ;
-	protected:
-		unsigned short height, width;
-
-		~FileFont() ;
-		unsigned short query_cell_size() const { return ((width + 7U) / 8U) * height; }
-	};
-	struct LeftFileFont : public FileFont {
-		LeftFileFont(int f, Weight w, Slant s, unsigned short y, unsigned short x);
-		void AddMapping(uint32_t c, std::size_t g, std::size_t l) { FileFont::AddMapping(unicode_map, c, g, l); }
+	/// \brief a simple straight in-memory font that owns a memory mapping of a file
+	struct RawFileFont : public MemoryMappedFont {
+		RawFileFont(Weight w, Slant s, unsigned short y, unsigned short x, const void * b, std::size_t z, std::size_t o) : MemoryMappedFont(s, y, x, b, b, z, o), weight(w) {}
+		void AddMapping(uint32_t c, std::size_t g, std::size_t l) { Font::AddMapping(unicode_map, c, g, l); }
 	protected:
 		UnicodeMap unicode_map;
-		virtual bool Read(uint32_t, uint16_t b[16], unsigned short &, unsigned short &);
-		virtual bool empty() const { return unicode_map.empty(); }
+		const Weight weight;
+		virtual bool Read(uint32_t, Weight weight, uint16_t b[16], unsigned short &, unsigned short &);
 	};
-	struct LeftRightFileFont : public FileFont {
-		LeftRightFileFont(int f, Weight w, Slant s, unsigned short y, unsigned short x);
-		void AddLeftMapping(uint32_t c, std::size_t g, std::size_t l) { FileFont::AddMapping(left_map, c, g, l); }
-		void AddRightMapping(uint32_t c, std::size_t g, std::size_t l) { FileFont::AddMapping(right_map, c, g, l); }
+	/// \brief the abstract base of an out-of-line font in a vtfont file
+	struct VTFileFont : public MemoryMappedFont {
+		VTFileFont(bool f, Slant s, unsigned short y, unsigned short x, const void * b, const void * rb, std::size_t z, std::size_t o) : MemoryMappedFont(s, y, x, b, rb, z, o), faint(f) {}
+		void AddMapping(std::size_t index, uint32_t c, std::size_t g, std::size_t l) { Font::AddMapping(unicode_maps[index], c, g, l); }
 	protected:
-		UnicodeMap left_map, right_map;
-		virtual bool Read(uint32_t, uint16_t b[16], unsigned short &, unsigned short &);
-		virtual bool empty() const { return left_map.empty() && right_map.empty(); }
+		const bool faint;
+		UnicodeMap unicode_maps[4];
+		bool CheckWeight(Weight, std::size_t &);
+	};
+	/// \brief an out-of-line font in a vtfont file
+	struct LeftVTFileFont : public VTFileFont {
+		LeftVTFileFont(bool f, Slant s, unsigned short h, unsigned short w, const void * b, const void * rb, std::size_t z, std::size_t o) : VTFileFont(f, s, h, w, b, rb, z, o) {}
+	protected:
+		virtual bool Read(uint32_t, Weight, uint16_t b[16], unsigned short &, unsigned short &);
+	};
+	/// \brief an out-of-line font in a vtfont file, 16 bits wide
+	struct LeftRightVTFileFont : public VTFileFont {
+		LeftRightVTFileFont(bool f, Slant s, unsigned short y, unsigned short x, const void * b, const void * rb, std::size_t z, std::size_t o) : VTFileFont(f, s, y, x, b, rb, z, o) {}
+	protected:
+		virtual bool Read(uint32_t, Weight, uint16_t b[16], unsigned short &, unsigned short &);
 	};
 
 	~CombinedFont();
 
-	MemoryFont * AddMemoryFont(Font::Weight, Font::Slant, unsigned short y, unsigned short x, void * b, std::size_t z, std::size_t o);
-	MemoryMappedFont * AddMemoryMappedFont(Font::Weight, Font::Slant, unsigned short y, unsigned short x, void * b, std::size_t z, std::size_t o);
-	LeftFileFont * AddLeftFileFont(int, Font::Weight, Font::Slant, unsigned short y, unsigned short x);
-	LeftRightFileFont * AddLeftRightFileFont(int, Font::Weight, Font::Slant, unsigned short y, unsigned short x);
-
-	bool has_bold() const;
-	bool has_faint() const;
+	RawFileFont * AddRawFileFont(Font::Weight, Font::Slant, unsigned short y, unsigned short x, const void * b, std::size_t z, std::size_t o);
+	LeftVTFileFont * AddLeftVTFileFont(bool, Font::Slant, unsigned short y, unsigned short x, const void * b, const void * rb, std::size_t z, std::size_t o);
+	LeftRightVTFileFont * AddLeftRightVTFileFont(bool, Font::Slant, unsigned short y, unsigned short x, const void * b, const void * rb, std::size_t z, std::size_t o);
 
 	virtual const uint16_t * ReadGlyph (uint32_t character, bool bold, bool faint, bool italic);
 protected:
@@ -102,7 +96,7 @@ protected:
 	FontList fonts;
 	uint16_t synthetic[16];
 
-	const uint16_t * ReadGlyph (Font &, uint32_t character, bool synthesize_bold, bool synthesize_oblique);
+	const uint16_t * ReadGlyph (Font &, uint32_t character, Font::Weight w, bool synthesize_bold, bool synthesize_oblique);
 	const uint16_t * ReadGlyph (uint32_t character, Font::Weight w, Font::Slant s, bool synthesize_bold, bool synthesize_oblique);
 };
 

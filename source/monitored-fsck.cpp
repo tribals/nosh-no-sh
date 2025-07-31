@@ -20,13 +20,10 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-// This must have static storage duration as we are using it in args.
-static std::string progress_option;
-
 static const char socket_name[] = "/run/fsck.progress";
 
 void
-monitored_fsck ( 
+monitored_fsck (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & /*envs*/
@@ -49,6 +46,8 @@ monitored_fsck (
 #if defined(__LINUX__) || defined(__linux__)
 			char buf[64];
 			snprintf(buf, sizeof buf, "-C%d", socket_fd.get());
+			// This must have static storage duration as we are using it in args.
+			static std::string progress_option;
 			progress_option = buf;
 			std::vector<const char *>::iterator p(args.begin());
 			args.insert(++p, progress_option.c_str());

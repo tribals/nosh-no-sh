@@ -1,14 +1,5 @@
 background-fsck
-devd
-devd-log
 gptboot
-kmod@fuse
-kmod@geom_uzip
-kmod@linux
-kmod@svr4
-kmod@sysvmsg
-kmod@sysvsem
-kmod@sysvshm
 ldconfig
 mdmfs@-tmp
 mdmfs@-var

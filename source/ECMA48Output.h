@@ -16,7 +16,7 @@ class TerminalCapabilities;
 class ECMA48Output
 {
 public:
-	ECMA48Output(const TerminalCapabilities & c, FILE * f, bool c1_7) : caps(c), c1_7bit(c1_7), c1_8bit(false), out(f) {}
+	ECMA48Output(const TerminalCapabilities & c, FILE * f, bool c1_7, bool c1_8) : caps(c), c1_7bit(c1_7), c1_8bit(c1_8), out(f) {}
 
 	const TerminalCapabilities & caps;
 	bool c1_7bit, c1_8bit;
@@ -25,11 +25,16 @@ public:
 	FILE * file() const { return out; }
 	void flush() const { std::fflush(out); }
         void csi() const { print_control_character(CSI); }
+        void esc() const { print_control_character(ESC); }
 	void newline() const;
+	void reverse_index() const;
+	void forward_index() const;
 	void UTF8(uint32_t ch) const;
 	void SGRColour(bool is_fg, const CharacterCell::colour_type & colour) const;
 	void SGRColour(bool is_fg) const;
 	void SGRAttribute(unsigned n) const { csi(); std::fprintf(out, "%um", n); }
+	void set_italics (bool v) { SGRAttribute(v ? 3U : 23U); }
+	void set_underline (bool v) { SGRAttribute(v ? 4U : 24U); }
 	void print_subparameter(unsigned n) const { std::fprintf(out, ":%u", n); }
 	void print_graphic_character(unsigned char c) const { std::fputc(c, out); }
 	void print_control_character(unsigned char c) const;
@@ -50,6 +55,7 @@ public:
 	void CUD(unsigned n) const { csi(); std::fprintf(out, "%uB", n); }
 	void CUR(unsigned n) const { csi(); std::fprintf(out, "%uC", n); }
 	void CUL(unsigned n) const { csi(); std::fprintf(out, "%uD", n); }
+	void REP(unsigned n) const { csi(); std::fprintf(out, "%ub", n); }
 	void IRM(bool v) const { Mode(1U, v); }
 	void DECSTR() const { csi(); std::fputs("!p", out); }
 	void DECST8C() const { DECCursorTabulationControl(5U); }
@@ -71,6 +77,7 @@ public:
 	void DTTermResize(unsigned n0, unsigned n1) const { csi(); std::fprintf(out, "8;%u;%ut", n0, n1); }
 	void DECSTBM(unsigned n0, unsigned n1) const { csi(); std::fprintf(out, "%u;%ur", n0, n1); }
 	void DECSLRM(unsigned n0, unsigned n1) const { csi(); std::fprintf(out, "%u;%us", n0, n1); }
+	void DECKPxM(bool application) const { esc(); print_graphic_character(application ? '=' : '>'); }
 	// The 1006 private mode is not separately tweakable because we *always* want 1006 encoding; it entirely supersedes the 1005 and 1015 encodings.other encodings are inferior and superseded.
 	// The 1000, 1002, and 1003 private modes are radio buttons in a terminal emulator, but not all emulators implement all modes (MobaXTerm lacking 1003 support, for example).
 	// So we push lower-functionality buttons before pushing the higher-functionality ones.
@@ -81,7 +88,11 @@ public:
 	void XTermAlternateScreenBuffer(bool v) const { DECPrivateMode(1047U, v); }
 	void XTermSaveRestore(bool v) const { DECPrivateMode(1048U, v); }
 	void XTermDeleteIsDEL(bool v) const { DECPrivateMode(1037U, v); }
-	void SquareMode(bool v) const { DECPrivateMode(1369U, v); }
+	void TeraTermEscapeIsFS(bool v) const { DECPrivateMode(7727U, v); }
+	void SquareMode(bool v) const { SCOPrivateMode(1U, v); }
+	void DECFunctionKeys(bool v) const { SCOPrivateMode(2U, v); }
+	void SCOFunctionKeys(bool v) const { SCOPrivateMode(3U, v); }
+	void TekenFunctionKeys(bool v) const { SCOPrivateMode(4U, v); }
 protected:
 	FILE * const out;
 
@@ -93,12 +104,15 @@ protected:
 	// LINUXSCUSR is documented in VGA-softcursor.txt.
 	void LINUXSCUSR(unsigned n) const { csi(); std::fprintf(out, "?%uc", n); }
 	void LINUXSCUSR() const { csi(); std::fputs("?c", out); }
+	// SCO Private modes are an extension, following the SCO screen(HW) pattern of using '=' as an intermediate character.
+	void SCOPrivateMode(unsigned n, bool v) const { csi(); std::fprintf(out, "=%u%c", n, v ? 'h' : 'l'); }
 	void SGRColour8(bool is_fg, unsigned n) const { csi(); std::fprintf(out, "%um", (is_fg ? 30U : 40U) + n); }
 	void SGRColour16(bool is_fg, unsigned n) const { if (n >= 8U) n += 90U - 38U; csi(); std::fprintf(out, "%um", (is_fg ? 30U : 40U) + n); }
 	void SGRColour256Ambig(bool is_fg, unsigned n) const { csi(); std::fprintf(out, "%u;5;%um", (is_fg ? 38U : 48U), n); }
 	void SGRColour256(bool is_fg, unsigned n) const { csi(); std::fprintf(out, "%u:5:%um", (is_fg ? 38U : 48U), n); }
 	void SGRTrueColourAmbig(bool is_fg, unsigned r, unsigned g, unsigned b) const { csi(); std::fprintf(out, "%u;2;%u;%u;%um", (is_fg ? 38U : 48U), r, g, b); }
-	void SGRTrueColour(bool is_fg, unsigned r, unsigned g, unsigned b) const { csi(); std::fprintf(out, "%u:2:%u:%u:%um", (is_fg ? 38U : 48U), r, g, b); }
+	void SGRTrueColourFaulty(bool is_fg, unsigned r, unsigned g, unsigned b) const { csi(); std::fprintf(out, "%u:2:%u:%u:%um", (is_fg ? 38U : 48U), r, g, b); }
+	void SGRTrueColour(bool is_fg, unsigned r, unsigned g, unsigned b) const { csi(); std::fprintf(out, "%u:2::%u:%u:%um", (is_fg ? 38U : 48U), r, g, b); }
 };
 
 #endif

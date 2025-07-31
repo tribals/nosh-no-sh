@@ -1,5 +1,6 @@
 appendpath
 chdir
+chdir-home
 chkservice
 chroot
 clearenv
@@ -8,6 +9,7 @@ console-control-sequence
 console-convert-kbdmap
 console-decode-ecma48
 console-docbook-xml-viewer
+console-tty37-viewer
 console-fb-realizer
 console-flat-table-viewer
 console-input-method
@@ -16,12 +18,13 @@ console-multiplexor
 console-multiplexor-control
 console-termio-realizer
 console-resize
+convert-systemd-units
+convert-fstab-services
 create-control-group
 cyclog
 delegate-control-group-to
 detach-controlling-tty
 detach-kernel-usb-driver
-emergency-login
 envdir
 envgid
 envuidgid
@@ -34,10 +37,13 @@ find-default-jvm
 find-matching-jvm
 follow-log-directories
 foreground
+framebuffer-dump
 getuidgid
 ifconfig
 klog-read
 line-banner
+list-logins
+list-process-table
 local-datagram-socket-listen
 local-reaper
 local-seqpacket-socket-accept
@@ -46,8 +52,12 @@ local-stream-socket-accept
 local-stream-socket-connect
 local-stream-socket-listen
 login-banner
+login-envuidgid
+login-giveown-controlling-terminal
+login-monitor-active
 login-process
 login-prompt
+login-shell
 login-update-utmpx
 machineenv
 make-private-fs
@@ -57,6 +67,7 @@ monitored-fsck
 move-to-control-group
 netlink-datagram-socket-listen
 nosh
+nvt-client
 oom-kill-protect
 open-controlling-tty
 pause
@@ -113,6 +124,7 @@ ulimit
 umask
 unsetenv
 unshare
+unvis
 userenv
 userenv-fromenv
 vc-get-tty

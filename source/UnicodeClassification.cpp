@@ -7,19 +7,23 @@ For copyright and licensing terms, see the file named COPYING.
 #include <stdint.h>
 #include "UnicodeClassification.h"
 
+/* Internal implementation **************************************************
+// **************************************************************************
+*/
+
 namespace {
 
 struct ClosedRange {
-	uint32_t first, last;
+	char32_t first, last;
 	bool operator < (const ClosedRange &) const;
-	bool Contains (uint32_t character) const { return first <= character && character <= last; }
+	bool Contains (char32_t character) const { return first <= character && character <= last; }
 };
 
 struct ClosedRangeWithRank {
-	uint32_t first, last;
+	char32_t first, last;
 	unsigned rank;
 	bool operator < (const ClosedRangeWithRank &) const;
-	bool Contains (uint32_t character) const { return first <= character && character <= last; }
+	bool Contains (char32_t character) const { return first <= character && character <= last; }
 };
 
 inline
@@ -38,12 +42,12 @@ ClosedRangeWithRank::operator < (
 	return last < b.first;
 }
 
-static inline
+inline
 bool
 Contains (
 	const ClosedRange * begin,
 	const ClosedRange * end,
-	uint32_t character
+	char32_t character
 ) {
 	const ClosedRange one = { character, character };
 	const ClosedRange * p(std::lower_bound(begin, end, one));
@@ -51,12 +55,12 @@ Contains (
 	return p->Contains(character);
 }
 
-static inline
+inline
 unsigned int
 Rank (
 	const ClosedRangeWithRank * begin,
 	const ClosedRangeWithRank * end,
-	uint32_t character,
+	char32_t character,
 	unsigned int d
 ) {
 	const ClosedRangeWithRank one = { character, character, -1U };
@@ -65,8 +69,16 @@ Rank (
 	return p->rank;
 }
 
+}
+
+/* Unicode-defined ranges ***************************************************
+// **************************************************************************
+*/
 // These ranges are derived from the Unicode Data Table published by the Unicode Consortium.
-static const 
+
+namespace {
+
+const
 ClosedRange
 Mn[] = {
 	{ 0x00000300, 0x0000036F }, { 0x00000483, 0x00000487 }, { 0x00000591, 0x000005BD }, { 0x000005BF, 0x000005BF },
@@ -132,27 +144,77 @@ Mn[] = {
 	{ 0x000116AB, 0x000116AB }, { 0x000116AD, 0x000116AD }, { 0x000116B0, 0x000116B5 }, { 0x000116B7, 0x000116B7 },
 	{ 0x00016AF0, 0x00016AF4 }, { 0x00016B30, 0x00016B36 }, { 0x00016F8F, 0x00016F92 }, { 0x0001BC9D, 0x0001BC9E },
 	{ 0x0001D167, 0x0001D169 }, { 0x0001D17B, 0x0001D182 }, { 0x0001D185, 0x0001D18B }, { 0x0001D1AA, 0x0001D1AD },
-	{ 0x0001D242, 0x0001D244 }, { 0x0001E8D0, 0x0001E8D6 }, { 0x000E0100, 0x000E01EF }, 
+	{ 0x0001D242, 0x0001D244 }, { 0x0001E8D0, 0x0001E8D6 }, { 0x000E0100, 0x000E01EF },
 },
 Me[] = {
-	{ 0x00000488, 0x00000489 }, { 0x00001ABE, 0x00001ABE }, { 0x000020DD, 0x000020E4 }, { 0x0000A670, 0x0000A672 },
+	// Per Unicode 13
+	{ 0x00000488, 0x00000489 }, { 0x00001ABE, 0x00001ABE }, { 0x000020DD, 0x000020E0 }, { 0x000020E2, 0x000020E4 },
+	{ 0x0000A670, 0x0000A672 },
 },
 Cf[] = {
+	// Per Unicode 13
 	{ 0x000000AD, 0x000000AD }, { 0x00000600, 0x00000605 }, { 0x0000061C, 0x0000061C }, { 0x000006DD, 0x000006DD },
-	{ 0x0000070F, 0x0000070F }, { 0x0000180E, 0x0000180E }, { 0x0000200B, 0x0000200F }, { 0x0000202A, 0x0000202E }, 
-	{ 0x00002060, 0x00002064 }, { 0x00002066, 0x0000206F }, { 0x0000FEFF, 0x0000FEFF }, { 0x0000FFF9, 0x0000FFFB },
-	{ 0x000110BD, 0x000110BD }, { 0x0001BCA0, 0x0001BCA3 }, { 0x0001D173, 0x0001D17A }, { 0x000E0001, 0x000E007F },
+	{ 0x0000070F, 0x0000070F }, { 0x000008E2, 0x000008E2 }, { 0x0000180E, 0x0000180E }, { 0x0000200B, 0x0000200F },
+	{ 0x0000202A, 0x0000202E }, { 0x00002060, 0x00002064 }, { 0x00002066, 0x0000206F }, { 0x0000FEFF, 0x0000FEFF },
+	{ 0x0000FFF9, 0x0000FFFB }, { 0x000110BD, 0x000110BD }, { 0x000110CD, 0x000110CD }, { 0x00013430, 0x00013438 },
+	{ 0x0001BCA0, 0x0001BCA3 }, { 0x0001D173, 0x0001D17A }, { 0x000E0001, 0x000E007F },
+},
+Cc[] = {
+	// Per Unicode 13
+	{ 0x00000000, 0x0000001F }, { 0x0000007F, 0x0000009F },
+},
+Cs[] = {
+	// Per Unicode 13
+	{ 0x0000D800, 0x0000DFFF },
 },
 WF[] = {
-	{ 0x00001100, 0x0000115F }, { 0x00002329, 0x0000232A }, { 0x00002E80, 0x0000303E }, { 0x00003040, 0x0000A4CF },
-	{ 0X0000AC00, 0X0000D7A3 }, { 0X0000F900, 0X0000FAFF }, { 0X0000FE10, 0X0000FE19 }, { 0X0000FE30, 0X0000FE6F },
-	{ 0X0000FF00, 0X0000FF60 }, { 0X0000FFE0, 0X0000FFE6 }, { 0X00020000, 0X0002FFFD }, { 0X00030000, 0X0003FFFD },
+	// Per Unicode 13
+	{ 0x00001100, 0x0000115f }, { 0x000020a9, 0x000020a9 }, { 0x0000231a, 0x0000231b }, { 0x00002329, 0x0000232a },
+	{ 0x000023e9, 0x000023ec }, { 0x000023f0, 0x000023f0 }, { 0x000023f3, 0x000023f3 }, { 0x000025fd, 0x000025fe },
+	{ 0x00002614, 0x00002615 }, { 0x00002648, 0x00002653 }, { 0x0000267f, 0x0000267f }, { 0x00002693, 0x00002693 },
+	{ 0x000026a1, 0x000026a1 }, { 0x000026aa, 0x000026ab }, { 0x000026bd, 0x000026be }, { 0x000026c4, 0x000026c5 },
+	{ 0x000026ce, 0x000026ce }, { 0x000026d4, 0x000026d4 }, { 0x000026ea, 0x000026ea }, { 0x000026f2, 0x000026f3 },
+	{ 0x000026f5, 0x000026f5 }, { 0x000026fa, 0x000026fa }, { 0x000026fd, 0x000026fd }, { 0x00002705, 0x00002705 },
+	{ 0x0000270a, 0x0000270b }, { 0x00002728, 0x00002728 }, { 0x0000274c, 0x0000274c }, { 0x0000274e, 0x0000274e },
+	{ 0x00002753, 0x00002755 }, { 0x00002757, 0x00002757 }, { 0x00002795, 0x00002797 }, { 0x000027b0, 0x000027b0 },
+	{ 0x000027bf, 0x000027bf }, { 0x00002b1b, 0x00002b1c }, { 0x00002b50, 0x00002b50 }, { 0x00002b55, 0x00002b55 },
+	{ 0x00002e80, 0x00002e99 }, { 0x00002e9b, 0x00002ef3 }, { 0x00002f00, 0x00002fd5 }, { 0x00002ff0, 0x00002ffb },
+	{ 0x00003000, 0x0000303e }, { 0x00003041, 0x00003096 }, { 0x00003099, 0x000030ff }, { 0x00003105, 0x0000312f },
+	{ 0x00003131, 0x0000318e }, { 0x00003190, 0x000031e3 }, { 0x000031f0, 0x0000321e }, { 0x00003220, 0x00003247 },
+	{ 0x00003250, 0x00004dbf }, { 0x00004e00, 0x0000a48c }, { 0x0000a490, 0x0000a4c6 }, { 0x0000a960, 0x0000a97c },
+	{ 0x0000ac00, 0x0000d7a3 }, { 0x0000f900, 0x0000faff }, { 0x0000fe10, 0x0000fe19 }, { 0x0000fe30, 0x0000fe52 },
+	{ 0x0000fe54, 0x0000fe66 }, { 0x0000fe68, 0x0000fe6b }, { 0x0000ff01, 0x0000ffbe }, { 0x0000ffc2, 0x0000ffc7 },
+	{ 0x0000ffca, 0x0000ffcf }, { 0x0000ffd2, 0x0000ffd7 }, { 0x0000ffda, 0x0000ffdc }, { 0x0000ffe0, 0x0000ffe6 },
+	{ 0x0000ffe8, 0x0000ffee }, { 0x00016fe0, 0x00016fe4 }, { 0x00016ff0, 0x00016ff1 }, { 0x00017000, 0x000187f7 },
+	{ 0x00018800, 0x00018cd5 }, { 0x00018d00, 0x00018d08 }, { 0x0001b000, 0x0001b11e }, { 0x0001b150, 0x0001b152 },
+	{ 0x0001b164, 0x0001b167 }, { 0x0001b170, 0x0001b2fb }, { 0x0001f004, 0x0001f004 }, { 0x0001f0cf, 0x0001f0cf },
+	{ 0x0001f18e, 0x0001f18e }, { 0x0001f191, 0x0001f19a }, { 0x0001f200, 0x0001f202 }, { 0x0001f210, 0x0001f23b },
+	{ 0x0001f240, 0x0001f248 }, { 0x0001f250, 0x0001f251 }, { 0x0001f260, 0x0001f265 }, { 0x0001f300, 0x0001f320 },
+	{ 0x0001f32d, 0x0001f335 }, { 0x0001f337, 0x0001f37c }, { 0x0001f37e, 0x0001f393 }, { 0x0001f3a0, 0x0001f3ca },
+	{ 0x0001f3cf, 0x0001f3d3 }, { 0x0001f3e0, 0x0001f3f0 }, { 0x0001f3f4, 0x0001f3f4 }, { 0x0001f3f8, 0x0001f43e },
+	{ 0x0001f440, 0x0001f440 }, { 0x0001f442, 0x0001f4fc }, { 0x0001f4ff, 0x0001f53d }, { 0x0001f54b, 0x0001f54e },
+	{ 0x0001f550, 0x0001f567 }, { 0x0001f57a, 0x0001f57a }, { 0x0001f595, 0x0001f596 }, { 0x0001f5a4, 0x0001f5a4 },
+	{ 0x0001f5fb, 0x0001f64f }, { 0x0001f680, 0x0001f6c5 }, { 0x0001f6cc, 0x0001f6cc }, { 0x0001f6d0, 0x0001f6d2 },
+	{ 0x0001f6d5, 0x0001f6d7 }, { 0x0001f6eb, 0x0001f6ec }, { 0x0001f6f4, 0x0001f6fc }, { 0x0001f7e0, 0x0001f7eb },
+	{ 0x0001f90c, 0x0001f93a }, { 0x0001f93c, 0x0001f945 }, { 0x0001f947, 0x0001f978 }, { 0x0001f97a, 0x0001f9cb },
+	{ 0x0001f9cd, 0x0001f9ff }, { 0x0001fa70, 0x0001fa74 }, { 0x0001fa78, 0x0001fa7a }, { 0x0001fa80, 0x0001fa86 },
+	{ 0x0001fa90, 0x0001faa8 }, { 0x0001fab0, 0x0001fab6 }, { 0x0001fac0, 0x0001fac2 }, { 0x0001fad0, 0x0001fad6 },
+	{ 0x00020000, 0x0002fffd }, { 0x00030000, 0x0003fffd },
+	// Various non-conformant font modifications (e.g. "nerd fonts") also set the following as wide.
+	// This is incorrect.
+#if 0 // non-conformant and wrong
+	{ 0x000023fb, 0x000023fc },	// All IEC power symbols are narrow.
+    	{ 0x00002665, 0x00002665 },	// Card suit symbols are all narrow.
+    	{ 0x00002b58, 0x00002b58 },	// This is ambiguous width.
+#endif
 };
-static const ClosedRange * const Mn_end(Mn + sizeof Mn/sizeof *Mn);
-static const ClosedRange * const Me_end(Me + sizeof Me/sizeof *Me);
-static const ClosedRange * const Cf_end(Cf + sizeof Cf/sizeof *Cf);
-static const ClosedRange * const WF_end(WF + sizeof WF/sizeof *WF);
-static const 
+const ClosedRange * const Mn_end(Mn + sizeof Mn/sizeof *Mn);
+const ClosedRange * const Me_end(Me + sizeof Me/sizeof *Me);
+const ClosedRange * const Cf_end(Cf + sizeof Cf/sizeof *Cf);
+const ClosedRange * const Cc_end(Cc + sizeof Cc/sizeof *Cc);
+const ClosedRange * const Cs_end(Cs + sizeof Cs/sizeof *Cs);
+const ClosedRange * const WF_end(WF + sizeof WF/sizeof *WF);
+const
 ClosedRangeWithRank
 CC[] = {
 	{ 0x00000300, 0x00000314,  230 },
@@ -473,66 +535,111 @@ CC[] = {
 	{ 0x0001d242, 0x0001d244,  230 },
 	{ 0x0001e8d0, 0x0001e8d6,  220 },
 };
-static const ClosedRangeWithRank * const CC_end(CC + sizeof CC/sizeof *CC);
- 
-// These ranges are hand-constructed.
-static const 
+const ClosedRangeWithRank * const CC_end(CC + sizeof CC/sizeof *CC);
+
+}
+
+/* These ranges are hand-constructed. ***************************************
+// **************************************************************************
+*/
+
+namespace {
+
+const
 ClosedRange
 Bd[] = {
 	{ 0x00002500, 0x0000257F }, { 0x00002580, 0x0000259F },
+	{ 0x0001FB00, 0x0001FB8F }, { 0x0001FB91, 0x0001FB94 }, { 0x0001FB98, 0x0001FBFF },
 },
 Hr[] = {
 	{ 0x00002014, 0x00002014 }, { 0x000023AF, 0x000023AF }, { 0x00002500, 0x00002501 }, { 0x00002504, 0x00002505 },
 	{ 0x00002508, 0x00002509 }, { 0x0000254C, 0x0000254D }, { 0x00002550, 0x00002550 }, { 0x00002580, 0x00002588 },
 	{ 0x00002591, 0x00002594 }, { 0x00002580, 0x00002580 },
+	{ 0x0001FB90, 0x0001FB90 }, { 0x0001FB95, 0x0001FB97 },
 };
-static const ClosedRange * const Bd_end(Bd + sizeof Bd/sizeof *Bd);
-static const ClosedRange * const Hr_end(Hr + sizeof Hr/sizeof *Hr);
+const ClosedRange * const Bd_end(Bd + sizeof Bd/sizeof *Bd);
+const ClosedRange * const Hr_end(Hr + sizeof Hr/sizeof *Hr);
 
 }
 
+/* External API *************************************************************
+// **************************************************************************
+*/
+
 namespace UnicodeCategorization {
 
-bool 
-IsMarkNonSpacing(uint32_t character)
+bool
+IsMarkNonSpacing(char32_t character)
 {
 	return Contains(Mn, Mn_end, character);
 }
 
-bool 
-IsMarkEnclosing(uint32_t character)
+bool
+IsMarkEnclosing(char32_t character)
 {
 	return Contains(Me, Me_end, character);
 }
 
-bool 
-IsOtherFormat(uint32_t character)
+bool
+IsOtherFormat(char32_t character)
 {
 	return Contains(Cf, Cf_end, character);
 }
 
-bool 
-IsWideOrFull(uint32_t character)
+bool
+IsOtherControl(char32_t character)
+{
+	return Contains(Cc, Cc_end, character);
+}
+
+bool
+IsOtherSurrogate(char32_t character)
+{
+	return Contains(Cs, Cs_end, character);
+}
+
+bool
+IsWideOrFull(char32_t character)
 {
 	return Contains(WF, WF_end, character);
 }
 
-bool 
-IsDrawing(uint32_t character)
+bool
+IsDrawing(char32_t character)
 {
 	return Contains(Bd, Bd_end, character);
 }
 
-bool 
-IsHorizontallyRepeatable(uint32_t character)
+bool
+IsHorizontallyRepeatable(char32_t character)
 {
 	return Contains(Hr, Hr_end, character);
 }
 
-unsigned int 
-CombiningClass(uint32_t character)
+unsigned int
+CombiningClass(char32_t character)
 {
 	return Rank(CC, CC_end, character, 0U);
+}
+
+/// Unicode version of the standard isascii() function.
+/// We could in theory call isascii() after first checking for <=UCHAR_MAX and casting to unsigned char but that's a bit pointless.
+bool
+IsASCII (char32_t c)
+{
+	return c <= 0x7F;
+}
+
+bool
+IsASCIIPrint (char32_t c)
+{
+	return 0x20 <= c && c < 0x7F;
+}
+
+bool
+IsBMP (char32_t c)
+{
+	return c < 0x010000;
 }
 
 }

@@ -10,12 +10,15 @@ Before=local-fs-pre.target
 [Service]
 SessionLeader=true
 User=daemon
-ExecStart=monitor-fsck-progress
+SessionLeader=yes
+ExecStart=%p
 # monitor-fsck-progress understands the LISTEN protocol, so does not need StandardInput=socket.
 # This is fortunate, because it needs to allocate a (controlling) terminal device.
 StandardInput=tty
 StandardError=log
 TTYPath=console
+# As a TUI program, monitor-fsck-progress needs to know the terminal type.
+TTYType=yes
 Restart=no
 
 [Install]

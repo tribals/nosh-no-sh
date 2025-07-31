@@ -4,17 +4,18 @@
 
 [Unit]
 Description=Save/restore randomness
-Before=netif sshd sshdgenkeys
+Before=netif sshd ssh-keygen
 
 [Service]
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
 EnvironmentDirectory=env
-ExecStart=./helper load
+ExecStartPre=./helper load
 # Re-generate the saved randomness as soon as it has been used to re-seed.
-ExecStart=./helper save
+ExecStartPre=./helper save
+# Regularly refresh the saved randomness as the system is running.
+ExecStart=./helper savemore
 ExecStopPost=./helper save
-# This is a pseudo-daemon that does not have a running process.
-RemainAfterExit=yes
-Restart=no
+UMask=0377
 
 [Install]
 WantedBy=workstation.target

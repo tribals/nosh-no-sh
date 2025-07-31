@@ -23,12 +23,12 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>service-show</command> 
+<command>service-show</command>
 <arg choice='opt'>--json</arg>
 <arg choice='req' rep='repeat'><replaceable>directory</replaceable></arg>
 </cmdsynopsis>
 <cmdsynopsis>
-<command>svshow</command> 
+<command>svshow</command>
 <arg choice='opt'>--json</arg>
 <arg choice='req' rep='repeat'><replaceable>directory</replaceable></arg>
 </cmdsynopsis>
@@ -55,7 +55,7 @@ For more on service bundles, see <citerefentry><refentrytitle>system-control</re
 </refsection>
 
 <refsection><title>History</title>
-	
+
 <para>
 Jos Backus asked for the <arg choice='plain'>--json</arg> option in 2013.
 </para>

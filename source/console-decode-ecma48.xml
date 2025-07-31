@@ -26,6 +26,7 @@
 <arg choice='opt'>--input</arg>
 <arg choice='opt'>--no-cancel</arg>
 <arg choice='opt'>--no-7bit</arg>
+<arg choice='opt'>--control-strings</arg>
 <arg choice='opt' rep='repeat'><replaceable>files</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -61,6 +62,11 @@ The 7-bit code extensions are treated as escape sequences rather than as aliases
 </para>
 
 <para>
+The <arg choice='plain'>--control-strings</arg> command-line option enables ECMA-48 control strings introduced by DCS, OSC, PM, APC, and SOS.
+Because control strings have to be terminated by ST, but most outputs do not generate them properly, processing of control strings is normally disabled and these characters are simply discarded.
+</para>
+
+<para>
 The <arg choice='plain'>--input</arg> command-line option causes <command>console-decode-ecma48</command> to process data as if they are terminal input rather than as if they are terminal output (ECMA-48 applying to both).
 It disambiguates certain ambiguous control sequences as function key inputs rather than as output actions.
 For example, the parameters to CUP (CSI <code>H</code>) have different meanings as input (repeat count and modifiers) to those as output (row and column position).
@@ -69,6 +75,11 @@ For example, the parameters to CUP (CSI <code>H</code>) have different meanings 
 <para>
 The <arg choice='plain'>--no-7bit</arg> and <arg choice='plain'>--input</arg> command-line options used together use a non-ECMA-48 decoding of 2-character escape sequences, including the ones that would be ECMA-48 7-bit code extensions.
 These escape sequences are decoded as accelerators.
+</para>
+
+<para>
+<command>console-decode-ecma48</command> always follows the new ECMA-48:1986 rule for zero-value parameters, which superseded the old ECMA-48:1976 rule.
+Under the new 1986 rule, zero means zero.
 </para>
 
 </refsection>
@@ -94,6 +105,7 @@ Modifiers are decoded and added as prefixes.
 
 <para>
 SCO console, Interix, and rxvt function keys are always printed as the name of the function key, as there is no possibility of such sequences <emphasis>not</emphasis> being function keys, as there is with the more general-purpose DECFNK control sequence.
+SCO console function key control sequences technically range from <keycap>F1</keycap> to <keycap>F48</keycap> and do not have modifiers; but they are printed using the key chords with modifiers that one would use for them in practice on an IBM PC/AT keyboard.
 </para>
 
 <para>
@@ -182,10 +194,27 @@ To duplicate the GNU and BSD C/C++ runtime libraries' behaviours, it explicitly 
 <refsection><title>de facto</title>
 <itemizedlist>
 <listitem><para>
-<ulink url="http://vaxhaven.com/images/5/55/EK-VT420-RM-002.pdf"><citetitle>VT520/VT525 Video Terminal Programmer Information</citetitle> <citebiblioid>EK-VT520-RM</citebiblioid></ulink> July 1994.  Digital.
+<ulink url="http://vaxhaven.com/images/e/ee/EK-VT520-RM-A01.pdf"><citetitle>VT520/VT525 Video Terminal Programmer Information</citetitle> <citebiblioid>EK-VT520-RM</citebiblioid></ulink> July 1994.  Digital.
 </para></listitem>
 <listitem><para>
-<ulink url="http://vaxhaven.com/images/e/ee/EK-VT520-RM-A01.pdf"><citetitle>VT420 Programmer Reference Manual</citetitle> <citebiblioid>EK-VT420-RM-002</citebiblioid></ulink> February 1992. Digital.
+<ulink url="http://vaxhaven.com/images/5/55/EK-VT420-RM-002.pdf"><citetitle>VT420 Programmer Reference Manual</citetitle> <citebiblioid>EK-VT420-RM-002</citebiblioid></ulink> February 1992. Digital.
+</para></listitem>
+<listitem><para>
+The XTerm extension where DECFNK 27, the code for a non-existent <keycap>F14½</keycap> key, is used to represent numeric keypad keys.
+</para></listitem>
+<listitem><para>
+Two private variations on ECMA-48 FNK that are sent by <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry>:
+</para>
+<itemizedlist>
+<listitem><para>
+With the <quote>?</quote> parameter character modifier FNK encodes certain "multimedia" keys using their USB HID usage codes in the keyboard page.
+</para></listitem>
+<listitem><para>
+With the <quote>=</quote> parameter character modifier FNK encodes certain "multimedia", "Internet", and "office" keys using their USB HID usage codes in the consumer page.
+</para></listitem>
+</itemizedlist>
+<para>
+In both cases, modifiers are encoded as subparameters as for DECFNK.
 </para></listitem>
 </itemizedlist>
 </refsection>

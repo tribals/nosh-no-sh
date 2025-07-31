@@ -28,14 +28,6 @@ enable	cyclog@kmod@msdosfs_iconv.service
 enable	kmod@msdosfs_iconv.service
 enable	cyclog@kmod@sem.service
 enable	kmod@sem.service
-enable	cyclog@appcafe-dispatcher.service
-enable	appcafe-dispatcher.service
-enable	cyclog@appcafe-nginx.service
-enable	appcafe-nginx.service
-enable	cyclog@appcafe-php-fpm.service
-enable	appcafe-php-fpm.service
-enable	cyclog@appcafe-ssl-keygen.service
-enable	appcafe-ssl-keygen.service
 enable	cyclog@cleanX.service
 enable	cleanX.service
 enable	cyclog@cleantmp.service
@@ -46,19 +38,29 @@ enable	cyclog@ipfw.service
 enable	ipfw.service
 enable	cyclog@iscsid.service
 enable	iscsid.service
-enable	cyclog@newsyslog.service
-enable	newsyslog.service
 enable	cyclog@ntpd.service
 enable	ntpd.service
 disable	cyclog@openntpd.service
 disable	openntpd.service
-enable	cyclog@syscache.service
-enable	syscache.service
 enable	cyclog@pc-sysconfig.service
 enable	pc-sysconfig.service
 enable	cyclog@zfs.service
 enable	zfs.service
 
+# These services and targets are preset to disabled for security reasons.
+# The syscache-daemon pulls from a hijackable GitHub account; and appcafe relies upon syscache-daemon.
+# See the full security announcement made on 2023-04-15 for details.
+disable	cyclog@appcafe-dispatcher.service
+disable	appcafe-dispatcher.service
+disable	cyclog@appcafe-nginx.service
+disable	appcafe-nginx.service
+disable	cyclog@appcafe-php-fpm.service
+disable	appcafe-php-fpm.service
+disable	cyclog@appcafe-ssl-keygen.service
+disable	appcafe-ssl-keygen.service
+disable	cyclog@syscache.service
+disable	syscache.service
+disable	appcafe.target
+
 # Targets
 enable	warden.target
-enable	appcafe.target

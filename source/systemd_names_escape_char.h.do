@@ -15,6 +15,7 @@ Linux)
 		ext="debian"
 	fi
 	;;
+NetBSD)	ext="netbsd" ;;
 *BSD)	ext="bsd" ;;
 *)	ext="unknown" ;;
 esac

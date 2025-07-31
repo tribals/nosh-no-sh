@@ -15,6 +15,13 @@ public:
 protected:
 	sigset_t original;
 };
+class TemporarilyUnblockSignals {
+public:
+	TemporarilyUnblockSignals(int, ...);
+	~TemporarilyUnblockSignals();
+protected:
+	sigset_t original;
+};
 class PreventDefaultForFatalSignals {
 public:
 	PreventDefaultForFatalSignals(int, ...);
@@ -22,5 +29,7 @@ public:
 protected:
 	sigset_t signals;
 };
+
+extern void auto_reap_children();
 
 #endif

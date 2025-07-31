@@ -1,1 +1,2 @@
-Shim for the old BSD and System 5 service command
+ This package provides a shim for the old-style BSD and System 5 service command.
+ It simply invokes native service management commands.

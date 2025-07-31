@@ -29,7 +29,7 @@ The name of the program run by process #1 is not part of the SVID, and it is not
 </para>
 
 <para>
-	It is recommended that if you wish to retain System 5 habits <emphasis>at all</emphasis> you get into the habit of using <command>telinit</command> <arg choice='plain'><replaceable>runlevel</replaceable></arg> instead of <command>init</command> <arg choice='plain'><replaceable>runlevel</replaceable></arg>.
+It is recommended that if you wish to retain System 5 habits <emphasis>at all</emphasis> you get into the habit of using <command>telinit</command> <arg choice='plain'><replaceable>runlevel</replaceable></arg> instead of <command>init</command> <arg choice='plain'><replaceable>runlevel</replaceable></arg>.
 This is because the latter will sometimes end up invoking <filename>/sbin/init</filename> and sometimes end up invoking <filename>/usr/local/sbin/init</filename>.
 </para>
 

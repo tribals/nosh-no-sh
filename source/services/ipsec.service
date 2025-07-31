@@ -10,9 +10,9 @@ After=local-fs.target
 
 [Service]
 EnvironmentDirectory=env
-ExecStart=${program:-setkey} -f "${file:-/etc/%p.conf}"
-ExecStopPost=${program:-setkey} -F
-ExecStopPost=${program:-setkey} -F -P
+ExecStart=setkey -f "${file:-/etc/%p.conf}"
+ExecStopPost=setkey -F
+ExecStopPost=setkey -F -P
 # This is a pseudo-daemon that does not have a running process.
 RemainAfterExit=yes
 Restart=no

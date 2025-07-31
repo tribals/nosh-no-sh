@@ -7,6 +7,7 @@ Description=Combined logger for iovctl@ services
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog iovctl/
 RestartSec=1

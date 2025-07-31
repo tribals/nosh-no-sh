@@ -1,1 +1,4 @@
-execline utility shims
+ This package provides shims for execline commands.
+  * foreground, background
+ .
+ The shims simply invoke nosh built-in commands.

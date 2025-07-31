@@ -4,10 +4,12 @@
 
 [Unit]
 Description=UPower daemon
+Documentation=https://upower.freedesktop.org
 After=local-syslog.target
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.UPower
 
 [Install]
 # TODO: This might be better as graphical.

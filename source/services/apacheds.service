@@ -12,6 +12,7 @@ After=network.target
 JVMVersions=1.6 1.7 1.8
 EnvironmentDirectory=env
 User=%p
+SessionLeader=yes
 ExecStart="${JAVA_HOME}/bin/java" ${JAVA_OPTS} -D%p.controls="${ADS_CONTROLS}" -D%p.extendedOperations="${ADS_EXTENDED_OPERATIONS}" -Dlog4j.configuration="file:${ADS_INSTANCES}/${ADS_INSTANCE}/conf/log4j.properties" -D%p.log.dir="${ADS_INSTANCES}/${ADS_INSTANCE}/log" -cp "${ADS_HOME}"'/lib/*' org.apache.directory.server.UberjarMain "${ADS_INSTANCES}/${ADS_INSTANCE}/"
 PrivateTmp=true
 

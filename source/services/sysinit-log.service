@@ -11,6 +11,7 @@ Before=shutdown.target
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog sysinit/
 RestartSec=1

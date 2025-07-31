@@ -24,16 +24,16 @@
 <refsynopsisdiv>
 <cmdsynopsis>
 <command>console-resize</command>
-<arg choice='opt'>--lines</arg> 
-<arg choice='opt'>--7bit</arg> 
-<arg choice='opt'>--8bit</arg> 
+<arg choice='opt'>--lines</arg>
+<arg choice='opt'>--7bit</arg>
+<arg choice='opt'>--8bit</arg>
 <arg choice="req"><replaceable>size</replaceable></arg>
 </cmdsynopsis>
 <cmdsynopsis>
 <command>resizecons</command>
-<arg choice='opt'>--lines</arg> 
-<arg choice='opt'>--7bit</arg> 
-<arg choice='opt'>--8bit</arg> 
+<arg choice='opt'>--lines</arg>
+<arg choice='opt'>--7bit</arg>
+<arg choice='opt'>--8bit</arg>
 <arg choice="req"><replaceable>size</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>

@@ -3,15 +3,23 @@
 ## **************************************************************************
 
 [Unit]
-Description=modem serial-line terminal login on %I
-After=motd-dynamic.service hostname.service
+Description=serial-line terminal login on %I (Gert Doering's %p)
+After=motd-dynamic.service hostname.target
+Conflicts=agetty@%I.service
 
 [Service]
-ExecStart=%p %I
-RestartSec=0
+# No SessionLeader setting because mgetty calls setsid itself, internally.
+RestartSec=0.1
+TTYPath=%I
 # Some job control shells ignore SIGTERM and need an explicit SIGHUP.
 SendSIGHUP=on
-# mgetty calls setsid itself, internally.
+# We don't want to inherit the environment that services get.
+# Terminal login expects to start with just the the TTY and TERM variables set up by initial terminal management.
+ClearEnvironment=True
+# "modem getty" does not need many parameters by default.
+#
+# 115200 is the maximum possible (divisor register = 1) bit rate for a vanilla 16550 UART.
+ExecStart=%p ${options:- -s 115200} %I
 
 [Install]
 WantedBy=multi-user.target

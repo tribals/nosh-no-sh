@@ -1,0 +1,6 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and U.S.A. keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------

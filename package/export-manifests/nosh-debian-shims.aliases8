@@ -1,0 +1,3 @@
+chkconfig	update-rc.d
+chkconfig	invoke-rc.d
+chkconfig	deb-systemd-invoke

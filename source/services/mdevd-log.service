@@ -10,6 +10,7 @@ Before=shutdown.target
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog mdevd/
 RestartSec=1

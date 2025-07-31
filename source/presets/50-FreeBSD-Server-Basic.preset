@@ -38,8 +38,6 @@ enable	cyclog@ipfw.service
 enable	ipfw.service
 enable	cyclog@iscsid.service
 enable	iscsid.service
-enable	cyclog@newsyslog.service
-enable	newsyslog.service
 enable	cyclog@ntpd.service
 enable	ntpd.service
 disable	cyclog@openntpd.service

@@ -1,0 +1,24 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=BSD mouse daemon feeding /dev/%I into /dev/sysmouse
+Wants=%p-log.service
+After=%p-log.service
+
+[Service]
+EnvironmentDirectory=env
+ExecStart=%p -f -p '/dev/%I' -t "${type:-auto}" ${level:+-l "${level}"} ${flags}
+# Restart is tricky.
+#
+# When a USB device detaches, the daemon exits.
+# There is a window of opportunity where devd/devpubd has not yet stopped the service during which re-opening the device and restarting the daemon will continually fail.
+# So we do not want to have lots of failed restarts of the daemon for several seconds.
+#
+# On the other hand, Xorg opens the mouse devices exclusively, preventing moused from running.
+# We want moused to keep trying because there is no devd/devpubd event that triggers when Xorg relinquishes the VT.
+RestartSec=10
+Restart=on-failure
+
+[Install]

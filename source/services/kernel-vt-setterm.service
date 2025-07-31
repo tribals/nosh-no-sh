@@ -4,18 +4,20 @@
 
 [Unit]
 Description=Set up kernel virtual terminal screen-saving
+Description=The setterm program is part of the util-linux package.
 # This writes out terminal control sequences, which should be written after the reset control sequences written by the loadkeys service.
 After=kernel-vt-loadkeys.service
 
 [Service]
 Type=oneshot
 TTYPath=tty0
+# setterm needs to know the terminal type.
+TTYType=on
 StandardInput=tty
 StandardError=log
 EnvironmentDirectory=env
 ExecStart=setterm ${vesapowersave:+-powersave "${vesapowersave}"} ${blanktime:+-blank "${blanktime}"} ${vesapowerdown:+-powerdown "${vesapowerdown}"} ${flags}
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

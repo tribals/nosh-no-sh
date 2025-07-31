@@ -1,1 +1,2 @@
-rc.d scripts for running the nosh service manager and daemontools service scanner
+This package provides rc.d scripts for running the nosh service manager under OpenBSD rc, instead of running the nosh system manager.
+It disables the nosh sysinit.target, on the basis that OpenBSD rc is doing that part of the work.

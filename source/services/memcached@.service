@@ -1,0 +1,27 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=a high performance multithreaded event-based key/value cache store
+
+[Service]
+EnvironmentDirectory=env/
+ExecStart=%p -p %i ${user:+-u "${user}"} ${cachesize:--m "${cachesize}"} ${maxconn:+-c "${maxconn}"} $flags
+
+# Security settings from the doco, not all of which are effected.
+CapabilityBoundingSet=CAP_SETGID CAP_SETUID CAP_SYS_RESOURCE
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=full
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+
+[Install]
+WantedBy=workstation.target

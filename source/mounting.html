@@ -1,8 +1,9 @@
-<title>Mounting filesystems</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
 <link rel="Prev" href="svscan-shutdown.html" title="Compatible old-style startup" />
 <link rel="Next" href="networking.html" title="Networking" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Mounting filesystems</title>
+<h1 class="Ruled">
 Mounting filesystems
 </h1>
 
@@ -17,7 +18,9 @@ The "fsck@-usr" service orders itself before the "mount@-usr" service.
 </p>
 
 <p>
-Note that the "fsck@" service declares itself as wanted by the "mount@" service, rather than the "mount@" service declaring itself as always wanting the "fsck@" service.
+<p class="note">
+Note:
+The "fsck@" service declares itself as wanted by the "mount@" service, rather than the "mount@" service declaring itself as always wanting the "fsck@" service.
 This allows the "fsck@" service to be optional, and for boot-time filesystem checking to be structured in another manner should that be desired.
 </p>
 

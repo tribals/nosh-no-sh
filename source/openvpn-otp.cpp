@@ -16,7 +16,9 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "popt.h"
 
-static inline
+namespace {
+
+inline
 void
 read_file (
 	const char * prog,
@@ -37,13 +39,13 @@ read_file (
 	}
 }
 
-static inline
+inline
 void
 calculate_password (
 	const char * prog,
 	unsigned char m[MD5_DIGEST_LENGTH]
 ) {
-	const std::time_t t(std::time(0));
+	const std::time_t t(std::time(nullptr));
 	// The mOTP algorithm is either mad or broken.
 	struct tm tm;
 	localtime_r(&t, &tm);
@@ -63,7 +65,7 @@ calculate_password (
 	std::memset(buf, '\0', sizeof buf);
 }
 
-static inline
+inline
 void
 write_user_and_password (
 	const char * prog,
@@ -88,11 +90,13 @@ write_user_and_password (
 	}
 }
 
+}
+
 void
 openvpn_otp [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -101,19 +105,15 @@ openvpn_otp [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Unexpected argument(s).");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 	for (;;) {
 		char u[1024];
 		read_file(prog, u, sizeof u, "user_name");

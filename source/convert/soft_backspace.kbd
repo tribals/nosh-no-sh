@@ -1,5 +1,4 @@
-# This is an overlay keymap that sets the backspace key to be 
-# the DEC VT soft-programmable backspace.
+# This is an overlay keymap that sets the backspace key to be the DEC VT soft-programmable backspace.
 #
 #                                                        option
 # scan                       cntrl         option option cntrl lock

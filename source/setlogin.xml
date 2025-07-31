@@ -31,7 +31,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>setlogin</command> is a chain-loading utility that (on the BSDs) sets the current session's login name to <replaceable>account</replaceable>, or (on Linux) sets the current process's login UID to the value for <replaceable>account</replaceable> in the system account database, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>setlogin</command> is a chain-loading utility that (on the BSDs) sets the current session's login name to <replaceable>account</replaceable>, or (on Linux) sets the current process's login UID to the value for <replaceable>account</replaceable> in the system account database, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -39,15 +39,18 @@
 </para>
 
 <para>
-This name is what is reported by the the <citerefentry><refentrytitle>logname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.  
+This name is what is reported by the the <citerefentry><refentrytitle>logname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
 On the BSDs, the name is session-wide, so setting it in one process will affect all processes in the same session.
 On Linux, the login UID is inherited by child processes and is not session-wide.
 For consistent cross-platforms results, therefore, invoke <command>setlogin</command> in the session leader process of a new session before it creates further processes in the session.
 </para>
 
 <para>
-The command will fail if the process is not running under the aegis of the superuser. 
-Non-superusers are not permitted to alter the login name/UID.
+The command may fail if the process is not running under the aegis of the superuser, or if the login name/UID is already set.
+Non-superusers are simply not permitted to set a BSD session-wide login name.
+Linux rules vary according to kernel build options.
+Non-superusers (and sometimes also superusers) are not permitted to set a Linux per-process login UID if it has already been set to something other than -1.
+Even superusers that are permitted to set a Linux per-process login UID may be barred from changing it to anything other than back to -1 if it is already set to something other than -1.
 </para>
 
 <para>

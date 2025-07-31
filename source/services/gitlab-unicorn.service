@@ -5,13 +5,15 @@
 [Unit]
 Description=GitLab Unicorn Server
 Requires=redis.service
-Wants=mysqld.service postgresql.service
-After=redis.service mysqld.service postgresql.service
+Wants=databases.target
+After=databases.target
+After=redis.service
 
 [Service]
 # FIXME: Is this really needed?
 systemdUserEnvironment=true
 User=git
+SessionLeader=yes
 WorkingDirectory=/home/git/gitlab
 Environment=RAILS_ENV=production
 ExecStart=bundle exec "unicorn_rails -c /home/git/gitlab/config/unicorn.rb -E production"

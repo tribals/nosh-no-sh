@@ -4,9 +4,12 @@
 
 [Unit]
 Description=%p daemon
+Documentation=https://fedoraproject.org/wiki/Features/BetterHostname
+Before=hostname.target
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.hostname1
 ExecStart=/lib/systemd/%p
 Restart=on-abort
 

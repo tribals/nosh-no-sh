@@ -10,6 +10,7 @@ Before=name-services.target
 PermissionsStartOnly=true
 EnvironmentDirectory=env
 User=%p
+SessionLeader=yes
 ExecStartPre=sh -c 'test -r "${config:-${workdir:-/var/%p}/%p.conf}" || exec local-%p-setup -u %p -w "${workdir:-/var/%p}" -c "${config:-${workdir:-/var/%p}/%p.conf}" -f "${forwardconf:-${workdir:-/var/%p}/forward.conf}" -a "${anchor:-${workdir:-/var/%p}/root.key}" ${forwarders}"'
 ExecStartPre=sh -c 'test -r "${anchor:-${workdir:-/var/%p}/root.key}" || exec %p-anchor -a "${anchor:-${workdir:-/var/%p}/root.key}"'
 # Two -d s are not a mistake; it makes the program log to standard error.

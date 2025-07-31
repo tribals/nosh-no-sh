@@ -26,11 +26,11 @@ list_natd_interfaces() { read_rc natd_interface || true ; }
 iface_escape() { printf "%s\n" "$@" | tr './:+-' '_____' ; } # cave! The - must come last.
 get_wlandebug() { read_rc wlandebug_"`iface_escape \"$1\"`" || read_rc wlandebug_DEFAULT ; }
 get_create_args() { read_rc create_args_"`iface_escape \"$1\"`" || read_rc create_args_DEFAULT ; }
-get_ifconfig1() { read_rc ifconfig_"`iface_escape \"$1\"`" || read_rc ifconfig_DEFAULT ; }
-get_ifconfig2() { read_rc ifconfig_"`iface_escape \"$1\"`"_"$2" || read_rc ifconfig_DEFAULT_"$2" ; }
 get_ipv6_prefix1() { read_rc ipv6_prefix_"`iface_escape \"$1\"`" || read_rc ipv6_prefix_DEFAULT ; }
 get_children() { read_rc "$2"lans_"`iface_escape \"$1\"`" ; }
 list_available_network_interfaces() { /bin/exec ifconfig -l ; }
+get_ifconfig1() { read_rc ifconfig_"`iface_escape \"$1\"`" || read_rc ifconfig_DEFAULT ; }
+get_ifconfig2() { read_rc ifconfig_"`iface_escape \"$1\"`"_"$2" || read_rc ifconfig_DEFAULT_"$2" ; }
 list_network_interfaces() { 
 	local n
 	local c
@@ -118,7 +118,7 @@ filter_ifconfig() {
 	for i
 	do
 		case "$i" in
-			SYNCDHCP|NOSYNCDHCP|DHCP|WPA|HOSTAP|NOAUTO|IPV4LL)
+			SYNCDHCP|NOSYNCDHCP|DHCP|WPA|HOSTAP|NOAUTO|IPV4LL|RTSOL)
 				;;
 			inet|inet4|inet6|link|ether|ipx|atalk|lladr)
 				if test _"$i" = _"$n"
@@ -239,6 +239,7 @@ get_link_aliases() {
 }
 get_inet4_aliases() {
 	get_filtered_ifconfig3 "$1" aliases inet
+	get_filtered_ifconfig3 "$1" aliases inet4
 }
 get_inet6_aliases() {
 	get_filtered_ifconfig3 "$1" aliases inet6
@@ -269,7 +270,7 @@ show_settings() {
 make_arp() {
 	local service
 	service="static_arp@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	system-control set-service-env "$r/${service}" addr "`car $2`"
 	system-control set-service-env "$r/${service}" dest "`cdr $2`"
@@ -283,7 +284,7 @@ make_arp() {
 make_ndp() {
 	local service
 	service="static_ndp@$i"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	system-control set-service-env "$r/${service}" addr "`car $pair`"
 	system-control set-service-env "$r/${service}" dest "`cdr $pair`"
@@ -297,7 +298,7 @@ make_ndp() {
 make_ip4_route() {
 	local service
 	service="static_ip4@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	system-control set-service-env "$r/${service}" route "$2"
 	system-control preset "${service}"
@@ -310,7 +311,7 @@ make_ip4_route() {
 make_ip6_route() {
 	local service
 	service="static_ip6@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	system-control set-service-env "$r/${service}" route "$2"
 	system-control preset "${service}"
@@ -323,7 +324,7 @@ make_ip6_route() {
 make_netif() {
 	local service
 	service="netif@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if get_ifconfig1 "$1" | grep -q -E '\<NOAUTO\>'
 	then
@@ -341,7 +342,7 @@ make_netif() {
 make_ifscript() {
 	local service
 	service="ifscript@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if get_ifconfig1 "$1" | grep -q -E '\<NOAUTO\>'
 	then
@@ -364,7 +365,7 @@ make_ifconfig() {
 	rm -f -- "$r/${service}/wants/*"
 	rm -f -- "$r/${service}/after/*"
 	rm -f -- "$r/${service}/before/*"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	system-control set-service-env "$r/${service}" create_args "${2:+$2 }`get_create_args "$1"`"
 	system-control set-service-env "$r/${service}" link_opts "`get_link_opts "$1"`"
@@ -407,7 +408,7 @@ make_ifconfig() {
 make_natd() {
 	local service
 	service="natd@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	system-control disable "${service}"
 	if is_ip4_address "$1" 
@@ -439,7 +440,7 @@ make_natd() {
 make_dhclient() {
 	local service
 	service="dhclient@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if is_physical_interface "$1" &&
 	   is_ip_interface "$1" &&
@@ -461,7 +462,7 @@ make_dhclient() {
 make_udhcpc() {
 	local service
 	service="udhcpc@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if is_physical_interface "$1" &&
 	   is_ip_interface "$1" &&
@@ -483,7 +484,7 @@ make_udhcpc() {
 make_dhcpcd() {
 	local service
 	service="dhcpcd@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if is_physical_interface "$1" &&
 	   is_ip_interface "$1" &&
@@ -505,7 +506,7 @@ make_dhcpcd() {
 make_hostap() {
 	local service
 	service="hostapd@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if get_ifconfig1 "$1" | grep -q -E '\<HOSTAP\>'
 	then
@@ -520,10 +521,28 @@ make_hostap() {
 	system-control preset cyclog@hostapd
 }
 
+make_rtsol() {
+	local service
+	service="rtsold@$1"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
+	install -d -m 0755 "$r/${service}/service/env"
+	if get_ifconfig1 "$1" | grep -q -E '\<RTSOL\>'
+	then
+		system-control preset "${service}"
+	else
+		system-control disable "${service}"
+	fi
+	show_enable "${service}"
+	show_settings "${service}"
+	rm -f -- "$r/${service}/log"
+	ln -s -- "../../../sv/cyclog@rtsold" "$r/${service}/log"
+	system-control preset cyclog@rtsold
+}
+
 make_wpa() {
 	local service
 	service="wpa_supplicant@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if get_ifconfig1 "$1" | grep -q -E '\<WPA\>'
 	then
@@ -541,7 +560,7 @@ make_wpa() {
 make_ppp() {
 	local service
 	service="ppp@$i"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 -- "$r/${service}/service/env"
 	if test _"${ppp_server_enable}" = _"YES"
 	then
@@ -562,7 +581,7 @@ make_ppp() {
 make_sppp() {
 	local service
 	service="spppcontrol@$i"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 -- "$r/${service}/service/env"
 	system-control preset "${service}"
 	system-control set-service-env "${service}" args "`get_var2 spppconfig \"$i\"`"
@@ -576,7 +595,7 @@ make_sppp() {
 make_rfcomm_pppd() {
 	local service
 	service="rfcomm_pppd@$i"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 -- "$r/${service}/service/env"
 	if test _"${rfcomm_pppd_server_enable}" = _"YES"
 	then
@@ -598,7 +617,7 @@ make_rfcomm_pppd() {
 make_snort() {
 	local service
 	service="snort@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if test _"${snort_enable}" = _"YES"
 	then
@@ -616,7 +635,7 @@ make_snort() {
 make_avahi_autoipd() {
 	local service
 	service="avahi-autoipd@$1"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 "$r/${service}/service/env"
 	if is_physical_interface "$1" &&
 	   is_ip_interface "$1" &&
@@ -645,6 +664,7 @@ make_primary_services() {
 	make_ifconfig "$1" "$2" "$3"
 	make_natd "$1"
 	make_hostap "$1"
+	make_rtsol "$1"
 	make_wpa "$1"
 	make_dhclient "$1"
 	make_udhcpc "$1"
@@ -655,7 +675,7 @@ make_primary_services() {
 make_wlandebug() {
 	local service
 	service="wlandebug@$i"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	install -d -m 0755 -- "$r/${service}/service/env"
 	system-control preset "${service}"
 	system-control set-service-env "${service}" flags "`get_wlandebug \"$i\"`"
@@ -666,10 +686,11 @@ make_wlandebug() {
 	system-control preset wlandebug-log
 }
 
-redo-ifchange rc.conf general-services "netif@.service" "static_arp@.service" "static_ndp@.service" "static_ip4@.service" "static_ip6@.service" "natd@.service" "hostapd@.service" "dhclient@.service" "udhcpc@.service" "dhcpcd@.service" "wpa_supplicant@.service" "rfcomm_pppd@.service" "ppp@.service" "spppcontrol@.service" "avahi-autoipd@.service" "ifscript@.service" "ifconfig@.service" "snort@.service" "wlandebug@.service"
+redo-ifchange rc.conf general-services "avahi-autoipd@.service" "dhclient@.service" "dhcpcd@.service" "hostapd@.service" "ifconfig@.service" "ifscript@.service" "natd@.service" "netif@.service" "ppp@.service" "rfcomm_pppd@.service" "rtsold@.service" "snort@.service" "spppcontrol@.service" "static_arp@.service" "static_ip4@.service" "static_ip6@.service" "static_ndp@.service" "udhcpc@.service" "wlandebug@.service" "wpa_supplicant@.service"
 
-r="/var/local/sv"
-e="--no-systemd-quirks --escape-instance --local-bundle --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 if dhclient="`read_rc dhclient_program`" && test -n "${dhclient}"
 then
 	dhclient="`basename \"${dhclient}\"`"
@@ -684,10 +705,10 @@ else
 fi
 
 
-find "$r/" -maxdepth 1 -type d \( -name 'static_arp@*' -o -name 'static_ndp@*' -o -name 'static_ip4@*' -o -name 'static_ip6@*' -o -name 'netif@*' -o -name 'natd@*' -o -name 'hostapd@*' -o -name 'wpa_supplicant@*' -o -name 'dhclient@*' -o -name 'dhcpcd@*' -o -name 'ppp@*' -o -name 'spppcontrol@*' -o -name 'rfcomm_pppd@*' -o -name 'snort@*' -o -name 'avahi-autoipd@*' -o -name 'wlandebug@*' \) -print0 |
+find "$r/" -maxdepth 1 -type d \( -name 'avahi-autoipd@*' -o -name 'dhclient@*' -o -name 'dhcpcd@*' -o -name 'hostapd@*' -o -name 'natd@*' -o -name 'netif@*' -o -name 'ppp@*' -o -name 'rfcomm_pppd@*' -o -name 'rtsold@*' -o -name 'snort@*' -o -name 'spppcontrol@*' -o -name 'static_arp@*' -o -name 'static_ip4@*' -o -name 'static_ip6@*' -o -name 'static_ndp@*' -o -name 'wlandebug@*' -o -name 'wpa_supplicant@*' \) -print0 |
 xargs -0 system-control disable
 
-find "$r/" -maxdepth 1 -type d \( -name 'ifconfig@*' -o -name 'ifscript@*' -o -name 'natd@*' -o -name 'hostapd@*' -o -name 'wpa_supplicant@*' -o -name 'dhclient@*' -o -name 'dhcpcd@*' -o -name 'ppp@*' -o -name 'spppcontrol@*' -o -name 'rfcomm_pppd@*' -o -name 'snort@*' -o -name 'avahi-autoipd@*' -o -name 'wlandebug@*' \) -exec rm -f -- {}/wanted-by/static-networking {}/wanted-by/workstation \;
+find "$r/" -maxdepth 1 -type d \( -name 'avahi-autoipd@*' -o -name 'dhclient@*' -o -name 'dhcpcd@*' -o -name 'hostapd@*' -o -name 'ifconfig@*' -o -name 'ifscript@*' -o -name 'natd@*' -o -name 'ppp@*' -o -name 'rfcomm_pppd@*' -o -name 'snort@*' -o -name 'spppcontrol@*' -o -name 'wlandebug@*' -o -name 'wpa_supplicant@*' \) -exec rm -f -- {}/wanted-by/static-networking {}/wanted-by/workstation \;
 
 system-control disable ifconfig-log natd-log dhclient-log dhcpcd-log snort-log rfcomm_pppd-log ppp-log sppp-log wlandebug-log avahi-autoipd-log
 

@@ -26,7 +26,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>setuidgid-fromenv</command> is a chain-loading utility that sets the process real+effective UID, real+effective GID, and supplementary GID list; and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>setuidgid-fromenv</command> is a chain-loading utility that sets the process real+effective UID, real+effective GID, and supplementary GID list; and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>

@@ -7,6 +7,7 @@ Description=ConsoleKit daemon
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.ConsoleKit
 ExecStart=%p --no-daemon
 
 [Install]

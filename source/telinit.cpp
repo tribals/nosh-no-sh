@@ -33,7 +33,7 @@ void
 reboot_poweroff_halt_command (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool force(stripfast(prog));
@@ -48,17 +48,21 @@ reboot_poweroff_halt_command (
 		popt::bool_definition powercycle_option('c', "powercycle", "Power cycle, even if this is not the powercycle command.", powercycle);
 		popt::bool_definition halt_option('h', "halt", "Halt, even if this is not the halt command.", halt);
 		popt::bool_definition reboot_option('r', "reboot", "Reboot, even if this is not the reboot command.", reboot);
-		popt::definition * main_table[] = {
-			&force_option,
+		popt::definition *contradiction_table[] = {
 			&poweroff_option,
 			&powercycle_option,
 			&halt_option,
 			&reboot_option
 		};
+		popt::table_definition contradiction_option(sizeof contradiction_table/sizeof *contradiction_table, contradiction_table, "Contradiction options");
+		popt::definition * main_table[] = {
+			&contradiction_option,
+			&force_option,
+		};
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
@@ -69,24 +73,20 @@ reboot_poweroff_halt_command (
 		else if (reboot) prog = "reboot";
 		else if (halt) prog = "halt";
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	args.clear();
 	if (force) {
-		args.insert(args.end(), "system-control");
-		args.insert(args.end(), prog);
-		args.insert(args.end(), "--force");
+		args.push_back("system-control");
+		args.push_back(prog);
+		args.push_back("--force");
 	} else {
 		// Stuff that we put into args has to have static storage duration.
 		static char opt[3] = { '-', ' ', '\0' };
 
-		args.insert(args.end(), "shutdown");
+		args.push_back("shutdown");
 		if ('p' == prog[0] && 'c' == prog[5])
 			opt[1] = 'c';
 #if defined(__LINUX__) || defined(__linux__)
@@ -95,12 +95,11 @@ reboot_poweroff_halt_command (
 #endif
 		else
 			opt[1] = prog[0];
-		args.insert(args.end(), opt);
+		args.push_back(opt);
 		// systemd shutdown has this sensible default if the time specification is omitted.
 		// BSD shutdown does not.
-		args.insert(args.end(), "now");
+		args.push_back("now");
 	}
-	args.insert(args.end(), 0);
 	next_prog = arg0_of(args);
 }
 
@@ -131,20 +130,20 @@ void
 shutdown (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	const char * grace_period(0);
+	const char * grace_period(nullptr);
 	bool halt(false), reboot(false), powercycle(false), no_wall(false), kick_off(false), verbose(false);
 	try {
 		bool poweroff(true), o(false);
 		popt::bool_definition verbose_option('v', "verbose", "Print messages.", verbose);
 		popt::bool_definition halt_option('h', "halt", "Halt the machine.", halt);
-		popt::bool_definition h_option('H', 0, "Halt the machine.", halt);
+		popt::bool_definition h_option('H', nullptr, "Halt the machine.", halt);
 		popt::bool_definition poweroff_option('p', "poweroff", "Compatibility option, on by default.", poweroff);
-		popt::bool_definition p_option('P', 0, "Compatibility option, on by default.", poweroff);
+		popt::bool_definition p_option('P', nullptr, "Compatibility option, on by default.", poweroff);
 		popt::bool_definition powercycle_option('c', "powercycle", "Power cycle the machine.", powercycle);
-		popt::bool_definition o_option('o', 0, "Compatibility option, off by default.", o);
+		popt::bool_definition o_option('o', nullptr, "Compatibility option, off by default.", o);
 		popt::bool_definition reboot_option('r', "reboot", "Reboot the machine.", reboot);
 		popt::bool_definition no_wall_option('\0', "no-wall", "Do not send wall messages.", no_wall);
 		popt::bool_definition kick_off_option('k', "kick-off", "Do not enact the final state change.", kick_off);
@@ -165,17 +164,16 @@ shutdown (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{time} [message]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	time_t now(std::time(0)), when(now);
+	time_t now(std::time(nullptr)), when(now);
 	struct std::tm now_tm;
 	localtime_r(&when, &now_tm);
 
@@ -183,18 +181,14 @@ shutdown (
 		if (0 != std::strcmp("now", grace_period)) {
 			const char * end;
 			unsigned long minutes(strtoul(grace_period, const_cast<char **>(&end), 10));
-			if (end == grace_period || (*end && ':' != *end)) {
-				std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, grace_period, "Bad interval");
-				throw EXIT_FAILURE;
-			}
+			if (end == grace_period || (*end && ':' != *end))
+				die_invalid(prog, envs, grace_period, "Bad interval");
 			grace_period = end;
 			if (*grace_period) {
 				++grace_period;	// Can only be a colon, from the test above.
 				unsigned long l(strtoul(grace_period, const_cast<char **>(&end), 10));
-				if (end == grace_period || *end) {
-					std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, grace_period, "Bad interval");
-					throw EXIT_FAILURE;
-				}
+				if (end == grace_period || *end)
+					die_invalid(prog, envs, grace_period, "Bad interval");
 				minutes = minutes * 60UL + l;
 			}
 			struct std::tm when_tm(now_tm);
@@ -203,8 +197,7 @@ shutdown (
 		}
 	} else {
 		if (args.empty()) {
-			std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing time.");
-			throw static_cast<int>(EXIT_USAGE);
+			die_missing_argument(prog, envs, "time");
 		}
 		const char * timespec(args.front());
 		args.erase(args.begin());
@@ -219,10 +212,8 @@ shutdown (
 				if (r && !*r) {
 					when_tm.tm_sec = 0;
 					when = std::mktime(&when_tm);
-					if (when < now) {
-						std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, timespec, "Time is in the past.");
-						throw EXIT_FAILURE;
-					}
+					if (when < now)
+						die_invalid(prog, envs, timespec, "Time is in the past.");
 					found = true;
 					break;
 				}
@@ -238,10 +229,8 @@ shutdown (
 				found = true;
 			}
 		}
-		if (!found) {
-			std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, timespec, "Bad time");
-			throw EXIT_FAILURE;
-		}
+		if (!found)
+			die_invalid(prog, envs, timespec, "Bad time");
 	}
 
 	const char * participle = reboot ? "rebooted" : halt ? "halted" : "powered off";
@@ -262,8 +251,8 @@ shutdown (
 				else
 					snprintf(banner, sizeof banner, "The system is going to be %s in %lg seconds.", participle, secs);
 				const bool no_message(args.empty());
-				args.insert(args.end(), "|");
-				args.insert(args.end(), "wall");
+				args.push_back("|");
+				args.push_back("wall");
 				if (no_message)
 					args.insert(args.begin(), "true");
 				else
@@ -310,7 +299,7 @@ shutdown (
 			const unsigned int v(static_cast<unsigned int>(std::fmod(secs, 86400.0)));
 			sleep(v ? v : 86400);
 		}
-	       	now = std::time(0);
+	       	now = std::time(nullptr);
 	}
 
 	if (verbose)
@@ -318,16 +307,15 @@ shutdown (
 	if (kick_off)
 		throw EXIT_SUCCESS;
 	args.clear();
-	args.insert(args.end(), "system-control");
+	args.push_back("system-control");
 	if (reboot)
-		args.insert(args.end(), "reboot");
+		args.push_back("reboot");
 	else if (halt)
-		args.insert(args.end(), "halt");
+		args.push_back("halt");
 	else if (powercycle)
-		args.insert(args.end(), "powercycle");
+		args.push_back("powercycle");
 	else
-		args.insert(args.end(), "poweroff");
-	args.insert(args.end(), 0);
+		args.push_back("poweroff");
 	next_prog = arg0_of(args);
 }
 
@@ -348,10 +336,10 @@ rcctl (
 }
 
 void
-runlevel [[gnu::noreturn]] ( 
+runlevel [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -359,26 +347,22 @@ runlevel [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	std::cout << "N N\n";
 	throw EXIT_SUCCESS;
 }
 
 void
-telinit ( 
+telinit (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & /*envs*/

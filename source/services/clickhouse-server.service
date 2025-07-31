@@ -7,6 +7,7 @@ Description=ClickHouse server (analytic DBMS for big data)
 
 [Service]
 User=clickhouse
+SessionLeader=yes
 RestartSec=30
 ExecStart=%p --config=/etc/%p/config.xml
 # ClickHouse's systemd unit picks a suspiciously round 500,000 here.

@@ -15,6 +15,7 @@ For copyright and licensing terms, see the file named COPYING.
 #else
 #include <sys/event.h>
 #endif
+#include "kqueue_common.h"
 #include <dirent.h>
 #include <unistd.h>
 #include "popt.h"
@@ -28,10 +29,11 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static 
+static
 void
 rescan (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * name,
 	const int socket_fd,
 	const int retained_scan_dir_fd,
@@ -40,8 +42,7 @@ rescan (
 	FileDescriptorOwner scan_dir_fd(dup(retained_scan_dir_fd));
 	if (0 > scan_dir_fd.get()) {
 exit_scan:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
+		message_fatal_errno(prog, envs, name);
 		return;
 	}
 	const DirStar scan_dir(scan_dir_fd);
@@ -97,7 +98,7 @@ exit_scan:
 								}
 								plumb(prog, socket_fd, supervise_dir_fd, log_supervise_dir_fd);
 								if (!log_was_already_loaded) {
-									if (input_activation) 
+									if (input_activation)
 										make_input_activated(prog, socket_fd, log_supervise_dir_fd);
 									else {
 										if (is_initially_up(log_service_dir_fd)) {
@@ -147,7 +148,7 @@ void
 service_dt_scanner [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 
@@ -161,43 +162,35 @@ service_dt_scanner [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{directory}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (1 != args.size()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "One directory name is required.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
-	const char * const scan_directory(args[0]);
+	if (args.empty()) die_missing_argument(prog, envs, "scan directory");
+	const char * const scan_directory(args.front());
+	args.erase(args.begin());
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	const int queue(kqueue());
 	if (0 > queue) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 
 	const FileDescriptorOwner scan_dir_fd(open_dir_at(AT_FDCWD, scan_directory));
 	if (0 > scan_dir_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, scan_directory, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, scan_directory);
 	}
 
 	{
 		struct kevent e[1];
-		EV_SET(&e[0], scan_dir_fd.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, 0);
-		if (0 > kevent(queue, e, sizeof e/sizeof *e, 0, 0, 0)) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+		set_event(e[0], scan_dir_fd.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, nullptr);
+		if (0 > kevent(queue, e, sizeof e/sizeof *e, nullptr, 0, nullptr)) {
+			die_errno(prog, envs, "kevent");
 		}
 	}
 
@@ -205,29 +198,32 @@ service_dt_scanner [[gnu::noreturn]] (
 
 	const int socket_fd(connect_service_manager_socket(is_system, prog));
 	if (0 > socket_fd) throw EXIT_FAILURE;
-	rescan(prog, scan_directory, socket_fd, scan_dir_fd.get(), input_activation);
+	rescan(prog, envs, scan_directory, socket_fd, scan_dir_fd.get(), input_activation);
 
 	for (;;) {
 		try {
 			struct kevent p[2];
-			const int rc(kevent(queue, 0, 0, p, sizeof p/sizeof *p, 0));
+			const int rc(kevent(queue, nullptr, 0, p, sizeof p/sizeof *p, nullptr));
 			if (0 > rc) {
-				const int error(errno);
-				if (EINTR == error) continue;
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-				throw EXIT_FAILURE;
+				if (EINTR == errno) continue;
+				die_errno(prog, envs, "kevent");
 			}
 			for (size_t i(0); i < static_cast<std::size_t>(rc); ++i) {
 				const struct kevent & e(p[i]);
 				switch (e.filter) {
 					case EVFILT_VNODE:
 						if (e.ident == static_cast<uintptr_t>(scan_dir_fd.get()))
-							rescan(prog, scan_directory, socket_fd, scan_dir_fd.get(), input_activation);
-						else
+							rescan(prog, envs, scan_directory, socket_fd, scan_dir_fd.get(), input_activation);
+						else {
+#if defined(DEBUG)
 							std::fprintf(stderr, "%s: DEBUG: vnode event ident %lu fflags %x\n", prog, e.ident, e.fflags);
+#endif
+						}
 						break;
 					default:
+#if defined(DEBUG)
 						std::fprintf(stderr, "%s: DEBUG: event filter %hd ident %lu fflags %x\n", prog, e.filter, e.ident, e.fflags);
+#endif
 						break;
 				}
 			}

@@ -7,6 +7,7 @@ Description=Nagios NRPE server
 
 [Service]
 User=nagios
+SessionLeader=yes
 ExecStart=nrpe -c /etc/nagios/nrpe.cfg --inetd
 
 [Install]

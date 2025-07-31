@@ -61,10 +61,9 @@
 <command>shutdown</command> shuts down the system, optionally waiting for a period and sending warnings to the terminals of logged-in users before calling <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 </para>
 
-<refsection><title>Primary behaviour</title>
-
 <para>
 <command>shutdown</command> waits for a period, sending warning messages to logged-on user terminals with <citerefentry><refentrytitle>wall</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and then chains to the <arg choice='req'>powercycle</arg>, <arg choice='req'>poweroff</arg>, <arg choice='req'>halt</arg>, or <arg choice='req'>reboot</arg> subcommands of <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> to instruct the system manager to enact a state change.
+The default, if no option is specified, is to power off.
 </para>
 
 <para>
@@ -135,8 +134,10 @@ Shutdown scheduled for <replaceable>minutes</replaceable> minutes from now.
 Shutdown scheduled for <replaceable>HH</replaceable>:<replaceable>MM</replaceable> today.
 This must be now or in the future; and a valid time.
 It is an absolute time that is not to be confused with the relative time used with the <arg choice='plain'>-g</arg> command line option.
-Note: The old BSD <command>shutdown</command> considers this to be a backwards compatibility syntax.
-</para></listitem>
+</para><caution>
+The old BSD <command>shutdown</command> command considers this to be a backwards compatibility syntax, which is undocumented in its manual.
+Because of that, and also because of the potential confusion with the (in contrast, documented by AT&amp;T System 5) grace period syntax, use of this form of absolute time is strongly discouraged.
+</caution></listitem>
 </varlistentry>
 <varlistentry>
 <term><arg choice='plain'><arg choice='opt'><arg choice='opt'><arg choice='opt'><arg choice='opt'><arg choice='opt'><replaceable>CC</replaceable></arg><replaceable>YY</replaceable></arg><replaceable>MM</replaceable></arg><replaceable>DD</replaceable></arg><replaceable>HH</replaceable></arg><replaceable>MM</replaceable></arg></term>
@@ -155,18 +156,38 @@ Its name derives from the notion that one can perform a partial switch to (the o
 </para>
 
 </refsection>
-<refsection><title>Differences from older shutdown tools</title>
+
+<refsection><title>History and compatibility</title>
+
+<refsection><title>Grace period</title>
 
 <para>
-The upstart, old BSD, XENIX, UnixWare, and systemd <command>shutdown</command> commands all have different patterns (from one another) of intervals between warning messages being emitted.
+The upstart and old BSD <command>shutdown</command> commands require that the time to shutdown always be specified, aborting if it is not; others default to 1 minute from now in the absence of any specification.
 </para>
 
 <para>
-The first two require that the time to shutdown always be specified, aborting if it is not; the other three default to 1 minute from now in the absence of any specification.
+Both the XENIX and UnixWare, and the upstart, old BSD, and systemd ways of specifying when to shut down are supported.
+In order to avoid embarrassment resulting from unexpected defaults, explicitly specifying when shutdown should occur is mandatory.
+</para>
+
+</refsection>
+
+<refsection><title>Warning message intervals</title>
+
+<para>
+The upstart, old BSD, van SmoorenBerg, XENIX, UnixWare, and systemd <command>shutdown</command> commands all have different patterns (from one another) of intervals between warning messages being emitted.
 </para>
 
 <para>
-The upstart, old BSD, and System 5 systems incorporate the notion of shutting down to "single-user" mode, even though (on the BSDs at least) that was not strictly speaking possible as the switch to "multi-user" mode made a one-way change to the kernel secure level.
+In this <command>shutdown</command>, the intervals between warning messages roughly follow the pattern used by the XENIX and UnixWare <command>shutdown</command> commands.
+</para>
+
+</refsection>
+
+<refsection><title>Defaults and the obsolete "single-user" mode</title>
+
+<para>
+The upstart, old BSD, and van Smoorenberg systems incorporated the notion of shutting down to "single-user" mode, even though (on the BSDs at least) that was not strictly speaking possible as the switch to "multi-user" mode made a one-way change to the kernel secure level.
 As a consequence, their <command>shutdown</command> commands had the following semantics:
 </para>
 <itemizedlist>
@@ -175,31 +196,20 @@ With no options, the default action was to (attempt to) transition to "single-us
 </para></listitem>
 <listitem><para>
 The <arg choice='plain'>-r</arg>, <arg choice='plain'>-h</arg>, and (in the old BSD system) <arg choice='plain'>-p</arg> options overrode that to select reboot, halt, or poweroff.
-</para>
-<para>
-In the upstart and System 5 systems the <arg choice='plain'>-h</arg> option was actually halt/poweroff, and would require the <arg choice='plain'>-H</arg> and <arg choice='plain'>-P</arg> options to further choose which of halt or poweroff was selected, the default being determined by the capabilities of the operating system and platform (which might not support software power off).
-</para></listitem>
+</para> <note>
+In the upstart and van Smoorenberg systems the <arg choice='plain'>-h</arg> option was actually halt/poweroff, and would require the <arg choice='plain'>-H</arg> and <arg choice='plain'>-P</arg> options to further choose which of halt or poweroff was selected, the default being determined by the capabilities of the operating system and platform (which might not support software power off).
+In the old BSD system the <arg choice='plain'>-h</arg> and <arg choice='plain'>-p</arg> options were just halt and poweroff directly.
+</note></listitem>
 </itemizedlist>
 
 <para>
-Their <command>shutdown</command> also wrote flag files, directly enacted system state changes, bypassed filesystem unmounts and cache flushes, and triggered kernel dumps.
-</para>
-
-</refsection>
-<refsection><title>Compatibility behaviour</title>
-
-<para>
-In this <command>shutdown</command>, the intervals between warning messages roughly follow the pattern used by the XENIX and UnixWare <command>shutdown</command> commands.
-</para>
-
-<para>
-Both the XENIX and UnixWare and the upstart, old BSD, and systemd ways of specifying when to shut down are supported.
-In order to avoid embarrassment resulting from unexpected defaults, explicitly specifying when shutdown should occur is mandatory.
-</para>
-
-<para>
 There is no "single-user" mode now.
-Its replacements are the <filename>emergency</filename> and <filename>rescue</filename> targets, described in <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>, which are startup targets that are not reachable via shutdown procedures.
+Neither <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> nor systemd encompass any such thing, and it was in fact also superseded in the van Smoorenberg system in 1995.
+Its replacements <ulink url="https://jdebp.uk/FGA/emergency-and-rescue-mode-bootstrap.html">since the 1990s</ulink> have been and are the <filename>emergency</filename> and <filename>rescue</filename> targets, described in <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+These are <emphasis>startup</emphasis> targets that are not reachable via <emphasis>shutdown</emphasis> procedures.
+</para>
+
+<para>
 As a consequence, poweroff is now the default action and the compatibility behaviour is as follows:
 </para>
 <itemizedlist>
@@ -212,28 +222,77 @@ The <arg choice='plain'>-r</arg>, <arg choice='plain'>-h</arg>, and <arg choice=
 </itemizedlist>
 
 <para>
-The <arg choice='plain'>-d</arg>, <arg choice='plain'>-n</arg>, <arg choice='plain'>-f</arg>, <arg choice='plain'>-F</arg>, and <arg choice='plain'>-t</arg> options from the old toolsets are all errors.
-The <arg choice='plain'>-o</arg> option from the old toolsets is ignored.
-Because:
+UnixWare supported a <arg choice="plain">su</arg> command-line argument.
+This was <emphasis>itself</emphasis> a backwards-compatibility mechanism for the <command>shutdown</command> command in XENIX, the UnixWare command having a different syntax involving an <arg choice="plain">-i</arg> commmand-line option and "run levels".
+Neither command-line syntax was provided by the old BSD, van Smoorenberg, upstart, or systemd <command>shutdown</command> comands.
 </para>
-<itemizedlist>
+
+<para>
+Not only is there no "single-user" mode now, <ulink url="https://jdebp.uk/FGA/run-levels-are-history.html">run levels have been obsolete in the AT&amp;T Unix world since the 1980s</ulink> and UnixWare had switched to the Service Access Facility.
+Therefore, this <command>shutdown</command> likewise does not provide this XENIX syntax that translates a then-obsolete thing into something that was <emphasis>also then</emphasis> largely obsolete.
+</para>
+
+</refsection>
+
+<refsection><title>Command line options from old toolsets and other defunct mechanisms</title>
+
+<para>
+The <command>shutdown</command> commands from old toolsets also variously wrote flag files, directly enacted system state changes, bypassed filesystem unmounts and cache flushes, triggered kernel dumps, and had interactive modes where they asked the initiator what xe wanted to do.
+The flags for these things are either errors or simply ignored:
+</para>
+
+<variablelist>
+<varlistentry>
+<term><arg choice='plain'>-y</arg></term>
 <listitem><para>
-Flag files, written to a potentially corrupt or dirty volume, are no longer the way to invoke filesystem checks.
+This AT&amp;T System 5 option is an error.
+It was recommended to use non-interactive mode in AT&amp;T System 5 guides in the 1980s; and <command>shutdown</command> commands that outright lacked an interactive mode became common in the 1990s.
 </para></listitem>
+</varlistentry>
+<varlistentry>
+<term><arg choice='plain'>-f</arg></term>
+<term><arg choice='plain'>-F</arg></term>
 <listitem><para>
+These van Smoorenberg options are errors.
+Flag files, written to a potentially corrupt or dirty volume, are no longer the way to invoke or to bypass filesystem checks.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><arg choice='plain'>-o</arg></term>
+<listitem><para>
+This BSD option is ignored.
 All system state changes are enacted by process #1, usually running <citerefentry><refentrytitle>system-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 None are enacted directly.
 </para></listitem>
+</varlistentry>
+<varlistentry>
+<term><arg choice='plain'>-n</arg></term>
 <listitem><para>
+This van Smoorenberg and BSD option is an error.
 It is not permitted to bypass the filesystem cache flush, which is an integral part of the actions taken by <citerefentry><refentrytitle>system-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry> at shutdown.
+The van Smoorenberg system in fact deprecated this mechanism in the 1990s.
 </para></listitem>
+</varlistentry>
+<varlistentry>
+<term><arg choice='plain'>-t</arg></term>
 <listitem><para>
-Service termination signals and intervals are not adjustable via the <command>shutdown</command> command.
+This van Smoorenberg option is an error.
+Service termination intervals are not adjustable via the <command>shutdown</command> command.
 </para></listitem>
-</itemizedlist>
+</varlistentry>
+<varlistentry>
+<term><arg choice='plain'>-d</arg></term>
+<listitem><para>
+This OpenBSD option is an error.
+Kernel dumps not triggerable via the <command>shutdown</command> command.
+</para></listitem>
+</varlistentry>
+</variablelist>
 
 </refsection>
+
 </refsection>
+
 <refsection><title>Author</title>
 <para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
 </refsection>

@@ -1,0 +1,82 @@
+#!/bin/sh -
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+case "`uname`" in
+FreeBSD)	
+	if test 0 -ne "$(/sbin/sysctl -n security.jail.jailed)"
+	then
+		echo 1>&2 "Do not use this in a jail."
+		exec false
+	fi
+	;;
+esac
+
+case "`uname`" in
+Linux)	
+	notimed=
+	noset=
+	;;
+*BSD)	
+	notimed=-n
+	noset=-j
+	;;
+esac
+# Do not use the Debian file, as we use the seconds-since-Epoch form and it does not.
+file="${file-/var/db/fake-hwclock.data}" 
+# Earliest possible valid timestamp is when this script was written.
+earliest="1747996639"
+
+umask 022
+
+load() {
+	case "${file}" in
+	[Nn][Oo]|'')
+		;;
+	*)
+		if ! test -e "${file}"
+		then
+			echo 1>&2 "${file}": No persistent clock time file exists.
+			return 111
+		elif ! test -f "${file}"
+		then
+			echo 1>&2 "${file}": Refusing to load system clock from non-regular file.
+			return 111
+		else
+			saved="$(head -n 1 "${file}")"
+			current="$(date -u $noset '+%s')"
+			if test "${saved}" -le "${earliest}"
+			then
+				echo 1>&2 "${file}": Timestamp "($(date -u $noset -f '%s' '+%F %T %z' "${saved}"))" is impossible, before this service was itself authored.
+				return 111
+			elif test "${saved}" -le "${current}"
+			then
+				echo 1>&2 "${file}": Persistent clock "($(date -u $noset -f '%s' '+%F %T %z' "${saved}"))" is already behind the current system clock.
+				return 111
+			else
+				date -u $notimed -f '%s' "${saved}"
+				echo 1>&2 "${file}": Restored system clock "($(date -u $noset -f '%s' '+%F %T %z' "${saved}"))" from persistent clock.
+			fi
+		fi
+		;;
+	esac
+}
+
+save() {
+	case "${file}" in
+	[Nn][Oo]|'')
+		;;
+	*)
+		if ! test -e "${file}" || test -f "${file}"
+		then
+			date -u $noset '+%s' > "${file}"
+		else
+			echo 1>&2 "${file}": Refusing to save system clock to non-regular file.
+			return 111
+		fi
+		;;
+	esac
+}
+
+"$@"

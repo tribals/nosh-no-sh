@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="unvis">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>unvis</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv><refname>unvis</refname><refpurpose>vis decoder</refpurpose></refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>unvis</command>
+<arg choice='opt' repeat='rep'><replaceable>filename(s)</replaceable></arg>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Note</title>
+
+<para>
+This is generally only accessible as a subcommand of <citerefentry><refentrytitle>exec</refentrytitle><manvolnum>1</manvolnum></citerefentry>, to eliminate conflicts with the standard command by this name.
+It is referred to without qualification in this manual for simplicity.
+</para>
+
+</refsection>
+
+<refsection><title>Description</title>
+
+<para>
+<command>unvis</command> decodes either the contents of <filename><replaceable>filename(s)</replaceable></filename> or, if none are supplied, its standard input; to its standard output.
+Decoding is as if by the <citerefentry><refentrytitle>unvis</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function with no MIME or HTTP decoding enabled.
+</para>
+
+<para>
+Tools that produce output encoded this way include <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> and <citerefentry><refentrytitle>list-logins</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+Files encoded this way include (on the BSDs) <citerefentry><refentrytitle>fstab</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
+Such encoded flat table data can be reliably handled by <citerefentry><refentrytitle>awk</refentrytitle><manvolnum>1</manvolnum></citerefentry> and <citerefentry><refentrytitle>mlr</refentrytitle><manvolnum>1</manvolnum></citerefentry>, avoiding problems where fields might themselves contain whitespace, to be decoded to a human-readable form at final output time by <command>unvis</command>.
+</para>
+
+</refsection>
+
+<refsection><title>See also</title>
+
+<para>
+<citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</para>
+
+</refsection><refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

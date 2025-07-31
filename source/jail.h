@@ -9,10 +9,10 @@ For copyright and licensing terms, see the file named COPYING.
 struct ProcessEnvironment;
 
 extern
-bool 
+bool
 am_in_jail(const ProcessEnvironment & envs);
 extern
-bool 
+bool
 set_dynamic_hostname_is_allowed();
 
 #endif

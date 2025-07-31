@@ -3,15 +3,25 @@
 ## **************************************************************************
 
 [Unit]
-Description=serial-line terminal login on %I
-After=motd-dynamic.service hostname.service
+Description=serial-line terminal login on %I (BSD %p)
+After=motd-dynamic.service hostname.target
+#
 
 [Service]
 SessionLeader=true
-ExecStart=/usr/libexec/%p std.9600 %I
-RestartSec=0
+RestartSec=0.1
+TTYPath=%I
 # Some job control shells ignore SIGTERM and need an explicit SIGHUP.
 SendSIGHUP=on
+# We don't want to inherit the environment that services get.
+# Terminal login expects to start with just the the TTY and TERM variables set up by initial terminal management.
+ClearEnvironment=True
+#
+# Amazingly, even 9600 is higher than the 21st century FreeBSD default speed.
+# 115200 is the maximum possible (divisor register = 1) bit rate for a vanilla 16550 UART.
+ExecStart=/usr/libexec/%p std.115200 -
+StandardInput=tty
+BannerFile=/etc/issue.vc
 
 [Install]
 WantedBy=multi-user.target

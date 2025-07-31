@@ -17,15 +17,15 @@
 
 <refnamediv>
 <refname>envuidgid</refname>
-<refpurpose>add UID and GID environment variables then chain</refpurpose>
+<refpurpose>set UID, GID, and GIDLIST environment variables then chain</refpurpose>
 </refnamediv>
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>envuidgid</command> 
+<command>envuidgid</command>
 <arg choice='opt'>--primary-group <replaceable>group</replaceable></arg>
 <arg choice='opt'>--supplementary</arg>
-<arg choice='req'><replaceable>account</replaceable></arg> 
+<arg choice='req'><replaceable>account</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -33,15 +33,20 @@
 <refsection><title>Description</title>
 
 <para>
-<command>envuidgid</command> is a chain-loading utility that sets the <envar>UID</envar> and <envar>GID</envar> environment variables to the values for <replaceable>account</replaceable> in the system account database and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>envuidgid</command> is a chain-loading utility that sets the <envar>UID</envar> and <envar>GID</envar> environment variables to the values for <replaceable>account</replaceable> in the system account database and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
+
+<note>
+<command>envuidgid</command> intentionally does not set the <envar>LOGNAME</envar> environment variable.
+It does not deal in login sessions, and is not altering the "login name".
+</note>
 
 <para>
 If the <arg choice='plain'>--primary-group</arg> option is used, <command>envuidgid</command> will use <replaceable>group</replaceable> instead of the primary GID of <replaceable>account</replaceable> as the <envar>GID</envar> value.
 </para>
 
 <para>
-If the <arg choice='plain'>--supplementary</arg> option is used, it will also set the <envar>GIDLIST</envar> environment variable to the (comma-separated) list of supplementary GIDs for the groups to which account belongs, as listed in the groups database. 
+If the <arg choice='plain'>--supplementary</arg> option is used, it will also set the <envar>GIDLIST</envar> environment variable to the (comma-separated) list of supplementary GIDs for the groups to which account belongs, as listed in the groups database.
 Without that option, it ignores the group database and unsets the <envar>GIDLIST</envar> environment variable entirely.
 </para>
 

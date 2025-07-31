@@ -1,5 +1,5 @@
 #!/command/execlineb -S0
-pty-get-tty
+pty-allocate
 pty-run
 setsid
 open-controlling-tty --exclusive --

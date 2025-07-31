@@ -7,6 +7,7 @@ Description=Wi-Fi Protected Access client, Desktop Bus server
 
 [Service]
 Type=dbus
+BusName=fi.w1.%p1
 EnvironmentDirectory=env
 ExecStart=%p -u
 

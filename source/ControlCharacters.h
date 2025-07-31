@@ -6,8 +6,10 @@ For copyright and licensing terms, see the file named COPYING.
 #if !defined(INCLUDE_CONTROLCHARACTERS_H)
 #define INCLUDE_CONTROLCHARACTERS_H
 
+	/// \brief Control character constants.
+	/// These are not character constants because we use them as (32-bit unsigned) Unicode code point values.
 	enum {
-		NUL = '\0',
+		NUL = 0x00,
 		SOH = 0x01,
 		STX = 0x02,
 		ETX = 0x03,
@@ -22,6 +24,15 @@ For copyright and licensing terms, see the file named COPYING.
 		FF = 0x0c,
 		CR = 0x0d,
 		SO = 0x0e,
+		SI = 0x0f,
+		DLE = 0x10,
+		DC1 = 0x11,
+		DC2 = 0x12,
+		DC3 = 0x13,
+		DC4 = 0x14,
+		NAK = 0x15,
+		SYN = 0x16,
+		ETB = 0x17,
 		CAN = 0x18,
 		EM = 0x19,
 		SUB = 0x1a,

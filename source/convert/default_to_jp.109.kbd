@@ -1,6 +1,4 @@
-# This is an overlay keymap that just contains 
-# the differences between the default built-in keyboard map
-# and JIS 109-key keyboards.
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and JIS 109-key keyboards.
 #
 #                                                        option
 # scan                       cntrl         option option cntrl lock
@@ -8,17 +6,24 @@
 # ------------------------------------------------------------------
   003   '2'    '"'    nop    nop    '2'    '"'    nop    nop     O
   007   '6'    '&'    nop    nop    '6'    '&'    nop    nop     O
-  008   '7'    '''    nop    nop    '7'    '''    nop    nop     O
+  008   '7'    0x27   nop    nop    '7'    0x27   nop    nop     O
   009   '8'    '('    nop    nop    '8'    '('    nop    nop     O
   010   '9'    ')'    nop    nop    '9'    ')'    nop    nop     O
   011   '0'    '~'    nop    nop    '0'    '~'    nop    nop     O
-  012   '-'    '='    nop    nop    '-'    '='    nop    nop     O
-  013   '^'    '~'    rs     rs     '^'    '~'    rs     rs      O
-  026   '@'    '`'    nul    nul    '@'    '`'    nul    nul     O
-  027   '['    '{'    esc    esc    '['    '{'    esc    esc     O
-  039   ';'    '+'    nop    nop    ';'    '+'    nop    nop     O
+  012   '-'    '='    nop    nop    0xa3   0xa3   nop    nop     O
+# FIXME: It is unclear what this should have as level 3.
+  013   '^'    '~'    rs     rs     nop    nop    nop    nop     O
+  025   'p'    'P'    dle    dle    0x300e 0x300e nop    nop     C
+  026   '@'    '`'    nul    nul    0xa2   0xa2   nul    nul     O
+  027   '['    '{'    esc    esc    0x300c 0x300c esc    esc     O
+  039   ';'    '+'    nop    nop    0x300f 0x300f nop    nop     O
   040   ':'    '*'    nop    nop    ':'    '*'    nop    nop     O
-  041   imsw   imsw   imsw   imsw   imsw   imsw   imsw   imsw    O
-  043   ']'    '}'    gs     gs     ']'    '}'    gs     gs      O
-  115   '\'    '_'    fs     us     '\'    '_'    fs     us      O
-  125   0xa5   '|'    fs     us     0xa5   '|'    fs     us      O
+# E00 is the input method switch key; and its normal functions move to E13.
+  041   imsw   imsw   imsw   imsw   hanja  hanja  hanja  hanja   O
+  043   ']'    '}'    gs     gs     0x300d 0x300d gs     gs      O
+  051   ','    '<'    nop    nop    '`'    '`'    nop    nop     O
+  052   '.'    '>'    nop    nop    0xff61 0xff61 nop    nop     O
+  053   '/'    '?'    nop    nop    0x30fb 0x30fb nop    nop     O
+  115   0x5c   '_'    fs     us     '|'    '|'    nop    nop     O
+# E13 is (sort-of) what E00 normally is.
+  125   0xa5   '|'    fs     us     0xac   0xac   nop    nop     O

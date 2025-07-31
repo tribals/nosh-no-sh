@@ -47,6 +47,7 @@ do
 	mariadb)		continue ;; # This is handled by a special conversion.
 	mixer)			continue ;; # This is replaced by templatized services.
 	moused_nondefault)	continue ;; # This is not used for services.
+	moused)			continue ;; # This is handled by a special conversion.
 	mysql)			continue ;; # This is handled by a special conversion.
 	opensm)			continue ;; # This seems to have disappeared as of FreeBSD 10.
 	pcbsdinit)		continue ;; # Service management of individual services supersedes this.
@@ -57,6 +58,7 @@ do
 	service_manager_svscan)	continue ;; # There should not be any variables for this.
 	svr4)			continue ;; # This is handled by a special conversion.
 	syslog)			continue ;; # This is handled by a special conversion.
+	syscache)		continue ;; # For security reasons, we don't want this enabled; certainly not from rc.conf.
 	system_control_normal)	continue ;; # There should not be any variables for this.
 	sysvipc)		continue ;; # This is handled by a special conversion.
 	tmpmfs)			continue ;; # This is handled by a special conversion.
@@ -72,6 +74,9 @@ do
 	firewall)		continue ;; # TODO: Needs to distribute to ipfs and ipfw0.
 	nfsv4_server)		continue ;;
 	netif)			continue ;;
+	growfs)			continue ;;
+	ldapd)			continue ;;
+	ipfw_netflow)		continue ;;
 
 	*)			service="$n" ;;
 	esac

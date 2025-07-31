@@ -1,0 +1,20 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Save/restore the system time in a persistent hardware clock
+Description=Note that Linux itself has handled this since version 2.6.
+Before=persistent-clock-loaded.target
+WantsMountsFor=/etc
+AfterMountsFor=/etc
+Wants=persistent-clock-loaded.target
+
+[Service]
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
+ExecStartPre=%p --hctosys
+ExecStart=%p --systohc
+ExecStopPost=%p --systohc
+
+[Install]
+WantedBy=workstation.target

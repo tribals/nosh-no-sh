@@ -1,5 +1,123 @@
-nosh (1.40) unstable; urgency=medium
+nosh (1.41) stable; urgency=low
+ 
+  * Important changes that need special attention:
+    * The keyboard map file format has changed; all old keyboard map files must be rebuilt.
+      The external configuration import system will do this automatically if you are using it.
+    * The syntax of the userenv-fromenv utility has changed; you will need to adjust per-user service bundles (usually Desktop Bus ones) and any non-packaged system ones that employ it.
+      With the external configuration import system this is as simple as removing ~/.config/system-control/convert/services and re-importing.
+    * The normal service directory has moved from /var/sv to /var/service-bundles/services .
+      The local additions service directory has moved from /var/local/sv to /var/local/service-bundles/services .
+      This gives all service bundle trees the same structure.
+      The package installers should handle this migration under the covers.
+    * The PC-BSD/TrueOS syscache and appcafe services are now preset disabled for security reasons.
+      PC-BSD/TrueOS has abandoned its GitHub repository that these services install softwares from, leaving it available for any random person to hijack.
+    * The (unused as packaged) /usr/local/share/system-control directory has been dropped.
+      /usr/local/etc/system-control and /usr/pkg/etc/system-control are sufficient.
+    * The (unused as packaged) /usr/lib/system-control directory has been dropped.
+      /usr/share/system-control is sufficient, and not a mis-use of an executable code libraries directory.
+    * The (unused as packaged) /usr/local/share/service-bundles and /usr/share/service-bundles directories have been dropped.
+      /var/local/service-bundles and /var/service-bundles sufficient, and not on /usr which might be read-only.
+  * Service bundles:
+    * More cross-platform services: vmtoolsd, vgauthd, iodined, lightdm, wdm, sddm, collectd, fake-hwclock
+    * More Linux services: fstrim, vpp, hwclock
+    * More BSD services: adjkerntz, devpubd, ypxfr
+    * uhidd@*, moused@*, and webcamd@* services are now generated and started on demand as HID devices come and go.
+    * The non-instance uhidd, moused, and webcamd services have been removed.
+    * The zfsd service has been removed.
+    * The taiclock service is now named taiclockd in line with ntpd.
+      There is a new taiclock service that runs a TAICLOCK client.
+    * The anacron and entropy (a.k.a. random, urandom, and random_seed) services now run on a schedule.
+      These replace old entries in /etc/crontab on the BSDs, which can be commented out.
+  * Terminals:
+    * The ECMA48 input decoders now understand XTerm's/tmux's DECFNK 27 control sequences.
+    * The terminal emulator and ECMA48 input decoders now understand DECFNK 42 and 43 for F23 and F24, a long-standing XTerm extension.
+    * The terminal emulator and ECMA48 input decoders now apply the ECMA-48:1986 rules for zero parameters in control sequences.
+    * The ECMA48 decoder now implements ISO 8613-3 style suboptions for CSI control sequences.
+      * These suboptions can be used for DECFNK and FNK, as an extension, to add modifiers.
+      * They can be used for mouse reports.
+      * They can be used for SGR 38 and SGR 48.
+      * They can be used for SCO function keys, to add modifiers.
+    * The ECMA48 input decoder no longer implements an extension to SCO function keys.
+      It was too much of a conflict with CBT.
+    * The terminal emulator now supports an alternate screen buffer.
+    * console-terminal-emulator's teken, linux, and NetBSD console modes now allow application mode for the calculator and cursor keypads.
+    * SoftTerm and the termio and framebuffer realizers now implement DECSCNM to set light/dark screens.
+    * SoftTerm now implements REP.
+    * SoftTerm and console-control-sequence now implement the SGRs for overline, framed characters, and encircled characters.
+    * SoftTerm now handles combining characters.
+    * SoftTerm now sets no attributes on the erase cell (used by ED, EL, and scrolling).
+    * SoftTerm now supports the TeraTerm DEC private mode that changes the Escape key to send FS.
+      console-control-sequence has been given the ability to emit this control sequence.
+    * The various TUI programs will now take advantage of REP on some terminal types.
+    * console-docbook-xml-viewer makes more use of the default colour.
+    * console-docbook-xml-viewer now displays bullets on listitems and "or" symbols in argument groups.
+    * console-docbook-xml-viewer now indents note and literallayout elements.
+    * Some of the (non-ncurses) TUI programs now realize the default colour using the realized-upon terminal's default colour.
+    * console-termio-realizer now accounts for terminals such as rxvt that do not implement the interaction of reverse video and colour correctly.
+      (It's such a simple concept, which real terminals handled well; and yet every terminal emulator apart from Konsole gets it wrong.)
+      To do this, however, it cannot pass default colours through to the realized-upon terminal.
+    * console-termio-realizer now has widgets next to the VT area, for multiplexor switch comands and LEDs.
+    * There are some new conversion sequences in the romaji-x11.cin file.
+    * vc-get-tty now no longer sets the HOST environment variable.
+      This provides better interoperability with the Z shell, which handles HOST as a special shell variable.
+    * Keyboard maps have entries for most of the de facto standard keys.
+      * PS/2 HID realizers now support "Internet", "Office", and "Multimedia" keyboard scancodes.
+  * System tools:
+    * system-control now has ps, procstat, list-logins, and list-process-table subcommands.
+    * There is now a chdir-home command.
+    * There is now a nvt-client command.
+    * There is now a console-tty37-viewer command.
+    * There is now a login-envuidgid command, which sets up the same stuff as envuidgid, but prompts interactively for account information using PAM login authentication and a full-screen TUI and also sets the LOGNAME environment variable.
+      The login command is a thing of the past for virtual terminal login (of either flavour), like getty already has been since 1988.
+      This is also suitable for terminal login with directly attached (non-dialup, fixed speed and framing) serial/parallel real terminals (that are not museum pieces).
+    * There is now an unvis command.
+    * There is now a framebuffer-dump command.
+    * There is now a deb-systemd-invoke command.
+    * userenv-fromenv now respects the LOGNAME environment variable, enabling the use of multiple user accounts with different names but the same UIDs.
+    * All of the debug logging in service-manager is now switched off.
+      This has not been useful in development in some years and is just extraneous noise, that makes the logging rattle, on production systems.
+    * convert-systemd-units is slightly less aggressive about quoting in the files that it generates.
+    * convert-systemd-units now has a FIB setting that translates to setfib.
+    * convert-systemd-units now explicitly does not support %m.
+    * ifconfig now copes with some OpenBSD bugs, and prints IPv6 flags on OpenBSD.
+    * A bug that stopped ifconfig recognizing the no_radr flag has been fixed.
+    * login-banner has more escapes, for hostname, deployment, and location.
+      However, with the advent of login-envuidgid this tool has become less used.
+    * clearenv's --keep-term now preserves the TERMPATH and TERMINFO_DIRS variables as well.
+    * clearenv now has a --keep-uidgid option for preserving UID/GID/GIDLIST.
+    * klog-read and syslog-read now write the log data to their standard outputs, to be separable from their own error streams.
+    * emergency-login is now a separate binary because -static and -lpam do not mix.
+    * emergency-login now looks up "root" by name before looking up UID 0, preventing any confusion from the use of "root" and "toor" in NetBSD/FreeBSD.
+    * A bug in ucspi-socket-rules-check that prevented catch-all rules for IPv4 working has been fixed.
+      The bug caused it to fail closed, as if the rule did not exist.
+    * Because there are now more than three escape algorithms, the syntax of system-control escape has changed.
+  * Configuration:
+    * rc.conf amalgamation now includes OpenBSD /etc/hostname.* network interface settings files.
+  * Documentation:
+    * Generated HTML manual pages now no longer risk overlapping Guide pages.
+    * There is now a user-vt manual page documenting the user-space virtual terminal directory structure.
+    * console-keyboard-map is now on its own manual page.
+    * user-vt-realizer-configuration is now on its own manual page.
+    * convert-fstab-services is now on its own manual page.
+    * convert-systemd-units is now on its own manual page.
+    * DocBook XML manual pages are now installed by the packages.
+  * Packages:
+    * There is now a nosh-smf-shims package.
+    * The missing ncftpbatch per-user service source file is now packaged.
+    * FreeBSD packaging now works for at least FreeBSD version 13.
+      The manifest file syntax on the pkg-create(8) manual page is a falsehood, with most items given in the wrong file format and some with the wrong names, and much of how this works is educated guesswork and experimentation.
+    * There is now NetBSD packaging.
+      NetBSD's pkg_create(1) manual page does not even document two of its input files (which cause complaints by pkg_info(1) if omitted) at all.
+  * Miscellany:
+    * Z shell completions now find service bundles in a lot more places.
+    * Z shell completions are now in the site-functions directory.
+    * safe_execvp() now treats ENOTDIR as an uniniteresting error.
+    * There is now a mechanism for overriding the compiler auto-detection if one really must.
+ 
+ -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.com>  Thu, 31 Jul 2025 12:34:10 +0100
 
+nosh (1.40) stable; urgency=low
+ 
   * More cross-platform services: ncftpspooler, twoftpd, twoftpd-anon, upmpdcli
   * More per-user services: ncftpbatch
   * More Linux services: mdevd, mdevd-rescan, mdevd-log
@@ -22,11 +140,11 @@ nosh (1.40) unstable; urgency=medium
   * "false" as the login shell now signifies a non-personal user account.
   * There is now a nosh-net-tools-shims package for ifconfig, supplanting the net-tools package.
   * There is now an erase-machine-id command, which is now used at shutdown by the machine-id service.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.com>  Sun, 17 Mar 2019 17:32:48 +0000
 
-nosh (1.39) unstable; urgency=medium
-
+nosh (1.39) stable; urgency=low
+ 
   * More Linux services: rngd
   * More common services: isnsd, isnsdd, usbmux, VBoxBalloonCtrl
   * console-input-method now also passes through the consumer keys for session actions.
@@ -59,11 +177,11 @@ nosh (1.39) unstable; urgency=medium
     In particular, DECLRP is now fully supported.
   * convert-systemd-units now supports extra snippets files.
   * The ttylogin services for user-space virtual terminals no longer use vhangup(), which was causing a loop, or superfluously reset the terminal emulator and line discipline.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.com>  Tue, 22 Jan 2019 07:51:40 +0000
 
-nosh (1.38) unstable; urgency=medium
-
+nosh (1.38) stable; urgency=low
+ 
   * More Linux services: connman, ofono, dundee, cntlm, minidlna, powertop, alsa-state, alsa-restore, unattended-upgrade-shutdown, apt-daily-update, apt-daily-upgrade
   * More common services: LCDd, phpsessionclean, tinysshd
   * More common per-user services: watchman
@@ -101,11 +219,11 @@ nosh (1.38) unstable; urgency=medium
     * There is now a console-minput-method-control command.
   * The Guide now documents some choices of keyboard maps, fonts, and input methods for user-space virtual terminals.
   * The Guide now documents how head #0 is set up.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.com>  Mon, 17 Sep 2018 08:15:46 +0100
 
-nosh (1.37) unstable; urgency=medium
-
+nosh (1.37) stable; urgency=low
+ 
   * per-user-manager now accepts an optional listening FIFO open file descriptor, which it will use to listen for user-wide state change commands.
     system-control --user halt/normal/sysinit/&c. now send commands to this FIFO rather than sending signals to the wrong process.
   * The user-services@ service bundles now use fifo-listen and create the per-user-manager/ subdirectory.
@@ -122,11 +240,11 @@ nosh (1.37) unstable; urgency=medium
   * The user virtual terminal multiplexor and terminal emulator services now run under the aegides of their own dedicated user accounts, rather than daemon.
   * There is now a user-vt-realizer group to which users can be added to grant them realizer access to system-wide user virtual terminals.
   * Building now works even if one has a CDPATH.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.com>  Thu, 15 Feb 2018 10:47:07 +0000
 
-nosh (1.36) unstable; urgency=medium
-
+nosh (1.36) stable; urgency=low
+ 
   * The per-user dbus services are now renamed to dbus-daemon too.
     This was an oversight in 1.35.
   * More common services: jenkins, apacheds, udisks2
@@ -149,11 +267,11 @@ nosh (1.36) unstable; urgency=medium
   * There is now a login-update-utmpx command.
   * There is now a freebsd-shims package, which is not installed on FreeBSD.
   * The linux-utmp service has been removed, as it is redundant with the utx service.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Mon, 11 Dec 2017 06:37:18 +0000
 
-nosh (1.35) unstable; urgency=medium
-
+nosh (1.35) stable; urgency=low
+ 
   * External configuration import now handles /etc/network/interfaces .
   * A bug that resulted in the ldconfig service being disabled has been fixed.
   * There is now a nosh-logrotate-shims package for packages that erroneously think that they use logrotate.
@@ -166,11 +284,11 @@ nosh (1.35) unstable; urgency=medium
   * unbound is now a common service.
   * clamd is now clamav, which now uses the undocumented --foreground option and receives its listening control socket already opened.
   * freshclam uses the undocumented --foreground option as well.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 10 Sep 2017 08:36:17 +0100
 
-nosh (1.34) unstable; urgency=medium
-
+nosh (1.34) stable; urgency=low
+ 
   * More Linux services: udev-settle, nft
   * More common services: opentsdb, caddy, apache2, wso2server, system-installer-log
   * More targets: finish-update, finish-install
@@ -192,11 +310,11 @@ nosh (1.34) unstable; urgency=medium
   * SoftTerm now implements Xterm's extensions to DECSCUSR.
   * console-fb-realizer now renders multiple cursor shapes.
   * convert-systemd-units now can convert socket definitions that list multiple listening sockets of a single type, for the benefit of gpg-agent.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Tue, 04 Jul 2017 15:58:34 +0100
 
-nosh (1.33) unstable; urgency=medium
-
+nosh (1.33) stable; urgency=low
+ 
   * The Debian packaging install/deinstall scripts have been modified with a view to making Arch packaging possible.
   * There is now a console-multiplexor-control command.
   * convert-systemd-units now more closely matches what the package installation/deinstallation scripts do, fixing some problems with various services that have underscores and pluses in their names.
@@ -215,11 +333,11 @@ nosh (1.33) unstable; urgency=medium
   * MySQL 5.7 or newer is now the requirement of the mysql service bundle autogeneration.
   * More common services: gopher6d, redis-runtime, redis-server, redis-sentinel
   * Added local-seqpacket-socket-listen and local-seqpacket-socket-accept .
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sat, 08 Apr 2017 16:13:00 +0100
 
-nosh (1.32) unstable; urgency=medium
-
+nosh (1.32) stable; urgency=low
+ 
   * console-fb-realizer can now make use of FreeBSD ugen devices, in addition to uhid devices.
   * The --kernel-vt option of console-fb-realizer no longer takes an argument.
   * Services that use shell syntax such as "for" and "&&" now explicitly invoke the shell.
@@ -231,11 +349,11 @@ nosh (1.32) unstable; urgency=medium
   * The (unpackaged) Z Shell command-line completions have been improved.
   * system-manager now mounts the API filesystems correctly on systems where the Debian initramfs isn't doing that for it.
   * convert-systemd-units now properly handles control groups for services generated from templates and for services that specify "slices".
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 29 Jan 2017 19:49:22 +0000
 
-nosh (1.31) unstable; urgency=medium
-
+nosh (1.31) stable; urgency=low
+ 
   * The start/stop/reset subcommands of system-control now output colourized verbose mode messages.
   * The various cleanuucp/cleantmp/cleanX services are now intentionally more difficult to re-trigger.
     We don't want them re-triggered if the administrator simply starts the normal target a second time.
@@ -251,11 +369,11 @@ nosh (1.31) unstable; urgency=medium
   * The Debian service bundles use a slightly different Linux control group layout.
   * The pipe command has gained the ability to orphan or clean up the child process.
   * Presets now support wildmat-style character set wildcards.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 13 Jan 2017 22:09:29 +0000
 
-nosh (1.30) unstable; urgency=medium
-
+nosh (1.30) stable; urgency=low
+ 
   * More BSD services: blacklistd, ypldap
   * More common services: sendmail-relay-queue, sendmail-submission-queue, sendmail-smtp-relay, sendmail-smtp-submission, uwsgi-emperor, mpd, postgrey
   * The per-user dbus socket path has changed from "dbus/user_bus_socket" to "bus".
@@ -275,11 +393,11 @@ nosh (1.30) unstable; urgency=medium
   * Added a local-reaper command.
   * There is now a dummy netlink-datagram-socket-listen for the BSDs that always generates an address family error.
   * convert-systemd-units now generates service bundles that use install -d rather than separate mkdir and chown.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 30 Dec 2016 09:47:53 +0000
 
-nosh (1.29) unstable; urgency=medium
-
+nosh (1.29) stable; urgency=low
+ 
   * Fixed a documentation bug for set-service-env and print-service-env.
   * Fixed a bug in the rcctl symbolic link in the nosh-openbsd-shims package.
   * The kdm@tty7 and kdm@ttyv6 services have been discontinued in favour of a plain kdm.
@@ -299,11 +417,11 @@ nosh (1.29) unstable; urgency=medium
   * The fs-servers target is now implemented, and there is a new multi-user-pre target.
   * The make-utx-log service has been removed, as it is redundant with the utx service.
   * TAI64 calculations know about the leap second at 2016-12-31 23:59:60 +0000.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 04 Nov 2016 21:09:13 +0000
 
-nosh (1.28) unstable; urgency=low
-
+nosh (1.28) stable; urgency=low
+ 
   * Added a machineenv command.
   * More BSD services: make-utx-log, openbsd-cron
   * More cross-platform services: kmod@fuse, mogstored, mogilefsd, kamailio, NetworkManager-dispatcher, clamd, pcscd
@@ -331,11 +449,11 @@ nosh (1.28) unstable; urgency=low
   * rcctl is now in an openbsd-shims package, which is not installed on OpenBSD.
   * The service manager can now be run under OpenBSD rc.
   * The various -listen tools can now merge into an existing set of systemd LISTEN_FDS file descriptors; and convert-systemd-units makes use of this for multi-listener sockets.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 08 Apr 2016 16:08:32 +0100
 
-nosh (1.27) unstable; urgency=low
-
+nosh (1.27) stable; urgency=low
+ 
   * The user-services conversion tool now deletes old per-user service directories in /etc/service-bundles/services.
   * More cross-platform services: opal-prd, chronyd, freshclam, miredo, miredo-server, celery-beat, celery@example, owfs, owftpd, owhttpd, owserver, fam
   * More Linux services: pommed, kpropd, dmraid, lvm
@@ -343,11 +461,11 @@ nosh (1.27) unstable; urgency=low
   * There is now an stf configuration import.
   * The mysql service no longer attempts to run a script that Oracle does not supply on BSD.
   * The Guide now has some cheatsheets.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 08 Apr 2016 15:50:23 +0100
 
-nosh (1.26) unstable; urgency=low
-
+nosh (1.26) stable; urgency=low
+ 
   * The postgresql service now incorporates Linux OOM Killer avoidance measures.
   * More BSD services: defaultroute, chkprintcap, tcsd, syscache, slpd, iocage, mdns, mdnsresponderposix, automount, automountd, autounmountd, pc-sysconfig, php-fpm
   * More Linux services: kmod@efivarfs
@@ -361,11 +479,11 @@ nosh (1.26) unstable; urgency=low
   * Some special-case bodges in the build and import subsystems have been replaced by a general-use service bundle aliasing mechanism.
   * convert-systemd-units now creates orderings relevant to enclosing mount service bundles for ListenFIFO and AF_LOCAL ListenStream/ListenDatagram sockets.
   * convert-systemd-units now substitutes the machine ID for %m.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 21 Feb 2016 21:17:32 +0000
 
-nosh (1.25) unstable; urgency=low
-
+nosh (1.25) stable; urgency=low
+ 
   * More BSD services: netwait, nfsserver, populate@var, pcdm, gptboot
   * More cross-platform services: rtadvd, virecover
   * There is now an ip6addrctl configuration import.
@@ -377,11 +495,11 @@ nosh (1.25) unstable; urgency=low
   * Fixed problems where BSD conversion code was being erroneously invoked on Linux.
   * There are new nosh-run- packages for klog and freedesktop-system-bus.
   * The nosh-run- packages for klog and local-syslog now provide the Debian virtual package names system-log-daemon and linux-kernel-log-daemon.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 31 Jan 2016 20:03:31 +0000
 
-nosh (1.24) unstable; urgency=low
-
+nosh (1.24) stable; urgency=low
+ 
   * Made BSD keymap conversion more compatible, at the expense of true combining umlaut support.  This fixes a problem with the Brazilian keyboard layout.
   * BSD systemd unit conversion now makes use of the rtprio and idprio chain loading commands.
   * More BSD services: bsd-serial-init, static_arp@, static_ndp@, static-networking, ipfw, ipfw0, pefs, entropy, ip6addrctl@ipv4, ip6addrctl@ip6, hald, mdmfs@-tmp, mdmfs@-var
@@ -392,11 +510,11 @@ nosh (1.24) unstable; urgency=low
   * There is now an rfcomm_pppd configuration import.
   * More cross-platform services: dbmail-imapd, dbmail-pop3d
   * More Linux services: sudo
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Tue, 12 Jan 2016 08:25:37 +0000
 
-nosh (1.23) unstable; urgency=low
-
+nosh (1.23) stable; urgency=low
+ 
   * More Linux services: gpsd
   * More cross-platform services: darkice
   * More use of %p in socket service source files.
@@ -406,11 +524,11 @@ nosh (1.23) unstable; urgency=low
   * console-fb-realizer now processes HID reports (keyboard, tablet, and mouse) from USB HID devices.
   * Linux binary build has switched to clang++ version 3.8.0 .
   * Keyboard maps have changed key numberings for a slightly saner arrangement and to include more extended keys.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Wed, 16 Dec 2015 18:35:04 +0000
 
-nosh (1.22) unstable; urgency=low
-
+nosh (1.22) stable; urgency=low
+ 
   * console-fb-realizer now displays a mouse sprite when mouse reports are turned on with the appropriate terminal control sequences and a mouse input event device is supplied.
   * console keyboard maps are no longer pre-packaged, but are converted on the fly from whatever is pre-installed.
   * There is now a debian-shims package containing invoke-rc.d and update-rc.d .
@@ -423,21 +541,21 @@ nosh (1.22) unstable; urgency=low
   * The user-dbus service now works on FreeBSD.
   * convert-fstab-services can now deal with records that are missing the rw/ro/sw setting.
   * The configuration system now encompasses OpenLDAP services.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Wed, 28 Oct 2015 21:34:13 +0000
 
-nosh (1.21) unstable; urgency=low
-
+nosh (1.21) stable; urgency=low
+ 
   * The geli and gdbe fstab conversion is now completely implemented.
   * The terminal emulator and the fb realizer now support mouse input.
   * More BSD services: kmod@ipdivert, kmod@nfscl, nfsclient
   * More Linux services: mdadm
   * FreeBSD 9 and PC-BSD Warden jails are now imported.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 04 Oct 2015 17:01:13 +0100
 
-nosh (1.20) unstable; urgency=low
-
+nosh (1.20) stable; urgency=low
+ 
   * The ways in which old-style runlevels passed from the boot loader are mapped to targets have been consolidated into one place: the system-control init subcommand.
     * As a consequence telinit has been simplified.
     * Most of the things that Linux boot loaders like to use, like "single" and "5", are now recognized.
@@ -457,20 +575,20 @@ nosh (1.20) unstable; urgency=low
   * There is now a System 5/BSD compatibility shutdown command.
   * There is now a geom configuration import.
   * There is now a sppp configuration import.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 27 Sep 2015 17:41:20 +0100
 
-nosh (1.19) unstable; urgency=low
-
+nosh (1.19) stable; urgency=low
+ 
   * More Linux services: udisks, upower, colord, colord-sane
   * There are now monitored-fsck, monitor-fsck-progress, and plug-and-play-event-handler commands.
   * The missing escape() shell function in the postinst for nosh-run-kernel-vt has been fixed.
   * There is now a console-clear command, with an alias clear_console to replace the bash command by that name.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sat, 22 Aug 2015 15:44:10 +0100
 
-nosh (1.18) unstable; urgency=low
-
+nosh (1.18) stable; urgency=low
+ 
   * More Linux services: udev, udev-trigger-add@subsystems, udev-trigger-add@devices, busybox-mdev, busybox-mdev-rescan
   * There is now a svcadm shim for system-control.
   * convert-fstab-services deals with remote filesystem types better.
@@ -482,11 +600,11 @@ nosh (1.18) unstable; urgency=low
   * The hardwired mount@* and fsck@* service bundles have been removed.
   * There are new nosh-run- packages for udev, busybox mdev and local-syslog.
   * The new nosh-run-system-manager package pre-packages running system-manager as process #1 on Linux.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sat, 11 Jul 2015 17:42:42 +0100
 
-nosh (1.17) unstable; urgency=low
-
+nosh (1.17) stable; urgency=low
+ 
   * More BSD services: pflogd, kmod@pflog, pfsync, kmod@pfsync, kmod@pf, savecore, crashinfo, kmod@fuse, ipmon, ipfs, ddb, unbound, nfsd
   * More cross-platform services: org.cups.cups-cancel, ccpd, dumpauto, swapauto, swaplate, ntpdate, ddclient
   * Fixed a problem with the maintscript for nosh-run-user-vt that was adding bogus /etc/ttys entries.
@@ -500,11 +618,11 @@ nosh (1.17) unstable; urgency=low
   * The get and set subcommands for rcctl have been implemented.
   * convert-systemd-units now handles RuntimeDirectory= .
   * There's the start of a system for importing external configuration information.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sat, 20 Jun 2015 19:30:27 +0100
 
-nosh (1.16) unstable; urgency=low
-
+nosh (1.16) stable; urgency=low
+ 
   * The BSD packages now have maintainer scripts.
   * There is now a nosh-run-virtualbox-guest package that incorporates running VirtualBox Guest Additions.
   * More cross-platform services: pulseaudio
@@ -512,11 +630,11 @@ nosh (1.16) unstable; urgency=low
   * update-rc.d now translates enable to preset.
   * The functionality of convert-{rcconf,ttys,systemd}-presets is now rolled into preset.
   * There is now a service-is-enabled command.  system-control now has is-enabled that chains to it.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 31 May 2015 17:57:21 +0100
 
-nosh (1.15) unstable; urgency=low
-
+nosh (1.15) stable; urgency=low
+ 
   * The build system now generates service bundles in a different way.  This should have no effect on the result, but builds will be more correct and result in fewer gratuitous bundle rewrites.
   * More cross-platform services: mailcatcher, gitlab-unicorn, gitlab-sidekiq, monit, vixiedhcp6d@, vixiedhcp4d@, nginx, fcgiwrap
   * service-status now prints a timestamp before the relative time.
@@ -530,11 +648,11 @@ nosh (1.15) unstable; urgency=low
   * convert-systemd-units recognizes shell variable expansions and employs the shell.
   * The qmail and exim4 SMTP Relay/Submission services now share a socket definition, and have been renamed.
   * The nosh-systemd-services package is now named nosh-run-via-systemd for consistency with the other nosh-run-* package names.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Mon, 25 May 2015 15:53:03 +0100
 
-nosh (1.14) unstable; urgency=low
-
+nosh (1.14) stable; urgency=low
+ 
   * More cross-platform services: deluged, deluge-web, multilog@, sissylog@, openvpn@, wpa_supplicant, polkitd, timedated, localed, hostnamed, NetworkManager, ModemManager, sickbeard, plexmediaserver, ossec@dbd, ossec@agentlessd, ossec@csyslogd, ossec@execd, ossec@agentd, ossec@logcollector, ossec@syscheckd, ossec@maild, ossec@analysisd, ossec@remoted, ossec@monitord
   * The cups.service service has been renamed org.cups.cups.service to follow the service names used by CUPS packaging.
   * Fixed a bug in foreground and background where nested separators on the right-hand-side were not being preserved.
@@ -546,11 +664,11 @@ nosh (1.14) unstable; urgency=low
   * Fixed a bug in service-is-{ok,up} where a non-int exception was being thrown.
   * Fixed a bug in convert-systemd-units where it wasn't handling quoted whitespace in settings that take lists.
   * openstack-swift@.service is now swift@.service to make the usernames shorter.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sat, 09 May 2015 16:58:02 +0100
 
-nosh (1.13) unstable; urgency=low
-
+nosh (1.13) stable; urgency=low
+ 
   * Fixed a problem with handling "left+right" vt fonts that was being conflated with italic/oblique.
   * On BSD console-fb-realizer now attempts to maintain the keyboard LED state.  Note that a quirk of VirtualBox, which employs subtle tricks like secret extra keypresses to keep host and guest keyboard lock states in synch, will make it seem like nothing is happening.
   * SoftTerm now supports RIS and DECSTR.
@@ -561,11 +679,11 @@ nosh (1.13) unstable; urgency=low
   * service-dt-scanner no longer defaults to using input-activated log services.
   * Added a convert-fstab-services command.
   * SoftTerm now does VT52x sideways scrolling.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Thu, 09 Apr 2015 19:39:47 +0100
 
-nosh (1.12) unstable; urgency=low
-
+nosh (1.12) stable; urgency=low
+ 
   * setuidgid-fromenv now recognizes the GIDLIST environment variable.
   * vcsa output from console-terminal-emulator is now optional.
   * Fixed an endianness bug in console-fb-realizer when reading fonts wider than 8 pixels.
@@ -578,11 +696,11 @@ nosh (1.12) unstable; urgency=low
   * SoftTerm now implements DECSCPP and DECSNLS and a console-resize command has been added.
   * console-multiplexor now no longer wakes up for changes to background virtual terminal display buffers.
   * console-multiplexor now only re-creates symbolic links when the foreground virtual terminal is switched, rather than on every update.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Mon, 12 Jan 2015 13:26:31 +0000
 
-nosh (1.11) unstable; urgency=low
-
+nosh (1.11) stable; urgency=low
+ 
   * SoftTerm now produces some more (largely dummy) DEC VT status report control sequences.
   * convert-ttys-presets now supports the new onifconsole flag.
   * envdir now has a --chomp option.
@@ -591,11 +709,11 @@ nosh (1.11) unstable; urgency=low
   * console-ncurses-renderer has changed name to console-ncurses-realizer.
   * Added a console-fb-realizer, a console-multiplexer, and a console-convert-kbdmap command.
   * SoftTerm now supports switchable background colour erase.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 21 Dec 2014 18:42:40 +0000
 
-nosh (1.10) unstable; urgency=low
-
+nosh (1.10) stable; urgency=low
+ 
   * Fixed a bug with ExecStartPre in one-shot services that was causing mount@.service to fail.
   * Added a --id option to login-process and support for the UTmpIdentifier setting in convert-systemd-units.
   * envuidgid now can optionally set the supplementary groups in the GIDLIST environment variable.
@@ -616,22 +734,22 @@ nosh (1.10) unstable; urgency=low
   * vc-get-tty no longer supports the 6th Edition UNIX historical mechanism of using unadorned terminal numbers.
   * system-control now has load-kernel-module and unload-kernel-module verbs that devolve to the platform-specific commands.
   * Fixed a clangism with static_cast<> and casting away const.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sun, 16 Nov 2014 00:59:26 +0000
 
-nosh (1.9) unstable; urgency=low
-
+nosh (1.9) stable; urgency=low
+ 
   * More BSD services: utx, apm, apmd, auditdistd, ctld, ftp-proxy, kfd, swapon, pwcheck, mrouted, rpcstatd, rpclockd, keyserv, iscsid, iscsictl, sysctl, yppasswdd, ypxfrd, ypupdated, ypset, ypserv, pppoed, msgs, vixiecron
   * More Linux services: keyboard-setup, console-setup, pppd-dns, kerneloops, acpid
   * A new rcctl shim supplies limited compatibility with the OpenBSD tool.
   * Added convert-rcconf-presets for converting /etc/rc.conf{,.local} .
   * Added a vc-ncurses-io command.
   * The motd service is now named motd-dynamic, per the Debian init.d script of that name, allowing a BSD service to be named motd.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Sat, 18 Oct 2014 15:24:17 +0100
 
-nosh (1.8) unstable; urgency=low
-
+nosh (1.8) stable; urgency=low
+ 
   * More cross-platform services: keepalived, dovecot, wicd
   * More BSD services: ccd, timed, mroute4d, mroute6d, rwhod, ipxrouted, nfscbd, nfsuserd, bootparams
   * system-control now has a built-in version subcommand.
@@ -640,21 +758,21 @@ nosh (1.8) unstable; urgency=low
   * Fixed a bug in the regular-services postrm script.
   * Fixed a bug that prevented the fastXYZ system V shims from being recognized.
   * Documented the nagios-check-service command.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Tue, 07 Oct 2014 23:17:56 +0100
 
-nosh (1.7) unstable; urgency=low
-
+nosh (1.7) stable; urgency=low
+ 
   * More cross-platform services: rsync nscd securelevel svnserve postgresql vsftpd
   * More BSD services: swapauto swaplate quota routed route6d kadmind kpasswdd gssd hastd rarpd zfs zfs-jailed lpd bsnmpd watchdogd rtsold auditd amd
   * Added a convert-systemd-presets command.
   * Added a nagios-check-service command.
   * convert-systemd-units now relates termination and kill signals to Restart=on-abort and Restart=on-failure.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Mon, 14 Jul 2014 12:40:15 +0100
 
-nosh (1.6) unstable; urgency=low
-
+nosh (1.6) stable; urgency=low
+ 
   * Added compatibility initctl, invoke-rc.d, and update-rc.d commands.
   * The chkconfig command is now restricted to a specific functionality subset.
   * service-show now displays orderings and dependencies.
@@ -663,11 +781,11 @@ nosh (1.6) unstable; urgency=low
   * convert-systemd-units now handles some directives that can be repeated.
   * Added foreground, background, and userenv commands.
   * system-control now performs a DOWN-wait-KILL procedure on services that take more than 60 seconds to stop.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 25 Apr 2014 12:44:37 +0100
 
-nosh (1.5) unstable; urgency=low
-
+nosh (1.5) stable; urgency=low
+ 
   * The mount and fsck services are now generated from templates.
   * Template instance names can now optionally be escaped.
   * The TCP and UDP socket listeners now support SO_REUSEPORT and IP_FREEBIND/IP_BINDANY.
@@ -681,11 +799,11 @@ nosh (1.5) unstable; urgency=low
   * The system manager now attempts to properly shut down the service manager and its logger at system shutdown.
   * The service manager now stops+unloads services and exits when it is sent a termination signal.
   * There is now a bundled Guide.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Wed, 26 Mar 2014 22:20:17 +0000
 
-nosh (1.4) unstable; urgency=low
-
+nosh (1.4) stable; urgency=low
+ 
   * More BSD services: background-fsck, mixer@, uhidd@, and powerd
   * More Linux services: kmod@
   * More cross-platform services: fsck-root
@@ -696,41 +814,41 @@ nosh (1.4) unstable; urgency=low
   * Fixed an ordering problem in system-control start/stop that was hanging shutdown.
   * Documented the pause command.
   * system-manager now invokes system-control start with the --verbose option.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Mon, 03 Mar 2014 23:23:19 +0000
 
-nosh (1.3) unstable; urgency=low
-
+nosh (1.3) stable; urgency=low
+ 
   * Fixed an array bounds problem in "system-control status".
   * The convert-systemd-units tool now supports templatization.
   * Regular sockets and services now come with accompanying log services, all built from a template.
   * Split local-socket-listen into local-stream-socket-listen and local-datagram-socket-listen.
   * Renamed local-socket-accept to local-stream-socket-accept.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Wed, 19 Feb 2014 15:00:42 +0000
 
-nosh (1.2) unstable; urgency=low
-
+nosh (1.2) stable; urgency=low
+ 
   * Made vc-reset-tty also set up default tabstops.
   * Corrected some documentation.
   * Removed an errant debugging statement from pty-run.
   * Enhanced the convert-systemd-units tool.
   * Added a bunch of pre-packaged system targets, sysinit services, regular services, and regular sockets.
   * Added udp-socket-listen.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Fri, 14 Feb 2014 08:18:28 +0000
 
-nosh (1.1) unstable; urgency=low
-
+nosh (1.1) stable; urgency=low
+ 
   * Added ucspi-socket-rules-check for checking access control rules for UCSPI-TCP and UCSPI-UNIX services.
   * Corrected the way that system-control start and stop were processing dependencies.
   * Fixed a compilation problem on FreeBSD 10.
   * Added a compatibility chkconfig command.
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Mon, 03 Feb 2014 08:43:22 +0000
 
-nosh (1.0) unstable; urgency=low
-
+nosh (1.0) stable; urgency=low
+ 
   * first version
-
+ 
  -- Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>  Tue, 28 Jan 2014 00:00:00 +0000

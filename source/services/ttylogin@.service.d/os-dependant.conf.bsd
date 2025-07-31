@@ -1,7 +1,6 @@
 ## **************************************************************************
 ## For copyright and licensing terms, see the file named COPYING.
 ## **************************************************************************
+# vim: set filetype=conf:
 
 [Service]
-# login has a timeout and it is enabled.
-TTYPrompt=yes

@@ -1,1 +1,8 @@
-Shims for Debian utilities
+ This package provides shims for Debian service and system management commands.
+  * chkconfig, invoke-rc.d, update-rc.d, deb-systemd-invoke
+ .
+ The shims simply invoke native service management commands.
+ .
+ It satisfies any packages that depend from init-system-helpers in order to obtain these commands.
+ .
+ This chkconfig is a shim for the original IRIX command of that name, and thus is not syntax compatible with the chkconfig found in non-Debian-related Linux-based operating systems such as CentOS.

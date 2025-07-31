@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Create all /dev tmpfiles per boot-time configuration
+DefaultDependencies=false
+
+[Service]
+Type=oneshot
+ExecStart=tmpfiles --create --boot --prefix=/dev
+# This is a pseudo-daemon that does not have a running process.
+RemainAfterExit=yes
+Restart=no
+
+[Install]
+StoppedBy=shutdown.target
+WantedBy=sysinit.target

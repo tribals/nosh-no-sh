@@ -17,7 +17,7 @@ open_my_control_group_info(
 	const char * const name
 ) {
 	FileDescriptorOwner self_cgroup_fd(open_read_at(AT_FDCWD, name));
-	if (0 > self_cgroup_fd.get()) return 0;
+	if (0 > self_cgroup_fd.get()) return nullptr;
 	FileStar self_cgroup(fdopen(self_cgroup_fd.get(), "r"));
 	if (self_cgroup) self_cgroup_fd.release();
 	return self_cgroup.release();

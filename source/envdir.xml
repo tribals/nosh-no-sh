@@ -19,11 +19,11 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>envdir</command> 
-<arg choice='opt'>--ignore-nodir</arg> 
-<arg choice='opt'>--full</arg> 
-<arg choice='opt'>--chomp</arg> 
-<arg choice='req'><replaceable>dir</replaceable></arg> 
+<command>envdir</command>
+<arg choice='opt'>--ignore-nodir</arg>
+<arg choice='opt'>--full</arg>
+<arg choice='opt'>--chomp</arg>
+<arg choice='req'><replaceable>dir</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -31,7 +31,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>envdir</command> is a chain-loading utility that sets and unsets environment variables according to the files in <replaceable>dir</replaceable> and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>envdir</command> is a chain-loading utility that sets and unsets environment variables according to the files in <replaceable>dir</replaceable> and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>

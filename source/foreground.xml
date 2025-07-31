@@ -24,17 +24,17 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>foreground</command> 
-<arg choice='opt'>--separator <replaceable>alt-sep</replaceable></arg> 
-<arg choice='req'><replaceable>left-prog</replaceable></arg> 
-<arg choice='req'>;</arg> 
+<command>foreground</command>
+<arg choice='opt'>--separator <replaceable>alt-sep</replaceable></arg>
+<arg choice='req'><replaceable>left-prog</replaceable></arg>
+<arg choice='req'>;</arg>
 <arg choice='req'><replaceable>right-prog</replaceable></arg>
 </cmdsynopsis>
 <cmdsynopsis>
-<command>background</command> 
-<arg choice='opt'>--separator <replaceable>alt-sep</replaceable></arg> 
-<arg choice='req'><replaceable>left-prog</replaceable></arg> 
-<arg choice='req'>&#x0026;</arg> 
+<command>background</command>
+<arg choice='opt'>--separator <replaceable>alt-sep</replaceable></arg>
+<arg choice='req'><replaceable>left-prog</replaceable></arg>
+<arg choice='req'>&#x0026;</arg>
 <arg choice='req'><replaceable>right-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>

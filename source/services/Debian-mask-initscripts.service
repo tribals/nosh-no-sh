@@ -12,21 +12,21 @@ Description=This is a way of masking out stuff that Debian package maintainer sc
 #       checkroot-bootclean.sh	-- moot, cleans /run and /tmp
 #       checkroot.sh	-- fsck@-.service
 #       hwclock.sh	-- adjkerntz
-#       hwclockfirst.sh	-- 
-#       killprocs	-- 
+#       hwclockfirst.sh	--
+#       killprocs	--
 #       motd		-- External configuration import handles this.
 #       mountall-bootclean.sh	-- moot, cleans /run and /tmp
 #       mountall.sh	-- mount all is not the way we do things
 #       mountdevsubfs.sh	-- API PTS filesystem mounted as standard by the system manager
 #       mountkernfs.sh	-- API proc/sys/run/local filesystems mounted as standard by the system manager
 #       mountnfs-bootclean.sh	-- moot, cleans /run and /tmp
-#       mountnfs.sh	-- 
+#       mountnfs.sh	--
 #       rmnologin	-- moot, removes /run/nologin
 #       screen-cleanup	-- tmpfiles
 #       umountfs	-- unmount all is not the way we do things
-#       umountnfs.sh	-- 
+#       umountnfs.sh	--
 #       umountroot	-- mount@-.service
-#       x11-common	-- 
+#       x11-common	--
 
 [Service]
 # This intentionally runs pause.

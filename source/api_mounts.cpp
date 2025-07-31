@@ -86,6 +86,7 @@ static const struct iovec proc[] = {
 	FSTYPE,				MAKE_IOVEC("procfs"),
 	FSPATH,				MAKE_IOVEC("/proc"),
 };
+#if defined(__FreeBSD__) || defined(__DragonFlyBSD__)
 static const struct iovec dev[] = {
 	FSTYPE,				MAKE_IOVEC("devfs"),
 	FSPATH,				MAKE_IOVEC("/dev"),
@@ -94,6 +95,7 @@ static const struct iovec fds[] = {
 	FSTYPE,				MAKE_IOVEC("fdescfs"),
 	FSPATH,				MAKE_IOVEC("/dev/fd"),
 };
+#endif
 static const struct iovec run[] = {
 	FSTYPE,				MAKE_IOVEC("tmpfs"),
 	FSPATH,				MAKE_IOVEC("/run"),
@@ -108,7 +110,7 @@ static const struct iovec shm[] = {
 
 #define MAKE_DATA(x) # x, const_cast<struct iovec *>(x), sizeof x/sizeof *x
 
-static const struct api_mount data[] = 
+static const struct api_mount data[] =
 {
 #if defined(__LINUX__) || defined(__linux__)
 	{	MAKE_DATA(proc),	0U,	MS_NOSUID|MS_NODEV				},
@@ -123,8 +125,10 @@ static const struct api_mount data[] =
 	{	MAKE_DATA(shm),		0U,	MS_NOSUID|MS_STRICTATIME|MS_NOEXEC|MS_NODEV	},
 #else
 	{	MAKE_DATA(proc),	0U,	MNT_NOSUID					},
+#if defined(__FreeBSD__) || defined(__DragonFlyBSD__)
 	{	MAKE_DATA(dev),		0U,	MNT_NOSUID|MNT_NOEXEC				},
 	{	MAKE_DATA(fds),		0U,	MNT_NOSUID|MNT_NOEXEC				},
+#endif
 	{	MAKE_DATA(run),		0U,	MNT_NOSUID					},
 	{	MAKE_DATA(shm),		0U,	MNT_NOSUID|MNT_NOEXEC				},
 #endif

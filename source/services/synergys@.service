@@ -9,6 +9,7 @@ Description=Synergy Server Daemon for user %i
 EnvironmentDirectory=env
 ExecStart=%p --no-daemon --enable-crypto
 User=%i
+SessionLeader=yes
 
 [Install]
 WantedBy=workstation.target

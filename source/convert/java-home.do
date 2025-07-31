@@ -35,12 +35,24 @@ match() {
 	return $#
 }
 
-if test -e /usr/local/etc/jvms
-then
+found=
+for etc in /usr/local/etc /etc /usr/pkg/etc
+do
+	if ! test -e ${etc}/jvms
+	then
+		redo-ifcreate ${etc}/jvms
+		continue;
+	fi
+	redo-ifchange ${etc}/jvms
+	if ! test -d ${etc}/jvms
+	then
+		continue;
+	fi
+	found=${etc}
+
 	# We obtain our information from the javavms database.
 
-	redo-ifchange /usr/local/etc/jvms
-	list_jvms() { sed ${extended_regexp} -e 's/[[:space:]]*#.*$//' /usr/local/etc/jvms ; }
+	list_jvms() { sed ${extended_regexp} -e 's/[[:space:]]*#.*$//' ${etc}/jvms ; }
 	find_jvm() {
 		list_jvms |
 		while read -r j
@@ -74,79 +86,101 @@ then
 		tail -n 1
 	}
 	default_jvm() { list_jvms | head -n 1 ; }
-elif test -d /usr/lib/jvm/
-then
-	# We obtain our information from the Debian JVM directory.
 
-	redo-ifcreate /usr/local/etc/jvms
-	redo-ifchange /usr/lib/jvm /usr/lib/jvm/*/bin
-	list_jvms() { ls -d -- /usr/lib/jvm/*/bin/java ; }
-	find_jvm() {
-		list_jvms |
-		while read -r j
-		do
-			n="`dirname \"$j\"`"
-			n="`dirname \"$n\"`"
-			n="`basename \"$n\"`"
-			o=
-			m=
-			case "$n" in
-			default-java)	
-				continue
-				;;
-			java-*-openjdk*)
-				o=native
-				m=openjdk
-				;;
-			java-*-gcj*)
-				o=native
-				m=gnu
-				;;
-			java-*-sun*)
-				o=native
-				m=sun
-				;;
-			java-*-oracle*)
-				o=native
-				m=oracle
-				;;
-			*)
-				continue
-				;;
-			esac
-			v="`version_of \"$n\"`"
-			match "$v" $1 || continue
-			match "$o" $2 || continue
-			match "$m" $3 || continue
-			echo "$j"
-		done |
-		sort -V |
-		tail -n 1
-	}
-	if j="`read_rc java_home`"
-	then
-		default_jvm() { printf "%s/bin/java" "`read_rc java_home`" ; }
-	elif test -x /usr/lib/jvm/default-java/bin/java
-	then
-		redo-ifchange /usr/lib/jvm/default-java/bin/java
-		default_jvm() { echo /usr/lib/jvm/default-java/bin/java ; }
-	elif test -x /usr/local/bin/java
-	then
-		redo-ifchange /usr/local/bin/java
-		default_jvm() { echo /usr/local/bin/java ; }
-	elif test -x /usr/bin/java
-	then
-		redo-ifcreate /usr/local/bin/java
-		redo-ifchange /usr/bin/java
-		default_jvm() { echo /usr/bin/java ; }
-	else
-		redo-ifcreate /usr/bin/java /usr/local/bin/java
-		default_jvm() { echo /bin/java ; }
-	fi
-else
+	break
+done
+
+if test -z "${found}"
+then
+	for lib in /usr/local/lib /usr/pkg/lib /usr/lib /lib
+	do
+		if ! test -e ${lib}/jvm
+		then
+			redo-ifcreate ${lib}/jvm
+			continue;
+		fi
+		redo-ifchange ${lib}/jvm
+		if ! test -d ${lib}/jvm
+		then
+			continue;
+		fi
+		found=${lib}
+
+		# We obtain our information from the Debian JVM directory.
+
+		redo-ifchange ${lib}/jvm/*/bin
+		list_jvms() { ls -d -- ${lib}/jvm/*/bin/java ; }
+		find_jvm() {
+			list_jvms |
+			while read -r j
+			do
+				n="`dirname \"$j\"`"
+				n="`dirname \"$n\"`"
+				n="`basename \"$n\"`"
+				o=
+				m=
+				case "$n" in
+				default-java)	
+					continue
+					;;
+				java-*-openjdk*)
+					o=native
+					m=openjdk
+					;;
+				java-*-gcj*)
+					o=native
+					m=gnu
+					;;
+				java-*-sun*)
+					o=native
+					m=sun
+					;;
+				java-*-oracle*)
+					o=native
+					m=oracle
+					;;
+				*)
+					continue
+					;;
+				esac
+				v="`version_of \"$n\"`"
+				match "$v" $1 || continue
+				match "$o" $2 || continue
+				match "$m" $3 || continue
+				echo "$j"
+			done |
+			sort -V |
+			tail -n 1
+		}
+		if j="`read_rc java_home`"
+		then
+			default_jvm() { printf "%s/bin/java" "`read_rc java_home`" ; }
+		elif test -x ${lib}/jvm/default-java/bin/java
+		then
+			redo-ifchange ${lib}/jvm/default-java/bin/java
+			default_jvm() { echo ${lib}/jvm/default-java/bin/java ; }
+		elif test -x /usr/local/bin/java
+		then
+			redo-ifchange /usr/local/bin/java
+			default_jvm() { echo /usr/local/bin/java ; }
+		elif test -x /usr/bin/java
+		then
+			redo-ifcreate /usr/local/bin/java
+			redo-ifchange /usr/bin/java
+			default_jvm() { echo /usr/bin/java ; }
+		else
+			redo-ifcreate /usr/bin/java /usr/local/bin/java
+			default_jvm() { echo /bin/java ; }
+		fi
+
+		break
+	done
+fi
+
+if test -z "${found}"
+then
 	# We obtain our information from rc.conf or fall back to a hardwired single JVM.
 
-	redo-ifcreate /usr/local/etc/jvms /usr/lib/jvm
 	if j="`read_rc java_home`"
 	then
 		find_jvm() { printf "%s/bin/java" "`read_rc java_home`" ; }

@@ -7,6 +7,7 @@ Description=IPv6 mroute daemon
 
 [Service]
 EnvironmentDirectory=env
+# FIXME: Should this be pim6dd?
 ExecStart=%p
 
 [Install]

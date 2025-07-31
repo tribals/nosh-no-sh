@@ -1,0 +1,31 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Swiss keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  002   '1'    '+'    nop    nop    '|'    '|'    nop    nop     O
+  003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
+  004   '3'    '*'    nop    nop    '#'    '#'    nop    nop     O
+  005   '4'    0xe7   nop    nop    '4'    0xe7   nop    nop     O
+  007   '6'    '&'    nop    nop    0xac   0xac   nop    nop     O
+  008   '7'    '/'    nop    nop    0xa6   0xa6   nop    nop     O
+  009   '8'    '('    esc    esc    0xde   0xde   esc    esc     O
+  010   '9'    ')'    gs     gs     '9'    ')'    gs     gs      O
+  011   '0'    '='    nop    nop    '0'    '='    nop    nop     O
+  012   '''    '?'    fs     fs     0xb4   0xb4   fs     fs      O
+  013   '^'    '`'    nop    nop    '~'    '~'    nop    nop     O
+  018   'e'    'E'    enq    enq    0x20ac 'E'    enq    enq     C
+  021   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
+  026   0xfc   0xe8   esc    esc    '['    0xdc   esc    esc     C
+  027   0xa8   '!'    gs     gs     ']'    ']'    gs     gs      O
+  039   0xf6   0xe9   nop    nop    0xf6   0xd6   nop    nop     C
+  040   0xe4   0xe0   nop    nop    '{'    0xc4   nop    nop     C
+  041   0xa7   0xb0   nop    nop    nop    nop    nop    nop     O
+  043   '$'    0xa3   rs     rs     '}'    '}'    rs     rs      O
+  044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
+  050   'm'    'M'    cr     cr     0xb5   0xb5   cr     cr      C
+  051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
+  052   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
+  053   '-'    '_'    us     us     '-'    '_'    us     us      O
+  086   '<'    '>'    nop    nop    '\'    '\'    nop    nop     O

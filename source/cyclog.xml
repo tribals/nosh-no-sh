@@ -19,10 +19,10 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>cyclog</command> 
-<arg choice='opt'>--max-file-size <replaceable>max-file-size</replaceable></arg> 
-<arg choice='opt'>--max-total-size <replaceable>max-total-size</replaceable></arg> 
-<arg choice='opt'>--margin <replaceable>margin</replaceable></arg> 
+<command>cyclog</command>
+<arg choice='opt'>--max-file-size <replaceable>max-file-size</replaceable></arg>
+<arg choice='opt'>--max-total-size <replaceable>max-total-size</replaceable></arg>
+<arg choice='opt'>--margin <replaceable>margin</replaceable></arg>
 <arg choice='req' rep='repeat'><replaceable>directories</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -45,6 +45,10 @@ It keeps a file descriptor open to each log directory for its lifetime, and acce
 Log directories can thus be renamed as it is running, and it will continue to use the original directory, wherever it is renamed to.
 </para>
 
+<para>
+For convenience, both <replaceable>max-file-size</replaceable> and <replaceable>max-total-size</replaceable> can comprise a number followed by a suffix <code>Gi</code>, <code>G</code>, <code>Mi</code>, <code>M</code>, <code>Ki</code>, or <code>k</code> denoting multipliers of 1073741824, 1000000000, 1048576, 1000000, 1024, and 1000 respectively.
+</para>
+
 <refsection id="LOGDIRECTORY" xreflabel="LOGDIRECTORY"><title>Log directory</title>
 
 <para>
@@ -52,7 +56,7 @@ A log directory is compatible with the log directories employed by daemontools' 
 It contains:
 </para>
 
-<itemizedlist> 
+<itemizedlist>
 
 <listitem>
 <para>
@@ -104,7 +108,7 @@ Thus no log data are lost, even if <command>cyclog</command> is shut down and re
 <refsection id="ROTATION" xreflabel="ROTATION"><title>Automatic log rotation</title>
 
 <para>
-<command>cyclog</command> performs automatic log rotation when it writes a linefeed within <replaceable>margin</replaceable> bytes of the maximum size (<replaceable>max-file-size</replaceable>) of the <filename>current</filename> file, when it is about to exceed that size, when it receives a <code>SIGALRM</code>, or when it finds an improperly written to disc <filename>current</filename> file at startup.  
+<command>cyclog</command> performs automatic log rotation when it writes a linefeed within <replaceable>margin</replaceable> bytes of the maximum size (<replaceable>max-file-size</replaceable>) of the <filename>current</filename> file, when it is about to exceed that size, when it receives a <code>SIGALRM</code>, or when it finds an improperly written to disc <filename>current</filename> file at startup.
 When recovering from an improperly finalized <filename>current</filename>, it simply renames it to a timestamped <filename>.u</filename> name.
 Otherwise, it renames it to a timestamped <filename>.u</filename> name, flushes it to disc, changes its permissions, and then renames it to a timestamped <filename>.s</filename> name.
 In both cases, it then creates a new <filename>current</filename> file.
@@ -113,7 +117,7 @@ The TAI64N timestamp of an old log file is the timestamp of when <command>cyclog
 
 <para>
 At log rotation, and also at startup, it checks to ensure that the total size of all log files in the directory does not exceed the maximum total size (<replaceable>max-total-size</replaceable>).
-(It only totals the sizes of <filename>current</filename> and old log files.  
+(It only totals the sizes of <filename>current</filename> and old log files.
 Other files, not managed or created by <command>cyclog</command>, are ignored.)
 If the total exceeds that maximum, it deletes each old log file with the numerically lowest name until either the total is less than the maximum or there is only the <filename>current</filename> file left.
 </para>
@@ -131,7 +135,7 @@ The amount of space allocated to all files may be, depending from the filesystem
 </refsection><refsection><title>Timestamps</title>
 
 <para>
-<command>cyclog</command> writes a timestamp at the beginning of every line written to <filename>current</filename>, which is the time when it processes the beginning of a line.  
+<command>cyclog</command> writes a timestamp at the beginning of every line written to <filename>current</filename>, which is the time when it processes the beginning of a line.
 This is slightly after it has read the beginning of that line.
 The timestamp is in TAI64N external form (16 hexadecimal digits of seconds and 8 hexadecimal digits of nanoseconds), which can be converted to human-readable form using <citerefentry><refentrytitle>tai64nlocal</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 </para>
@@ -180,7 +184,7 @@ daemontools' and daemontools-encore's <citerefentry><refentrytitle>multilog</ref
 </para>
 
 <para>
-See <ulink url="timestamps.html">the timestamps section of the <citetitle>nosh Guide</citetitle></ulink> for detailed information on the differences from daemontools, daemontools-encore, and other toolsets in how <command>cyclog</command> handles TAI.
+See <ulink url="timestamps.html">the <citetitle>timestamps</citetitle> section of the nosh Guide</ulink> for detailed information on the differences from daemontools, daemontools-encore, and other toolsets in how <command>cyclog</command> handles TAI.
 </para>
 
 </refsection><refsection><title>Author</title>

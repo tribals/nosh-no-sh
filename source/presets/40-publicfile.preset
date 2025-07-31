@@ -1,0 +1,28 @@
+#
+# Enable publicfile services
+#
+# This is not a systemd preset.
+# It goes in a special nosh system-manager preset directory.
+# It is used by the nosh-run-publicfile package in order to enable the services themselves.
+#
+
+enable	http6d.service
+enable	cyclog@http6d.service
+
+enable	https6d.service
+enable	cyclog@https6d.service
+
+enable	finger6d.service
+enable	cyclog@finger6d.service
+
+enable	nicname6d.service
+enable	cyclog@nicname6d.service
+
+enable	gopher6d.service
+enable	cyclog@gopher6d.service
+
+enable	gemini6d.service
+enable	cyclog@gemini6d.service
+
+enable	ftp4d.service
+enable	cyclog@ftp4d.service

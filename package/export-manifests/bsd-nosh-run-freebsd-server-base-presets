@@ -1,0 +1,4 @@
+50-FreeBSD-Server-Basic.preset
+90-freebsd-boot-essentials.preset
+90-bsd-boot-essentials.preset
+90-bsd-static-networking.preset

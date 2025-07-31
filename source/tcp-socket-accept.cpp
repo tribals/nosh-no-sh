@@ -15,6 +15,7 @@ For copyright and licensing terms, see the file named COPYING.
 #else
 #include <sys/event.h>
 #endif
+#include "kqueue_common.h"
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -79,14 +80,14 @@ reap (
 */
 
 void
-tcp_socket_accept ( 
+tcp_socket_accept (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	unsigned long connection_limit = 40U;
-	const char * localname = 0;
+	const char * localname(nullptr);
 	bool verbose(false);
 	bool keepalives(false);
 #if defined(IP_OPTIONS)
@@ -115,26 +116,20 @@ tcp_socket_accept (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 
 	const unsigned listen_fds(query_listen_fds_or_daemontools(envs));
 	if (1U > listen_fds) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "LISTEN_FDS", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "LISTEN_FDS");
 	}
 
 	ReserveSignalsForKQueue kqueue_reservation(SIGPIPE, SIGCHLD, 0);
@@ -142,21 +137,14 @@ tcp_socket_accept (
 
 	const int queue(kqueue());
 	if (0 > queue) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 
-	std::vector<struct kevent> p(listen_fds + 2);
+	std::vector<struct kevent> ip;
 	for (unsigned i(0U); i < listen_fds; ++i)
-		EV_SET(&p[i], LISTEN_SOCKET_FILENO + i, EVFILT_READ, EV_ADD, 0, 0, 0);
-	EV_SET(&p[listen_fds + 0], SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	EV_SET(&p[listen_fds + 1], SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	if (0 > kevent(queue, p.data(), listen_fds + 2, 0, 0, 0)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-		throw EXIT_FAILURE;
-	}
+		append_event(ip, LISTEN_SOCKET_FILENO + i, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	unsigned long connections(0);
 
@@ -166,14 +154,14 @@ tcp_socket_accept (
 			child_signalled = false;
 		}
 		for (unsigned i(0U); i < listen_fds; ++i)
-			EV_SET(&p[i], LISTEN_SOCKET_FILENO + i, EVFILT_READ, connections < connection_limit ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
-		const int rc(kevent(queue, p.data(), listen_fds, p.data(), listen_fds + 2, 0));
+			append_event(ip, LISTEN_SOCKET_FILENO + i, EVFILT_READ, connections < connection_limit ? EV_ENABLE : EV_DISABLE, 0, 0, nullptr);
+		struct kevent p[128];
+		const int rc(kevent(queue, ip.data(), ip.size(), p, sizeof p/sizeof *p, nullptr));
+		ip.clear();
 		if (0 > rc) {
 			if (EINTR == errno) continue;
 exit_error:
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, prog);
 		}
 		for (size_t i(0); i < static_cast<std::size_t>(rc); ++i) {
 			const struct kevent & e(p[i]);
@@ -181,7 +169,7 @@ exit_error:
 				handle_signal (e.ident);
 				continue;
 			} else
-			if (EVFILT_READ != e.filter) 
+			if (EVFILT_READ != e.filter)
 				continue;
 			const int l(static_cast<int>(e.ident));
 
@@ -198,7 +186,7 @@ exit_error:
 				goto exit_error;
 			}
 
-			const int child(fork());
+			const pid_t child(fork());
 			if (0 > child) {
 				const int error(errno);
 				std::fprintf(stderr, "%s: ERROR: %s\n", prog, std::strerror(error));
@@ -225,7 +213,7 @@ exit_error:
 			if (!no_kill_IP_options) {
 				switch (remoteaddr.ss_family) {
 					case AF_INET:
-						if (0 > setsockopt(s, IPPROTO_IP, IP_OPTIONS, 0, 0)) goto exit_error ;
+						if (0 > setsockopt(s, IPPROTO_IP, IP_OPTIONS, nullptr, 0)) goto exit_error ;
 						break;
 					default:
 						break;
@@ -250,7 +238,7 @@ exit_error:
 				{
 					const struct sockaddr_in & localaddr4(*reinterpret_cast<const struct sockaddr_in *>(&localaddr));
 					char port[64], ip[INET_ADDRSTRLEN];
-					if (0 == inet_ntop(localaddr4.sin_family, &localaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
+					if (nullptr == inet_ntop(localaddr4.sin_family, &localaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
 					snprintf(port, sizeof port, "%u", ntohs(localaddr4.sin_port));
 					envs.set("TCPLOCALIP", ip);
 					envs.set("TCPLOCALPORT", port);
@@ -260,15 +248,15 @@ exit_error:
 				{
 					const struct sockaddr_in6 & localaddr6(*reinterpret_cast<const struct sockaddr_in6 *>(&localaddr));
 					char port[64], ip[INET6_ADDRSTRLEN];
-					if (0 == inet_ntop(localaddr6.sin6_family, &localaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
+					if (nullptr == inet_ntop(localaddr6.sin6_family, &localaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
 					snprintf(port, sizeof port, "%u", ntohs(localaddr6.sin6_port));
 					envs.set("TCPLOCALIP", ip);
 					envs.set("TCPLOCALPORT", port);
 					break;
 				}
 				default:
-					envs.set("TCPLOCALIP", 0);
-					envs.set("TCPLOCALPORT", 0);
+					envs.set("TCPLOCALIP", nullptr);
+					envs.set("TCPLOCALPORT", nullptr);
 					break;
 			}
 			switch (remoteaddr.ss_family) {
@@ -276,7 +264,7 @@ exit_error:
 				{
 					const struct sockaddr_in & remoteaddr4(*reinterpret_cast<const struct sockaddr_in *>(&remoteaddr));
 					char port[64], ip[INET_ADDRSTRLEN];
-					if (0 == inet_ntop(remoteaddr4.sin_family, &remoteaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
+					if (nullptr == inet_ntop(remoteaddr4.sin_family, &remoteaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
 					snprintf(port, sizeof port, "%u", ntohs(remoteaddr4.sin_port));
 					envs.set("TCPREMOTEIP", ip);
 					envs.set("TCPREMOTEPORT", port);
@@ -286,21 +274,21 @@ exit_error:
 				{
 					const struct sockaddr_in6 & remoteaddr6(*reinterpret_cast<const struct sockaddr_in6 *>(&remoteaddr));
 					char port[64], ip[INET6_ADDRSTRLEN];
-					if (0 == inet_ntop(remoteaddr6.sin6_family, &remoteaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
+					if (nullptr == inet_ntop(remoteaddr6.sin6_family, &remoteaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
 					snprintf(port, sizeof port, "%u", ntohs(remoteaddr6.sin6_port));
 					envs.set("TCPREMOTEIP", ip);
 					envs.set("TCPREMOTEPORT", port);
 					break;
 				}
 				default:
-					envs.set("TCPREMOTEIP", 0);
-					envs.set("TCPREMOTEPORT", 0);
+					envs.set("TCPREMOTEIP", nullptr);
+					envs.set("TCPREMOTEPORT", nullptr);
 					break;
 			}
 			envs.set("TCPLOCALHOST", localname);
-			envs.set("TCPLOCALINFO", 0);
-			envs.set("TCPREMOTEHOST", 0);
-			envs.set("TCPREMOTEINFO", 0);
+			envs.set("TCPLOCALINFO", nullptr);
+			envs.set("TCPREMOTEHOST", nullptr);
+			envs.set("TCPREMOTEINFO", nullptr);
 
 			if (verbose)
 				std::fprintf(stderr, "%s: %u %s %s %s %s\n", prog, getpid(), q(envs, "TCPLOCALIP"), q(envs, "TCPLOCALPORT"), q(envs, "TCPREMOTEIP"), q(envs, "TCPREMOTEPORT"));

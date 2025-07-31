@@ -18,16 +18,16 @@ For copyright and licensing terms, see the file named COPYING.
 
 namespace {
 
-inline
-unsigned int
-OneIfZero (
-	const unsigned int v
-) {
-	return 0U == v ? 1U : v;
+inline unsigned int TranslateToDECModifiers(uint_fast8_t n) { return n + 1U; }
+inline uint_fast8_t TranslateFromDECModifiers(unsigned int n) { return n - 1U; }
+inline unsigned int TranslateFromDECCoordinates(unsigned int n) { return n - 1U; }
+inline uint16_t TranslateFromXTermButton(const uint16_t button) {
+	switch (button) {
+		case 1U:	return 2U;
+		case 2U:	return 1U;
+		default:	return button;
+	}
 }
-
-inline uint_fast8_t TranslateDECModifiers(unsigned int n) { return n - 1U; }
-inline unsigned int TranslateDECCoordinates(unsigned int n) { return n - 1U; }
 
 }
 
@@ -39,9 +39,10 @@ TUIInputBase::TUIInputBase(
 	const TerminalCapabilities & c,
 	FILE * f
 ) :
+	ECMA48Decoder::ECMA48ControlSequenceSink(),
 	caps(c),
 	utf8_decoder(*this),
-	ecma48_decoder(*this, false /* no control strings */, false /* no cancel */, false /* no 7-bit extensions */, caps.interix_function_keys, caps.rxvt_function_keys),
+	ecma48_decoder(*this, false /* no control strings */, false /* no cancel */, true /* 7-bit extensions */, caps.interix_function_keys, caps.rxvt_function_keys, caps.linux_function_keys),
 	in(f)
 {
 	if (0 <= tcgetattr_nointr(fileno(in), original_attr))
@@ -62,13 +63,64 @@ TUIInputBase::HandleInput(
 		utf8_decoder.Process(b[i]);
 }
 
-void 
+int
+TUIInputBase::QueryInputFD(
+) const {
+	return fileno(in);
+}
+
+void
 TUIInputBase::ProcessDecodedUTF8(
-	uint32_t character,
+	char32_t character,
 	bool decoder_error,
 	bool overlong
 ) {
 	ecma48_decoder.Process(character, decoder_error, overlong);
+}
+
+inline
+void
+TUIInputBase::UCS3(char32_t character)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->UCS3(character))
+			break;
+}
+
+inline
+void
+TUIInputBase::Accelerator(char32_t character)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->Accelerator(character))
+			break;
+}
+
+inline
+void
+TUIInputBase::MouseMove(uint_fast16_t n, uint_fast16_t v, uint8_t m)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->MouseMove(n, v, m))
+			break;
+}
+
+inline
+void
+TUIInputBase::MouseWheel(uint_fast8_t n, int_fast8_t v, uint_fast8_t m)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->MouseWheel(n, v, m))
+			break;
+}
+
+inline
+void
+TUIInputBase::MouseButton(uint_fast8_t n, uint_fast8_t v, uint_fast8_t m)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->MouseButton(n, v, m))
+			break;
 }
 
 void
@@ -76,102 +128,312 @@ TUIInputBase::ExtendedKeyFromControlSequenceArgs(
 	uint_fast16_t k,
 	uint_fast8_t default_modifier
 ) {
-	const uint_fast8_t m(TranslateDECModifiers(OneIfZero(argc > 1U ? args[1U] : default_modifier + 1U)));
-	for (unsigned n(OneIfZero(argc > 0U ? args[0U] : 0U)); n > 0U; --n)
-		ExtendedKey(k, m);
+	if (1U > QueryArgCount()) {
+		ExtendedKey(k, default_modifier);
+	} else
+	{
+		// Vanilla CSI sequences for extended keys never have subarguments, so we pre-convert multiple arguments to a single key in our extended form.
+		if (HasNoSubArgsFrom(0U))
+			CollapseArgsToSubArgs(0U);
+		// As an extension we permit multiple keys to be encoded in ISO 8613-3/ITU T.416 rep:mod form.
+		for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+			// These control sequences are transmitted with the old pre-ECMA-48:1986 non-ZDM semantics.
+			const uint_fast8_t m(TranslateFromDECModifiers(GetArgOneIfZeroThisIfEmpty(i,1U, TranslateToDECModifiers(default_modifier))));
+			for (unsigned n(GetArgOneIfZeroOrEmpty(i,0U)); n > 0U; --n)
+				ExtendedKey(k, m);
+		}
+	}
+}
+
+void
+TUIInputBase::ExtendedKeyFromFNKArgs(
+) {
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		const uint_fast8_t m(GetArgZeroIfEmpty(i,1U));
+		ExtendedKey(k,m);
+	}
+}
+
+void
+TUIInputBase::ConsumerKeyFromFNKArgs(
+) {
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		const uint_fast8_t m(GetArgZeroIfEmpty(i,1U));
+		ConsumerKey(k,m);
+	}
+}
+
+void
+TUIInputBase::FunctionKeyFromFNKArgs(
+) {
+	// As an extension we permit multiple keys and modifiers to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		const uint_fast8_t m(GetArgZeroIfEmpty(i,1U));
+		FunctionKey(k,m);
+	}
+}
+
+void
+TUIInputBase::XTermModifiedKey(
+	unsigned k,
+	uint_fast8_t modifier
+) {
+	switch (k) {
+		case 8U:	ExtendedKey(EXTENDED_KEY_BACKSPACE, modifier); break;
+		case 9U:	ExtendedKey(EXTENDED_KEY_TAB, modifier); break;
+		case 13U:	ExtendedKey(EXTENDED_KEY_PAD_ENTER, modifier); break;
+		case 27U:	ExtendedKey(EXTENDED_KEY_ESCAPE, modifier); break;
+		case 33U:	ExtendedKey(EXTENDED_KEY_PAD_EXCLAMATION, modifier); break;
+		case 35U:	ExtendedKey(EXTENDED_KEY_PAD_HASH, modifier); break;
+//		case 39U:	ExtendedKey(EXTENDED_KEY_PAD_APOSTROPHE, modifier); break;
+		case 40U:	ExtendedKey(EXTENDED_KEY_PAD_OPEN_BRACKET, modifier); break;
+		case 41U:	ExtendedKey(EXTENDED_KEY_PAD_CLOSE_BRACKET, modifier); break;
+		case 43U:	ExtendedKey(EXTENDED_KEY_PAD_PLUS, modifier); break;
+		case 44U:	ExtendedKey(EXTENDED_KEY_PAD_COMMA, modifier); break;
+		case 45U:	ExtendedKey(EXTENDED_KEY_PAD_MINUS, modifier); break;
+		case 46U:	ExtendedKey(EXTENDED_KEY_PAD_DELETE, modifier); break;
+		case 48U:	ExtendedKey(EXTENDED_KEY_PAD_INSERT, modifier); break;
+		case 49U:	ExtendedKey(EXTENDED_KEY_PAD_END, modifier); break;
+		case 50U:	ExtendedKey(EXTENDED_KEY_PAD_DOWN, modifier); break;
+		case 51U:	ExtendedKey(EXTENDED_KEY_PAD_PAGE_DOWN, modifier); break;
+		case 52U:	ExtendedKey(EXTENDED_KEY_PAD_LEFT, modifier); break;
+		case 53U:	ExtendedKey(EXTENDED_KEY_PAD_CENTRE, modifier); break;
+		case 54U:	ExtendedKey(EXTENDED_KEY_PAD_RIGHT, modifier); break;
+		case 55U:	ExtendedKey(EXTENDED_KEY_PAD_HOME, modifier); break;
+		case 56U:	ExtendedKey(EXTENDED_KEY_PAD_UP, modifier); break;
+		case 57U:	ExtendedKey(EXTENDED_KEY_PAD_PAGE_UP, modifier); break;
+		case 58U:	ExtendedKey(EXTENDED_KEY_PAD_COLON, modifier); break;
+//		case 59U:	ExtendedKey(EXTENDED_KEY_PAD_SEMICOLON, modifier); break;
+		case 60U:	ExtendedKey(EXTENDED_KEY_PAD_LESS, modifier); break;
+		case 61U:	ExtendedKey(EXTENDED_KEY_PAD_EQUALS, modifier); break;
+		case 62U:	ExtendedKey(EXTENDED_KEY_PAD_GREATER, modifier); break;
+//		case 63U:	ExtendedKey(EXTENDED_KEY_PAD_QUESTION, modifier); break;
+	}
+}
+
+void
+TUIInputBase::FunctionKeyFromDECFNKNumber(
+	unsigned k,
+	uint_fast8_t modifier
+) {
+	switch (k) {
+		case 1U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_PAD_HOME : EXTENDED_KEY_FIND, modifier); break;
+		case 2U:	ExtendedKey(EXTENDED_KEY_INSERT, modifier); break;
+		case 3U:	ExtendedKey(EXTENDED_KEY_DELETE, modifier); break;
+		case 4U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_PAD_END : EXTENDED_KEY_SELECT, modifier); break;
+		case 5U:	ExtendedKey(EXTENDED_KEY_PAGE_UP, modifier); break;
+		case 6U:	ExtendedKey(EXTENDED_KEY_PAGE_DOWN, modifier); break;
+		case 7U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_FIND : EXTENDED_KEY_HOME, modifier); break;
+		case 8U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_SELECT : EXTENDED_KEY_END, modifier); break;
+		case 11U:	FunctionKey(1U, modifier); break;
+		case 12U:	FunctionKey(2U, modifier); break;
+		case 13U:	FunctionKey(3U, modifier); break;
+		case 14U:	FunctionKey(4U, modifier); break;
+		case 15U:	FunctionKey(5U, modifier); break;
+		case 17U:	FunctionKey(6U, modifier); break;
+		case 18U:	FunctionKey(7U, modifier); break;
+		case 19U:	FunctionKey(8U, modifier); break;
+		case 20U:	FunctionKey(9U, modifier); break;
+		case 21U:	FunctionKey(10U, modifier); break;
+		case 23U:	FunctionKey(11U, modifier); break;
+		case 24U:	FunctionKey(12U, modifier); break;
+		case 25U:	FunctionKey(13U, modifier); break;
+		case 26U:	FunctionKey(14U, modifier); break;
+		case 28U:	FunctionKey(15U, modifier); break;
+		case 29U:	FunctionKey(16U, modifier); break;
+		case 31U:	FunctionKey(17U, modifier); break;
+		case 32U:	FunctionKey(18U, modifier); break;
+		case 33U:	FunctionKey(19U, modifier); break;
+		case 34U:	FunctionKey(20U, modifier); break;
+		case 35U:	FunctionKey(21U, modifier); break;
+		case 36U:	FunctionKey(22U, modifier); break;
+		case 42U:	FunctionKey(23U, modifier); break;	// XTerm extension
+		case 43U:	FunctionKey(24U, modifier); break;	// XTerm extension
+	}
 }
 
 void
 TUIInputBase::FunctionKeyFromDECFNKArgs(
-	uint_fast8_t default_modifier
 ) {
-	if (argc < 1U) return;
-	const unsigned k(OneIfZero(args[0U]));
-	const uint_fast8_t m(TranslateDECModifiers(OneIfZero(argc > 1U ? args[1U] : default_modifier + 1U)));
-	switch (k) {
-		case 1U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_PAD_HOME : EXTENDED_KEY_FIND, m); break;
-		case 2U:	ExtendedKey(EXTENDED_KEY_INSERT,m); break;
-		case 3U:	ExtendedKey(EXTENDED_KEY_DELETE,m); break;
-		case 4U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_PAD_END : EXTENDED_KEY_SELECT, m); break;
-		case 5U:	ExtendedKey(EXTENDED_KEY_PAGE_UP,m); break;
-		case 6U:	ExtendedKey(EXTENDED_KEY_PAGE_DOWN,m); break;
-		case 7U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_FIND : EXTENDED_KEY_HOME, m); break;
-		case 8U:	ExtendedKey(caps.linux_editing_keypad ? EXTENDED_KEY_SELECT : EXTENDED_KEY_END, m); break;
-		case 11U:	FunctionKey(1U,m); break;
-		case 12U:	FunctionKey(2U,m); break;
-		case 13U:	FunctionKey(3U,m); break;
-		case 14U:	FunctionKey(4U,m); break;
-		case 15U:	FunctionKey(5U,m); break;
-		case 17U:	FunctionKey(6U,m); break;
-		case 18U:	FunctionKey(7U,m); break;
-		case 19U:	FunctionKey(8U,m); break;
-		case 20U:	FunctionKey(9U,m); break;
-		case 21U:	FunctionKey(10U,m); break;
-		case 23U:	FunctionKey(11U,m); break;
-		case 24U:	FunctionKey(12U,m); break;
-		case 25U:	FunctionKey(13U,m); break;
-		case 26U:	FunctionKey(14U,m); break;
-		case 28U:	FunctionKey(15U,m); break;
-		case 29U:	FunctionKey(16U,m); break;
-		case 31U:	FunctionKey(17U,m); break;
-		case 32U:	FunctionKey(18U,m); break;
-		case 33U:	FunctionKey(19U,m); break;
-		case 34U:	FunctionKey(20U,m); break;
-		case 35U:	FunctionKey(21U,m); break;
-		case 36U:	FunctionKey(22U,m); break;
+	// Vanilla DECFNK never has subarguments, so we pre-convert multiple arguments to a single key in our extended form.
+	if (HasNoSubArgsFrom(0U))
+		CollapseArgsToSubArgs(0U);
+	// As an extension we permit multiple keys to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		// DECFNK is transmitted with the old pre-ECMA-48:1986 non-ZDM semantics.
+		const unsigned k(GetArgOneIfZeroOrEmpty(i,0U));
+		const uint_fast8_t m(TranslateFromDECModifiers(GetArgOneIfZeroOrEmpty(i,1U)));
+		if (27U == k) {
+			// DEC VT function key 14½ is a Harry Potter XTerm extension to DEC VT.
+			if (QuerySubArgCount(i) >= 3U)
+				XTermModifiedKey(GetArgZeroIfEmpty(i,2U),m);
+		} else
+			// Other than rxvt, terminals that send DECFNK for F1 to F5 really mean it.
+			// They send the SS3 sequences of PF1 to PF5 for F1 to F5.
+			FunctionKeyFromDECFNKNumber(k,m);
 	}
+}
+
+void
+TUIInputBase::FunctionKeyFromURxvtArgs(
+	uint_fast8_t default_modifier	///< As implied by the final character
+) {
+	// Vanilla rxvt never has subarguments, so we pre-convert multiple arguments to a single key in our extended form.
+	if (HasNoSubArgsFrom(0U))
+		CollapseArgsToSubArgs(0U);
+	// As an extension we permit multiple keys to be encoded in ISO 8613-3/ITU T.416 key:mod form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const unsigned k(GetArgZeroIfEmpty(i,0U));
+		if (QueryArgNull(i,1U)) {
+			// Vanilla rxvt encodes the modifiers in the final character.
+			const uint_fast8_t m(default_modifier);
+			switch (k) {
+				// Vanilla rxvt sends DECFNK for F1 to F5 rather than the SS3 sequences for the PF1 to PF5 keys.
+				case 11U:	if (0U == m) { ExtendedKey(EXTENDED_KEY_PAD_F1, m); break; } else [[clang::fallthrough]];
+				case 12U:	if (0U == m) { ExtendedKey(EXTENDED_KEY_PAD_F2, m); break; } else [[clang::fallthrough]];
+				case 13U:	if (0U == m) { ExtendedKey(EXTENDED_KEY_PAD_F3, m); break; } else [[clang::fallthrough]];
+				case 14U:	if (0U == m) { ExtendedKey(EXTENDED_KEY_PAD_F4, m); break; } else [[clang::fallthrough]];
+				case 15U:	if (0U == m) { ExtendedKey(EXTENDED_KEY_PAD_F5, m); break; } else [[clang::fallthrough]];
+				default:	FunctionKeyFromDECFNKNumber(k,m); break;
+#if 0 // These are handled by the default case.
+				case 17U:	FunctionKey(6U, m); break;
+				case 18U:	FunctionKey(7U, m); break;
+				case 19U:	FunctionKey(8U, m); break;
+				case 20U:	FunctionKey(9U, m); break;
+				case 21U:	FunctionKey(10U, m); break;
+#endif
+				// Vanilla rxvt crazily encodes level 2 shift in the function key number, assuming only 10 function keys.
+				case 23U:	FunctionKey(1U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 24U:	FunctionKey(2U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 25U:	FunctionKey(3U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 26U:	FunctionKey(4U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 28U:	FunctionKey(5U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 29U:	FunctionKey(6U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 31U:	FunctionKey(7U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 32U:	FunctionKey(8U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 33U:	FunctionKey(9U, m | INPUT_MODIFIER_LEVEL2); break;
+				case 34U:	FunctionKey(10U, m | INPUT_MODIFIER_LEVEL2); break;
+			}
+		} else
+		{
+			// Patched rxvt sends an explicit modifier subargument, generating DECFNK.
+			// It sends the SS3 sequences of PF1 to PF5 for F1 to F5.
+			const uint_fast8_t m(TranslateFromDECModifiers(GetArgOneIfZeroThisIfEmpty(i,1U,TranslateToDECModifiers(default_modifier))));
+			FunctionKeyFromDECFNKNumber(k,m);
+		}
+	}
+}
+
+void
+TUIInputBase::FunctionKeyFromSCOFNK(
+	unsigned k
+) {
+	// The caller has guaranteed that XTerm's extensions for PF1 to PF5 with modifiers has not reached here.
+	// Vanilla CSI sequences for SCO function keys never have arguments.
+	// They encode the modifiers in the key number.
+	uint_fast8_t m(0U);
+	// our extensions
+	if (k > 192U) {
+		m |= INPUT_MODIFIER_SUPER;
+		k -= 192U;
+	}
+	if (k > 96U) {
+		m |= INPUT_MODIFIER_GROUP2;
+		k -= 96U;
+	}
+	if (k > 48U) {
+		m |= INPUT_MODIFIER_LEVEL3;
+		k -= 48U;
+	}
+	// SCO
+	if (k > 24U) {
+		m |= INPUT_MODIFIER_CONTROL;
+		k -= 24U;
+	}
+	if (k > 12U) {
+		m |= INPUT_MODIFIER_LEVEL2;
+		k -= 12U;
+	}
+	FunctionKey(k,m);
 }
 
 void
 TUIInputBase::MouseFromXTerm1006Report(
 	bool press
 ) {
-	const unsigned flags(argc > 0U ? args[0U]: 0U);
-	const unsigned col(TranslateDECCoordinates(OneIfZero(argc > 1U ? args[1U] : 0U)));
-	const unsigned row(TranslateDECCoordinates(OneIfZero(argc > 2U ? args[2U] : 0U)));
+	// Vanilla mouse reports never have subarguments, so we pre-convert multiple arguments to a single report in our extended form.
+	if (HasNoSubArgsFrom(0U))
+		CollapseArgsToSubArgs(0U);
+	// As an extension we permit multiple reports to be encoded in ISO 8613-3/ITU T.416 flags:col:row form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const unsigned flags(GetArgZeroIfEmpty(i, 0U));
+		const unsigned col(TranslateFromDECCoordinates(GetArgOneIfZeroOrEmpty(i, 1U)));
+		const unsigned row(TranslateFromDECCoordinates(GetArgOneIfZeroOrEmpty(i, 2U)));
 
-	uint_fast8_t modifiers(0);
-	if (flags & 4U)
-		modifiers |= INPUT_MODIFIER_LEVEL2;
-	if (flags & 8U)
-		modifiers |= INPUT_MODIFIER_SUPER;
-	if (flags & 16U)
-		modifiers |= INPUT_MODIFIER_CONTROL;
+		uint_fast8_t modifiers(0);
+		if (flags & 4U)
+			modifiers |= INPUT_MODIFIER_LEVEL2;
+		if (flags & 8U)
+			modifiers |= INPUT_MODIFIER_SUPER;
+		if (flags & 16U)
+			modifiers |= INPUT_MODIFIER_CONTROL;
 
-	MouseMove(row,col,modifiers);
+		MouseMove(row,col,modifiers);
 
-	if (!(flags & 32U)) {
-		const uint_fast16_t button = (flags & 3U);
-		if (flags & 64U) {
-			// vim gets confused by wheel release events encoded this way, so a terminal should never send them.
-			// However, we account for receiving them, just in case.
-			if (press)
-				MouseWheel(button / 2U,button & 1U ? +1 : -1,modifiers);
-		} else
-			MouseButton(button,press,modifiers);
+		if (!(flags & 32U)) {
+			if (flags & 64U) {
+				// Terminals don't send wheel release events; vim gets confused by them when they are encoded this way.
+				// However, we allow for receiving them, just in case.
+				const uint_fast16_t wheel(flags & 3U);
+				if (0U == wheel) {
+					if (press)
+						MouseWheel(0U,-1,modifiers);
+				} else
+				if (1U == wheel) {
+					if (press)
+						MouseWheel(0U,+1,modifiers);
+				}
+			} else
+			{
+				const uint_fast16_t button(flags & 3U);
+				if (3U != button)
+					MouseButton(TranslateFromXTermButton(button),press,modifiers);
+			}
+		}
 	}
 }
 
 void
 TUIInputBase::MouseFromDECLocatorReport(
 ) {
-	const unsigned event(argc > 0U ? args[0U]: 0U);
-	const unsigned buttons(argc > 1U ? args[1U]: 0U);
-	const unsigned row(TranslateDECCoordinates(OneIfZero(argc > 2U ? args[2U] : 0U)));
-	const unsigned col(TranslateDECCoordinates(OneIfZero(argc > 3U ? args[3U] : 0U)));
+	// Vanilla locator reports never have subarguments, so we pre-convert multiple arguments to a single report in our extended form.
+	if (HasNoSubArgsFrom(0U))
+		CollapseArgsToSubArgs(0U);
+	// As an extension we permit multiple reports to be encoded in ISO 8613-3/ITU T.416 event:buttons:row:col form.
+	for (std::size_t i(0U); i < QueryArgCount(); ++i) {
+		const unsigned event(GetArgZeroIfEmpty(i, 0U));
+		const unsigned buttons(GetArgZeroIfEmpty(i, 1U));
+		const unsigned row(TranslateFromDECCoordinates(GetArgOneIfZeroOrEmpty(i, 2U)));
+		const unsigned col(TranslateFromDECCoordinates(GetArgOneIfZeroOrEmpty(i, 3U)));
 
-	uint_fast8_t modifiers(0);
+		static_cast<void>(buttons);
 
-	MouseMove(row,col,modifiers);
+		uint_fast8_t modifiers(0);
 
-	if (event > 1U && event < 10U) {
-		const unsigned decoded(event - 2U);
-		MouseButton(decoded / 2U,!(decoded & 1U),modifiers);
-	} else
-	if (event > 11U && event < 20U) {
-		// This is an extension to the DEC protocol.
-		const unsigned decoded(event - 12U);
-		MouseWheel(decoded / 2U,decoded & 1U ? +1 : -1,modifiers);
+		MouseMove(row,col,modifiers);
+
+		if (event > 1U && event < 10U) {
+			const unsigned decoded(event - 2U);
+			MouseButton(decoded / 2U,!(decoded & 1U),modifiers);
+		} else
+		if (event > 11U && event < 20U) {
+			// This is an extension to the DEC protocol.
+			const unsigned decoded(event - 12U);
+			MouseWheel(decoded / 2U,decoded & 1U ? +1 : -1,modifiers);
+		}
 	}
 }
 
@@ -179,8 +441,15 @@ void
 TUIInputBase::PrintableCharacter(
 	bool error,
 	unsigned short shift_level,
-	uint_fast32_t character
+	char32_t character
 ) {
+	if (12U == shift_level) {
+		if ('A' <= character && character <= 'Z')
+			FunctionKey(character - 'A' + 1U,0);
+		else
+		{
+		}
+	} else
 	if (10U == shift_level) {
 		// The Interix system has no F0 ('0') and omits 'l' for some reason.
 		if ('0' <  character && character <= '9')
@@ -195,7 +464,8 @@ TUIInputBase::PrintableCharacter(
 		if ('m' <= character && character <= 'z')
 			FunctionKey(character - 'm' + 47U,0);
 		else
-			;
+		{
+		}
 	} else
 	if (3U == shift_level) {
 		if (caps.rxvt_function_keys) switch (character) {
@@ -228,7 +498,7 @@ TUIInputBase::PrintableCharacter(
 			case 'E':	ExtendedKey(EXTENDED_KEY_CENTRE,0); break;
 			case 'F':	ExtendedKey(EXTENDED_KEY_END,0); break;
 			case 'H':	ExtendedKey(EXTENDED_KEY_HOME,0); break;
-			case 'I':	ExtendedKey(EXTENDED_KEY_PAD_TAB,0); break;
+			case 'I':	ExtendedKey(EXTENDED_KEY_TAB,0); break;
 			case 'M':	ExtendedKey(EXTENDED_KEY_PAD_ENTER,0); break;
 			case 'P':	ExtendedKey(EXTENDED_KEY_PAD_F1,0); break;
 			case 'Q':	ExtendedKey(EXTENDED_KEY_PAD_F2,0); break;
@@ -250,59 +520,65 @@ skip_dec:		;
 }
 
 void
-TUIInputBase::ControlCharacter(uint_fast32_t character)
+TUIInputBase::ControlCharacter(char32_t character)
 {
-	switch (character) {
-		default:		UCS3(character); break;
-		// We have sent the right DECBKM and XTerm private mode sequences to ensure that these are the case.
-		case 0x00000008:	ExtendedKey(EXTENDED_KEY_BACKSPACE,0); break;
-		case 0x0000000A:	ExtendedKey(EXTENDED_KEY_RETURN_OR_ENTER,INPUT_MODIFIER_CONTROL); break;
-		case 0x0000000D:	ExtendedKey(EXTENDED_KEY_RETURN_OR_ENTER,0); break;
-		case 0x0000007F:	ExtendedKey(EXTENDED_KEY_BACKSPACE,INPUT_MODIFIER_CONTROL); break;
-	}
+	UCS3(character);
 }
 
 void
 TUIInputBase::EscapeSequence(
-	uint_fast32_t character,
-	char /*last_intermediate*/
+	char32_t character,
+	char32_t /*first_intermediate*/
 ) {
 	Accelerator(character);
 }
 
 void
 TUIInputBase::ControlSequence(
-	uint_fast32_t character,
-	char last_intermediate,
-	char first_private_parameter
+	char32_t character,
+	char32_t last_intermediate,
+	char32_t first_private_parameter
 ) {
-	// Finish the final argument, using the relevant defaults.
-	FinishArg(0U); 
-
 	// Enact the action.
 	if (NUL == last_intermediate) {
 		if (NUL == first_private_parameter) {
-			if (caps.sco_function_keys) {
+			// XTerm's Backtab, and extensions for Enter and PF1 to PF5 with modifiers, use CSI; and overlap SCO function keys.
+			// SCOFNK sequences never have modifiers, so we detect the lack of subarguments.
+			// For best results, simply avoid SCO function keys.
+			if ((caps.sco_function_keys || caps.teken_function_keys) && (1U > QueryArgCount())) {
 				static const char other[9] = "@[<]^_'{";
-				// The SCO system has no F0 ('L').
-				if ('L' <  character && character <= 'Z') {
-					FunctionKey(character - 'L', 0);
+				// The SCOFNK system has no F0 ('L').
+				if ('L' == character)
+					;
+				else
+				// teken does not use SCOFNK for F1 ('M') to F12 ('X'); only genuine SCO Unix Multiscreen does.
+				if (caps.sco_function_keys
+				&& ('L' <  character && character <= 'P')
+				) {
+					FunctionKeyFromSCOFNK(character - 'L');
+					goto skip_dec;
+				} else
+				// teken realigns with SCO at Level2+F1 ('Y')
+				if ('Y' <= character && character <= 'Z') {
+					FunctionKeyFromSCOFNK(character - 'L');
 					goto skip_dec;
 				} else
 				if ('a' <= character && character <= 'z') {
-					FunctionKey(character - 'a' + 15U, 0);
+					FunctionKeyFromSCOFNK(character - 'a' + 15U);
 					goto skip_dec;
 				} else
-				if (const char * p = 0x20 < character && character < 0x80 ? std::strchr(other, static_cast<char>(character)) : 0) {
-					FunctionKey(p - other + 41U, 0);
+				if (const char * p = 0x20 < character && character < 0x80 ? std::strchr(other, static_cast<char>(character)) : nullptr) {
+					FunctionKeyFromSCOFNK(p - other + 41U);
 					goto skip_dec;
 				} else
-					;
+				{
+				}
 			}
 			if (caps.rxvt_function_keys) switch (character) {
-				case '$':	FunctionKeyFromDECFNKArgs(INPUT_MODIFIER_LEVEL2); goto skip_dec;
-				case '^':	FunctionKeyFromDECFNKArgs(INPUT_MODIFIER_CONTROL); goto skip_dec;
-				case '@':	FunctionKeyFromDECFNKArgs(INPUT_MODIFIER_LEVEL2|INPUT_MODIFIER_CONTROL); goto skip_dec;
+				case '~':	FunctionKeyFromURxvtArgs(0U); goto skip_dec;
+				case '$':	FunctionKeyFromURxvtArgs(INPUT_MODIFIER_LEVEL2); goto skip_dec;
+				case '^':	FunctionKeyFromURxvtArgs(INPUT_MODIFIER_CONTROL); goto skip_dec;
+				case '@':	FunctionKeyFromURxvtArgs(INPUT_MODIFIER_CONTROL|INPUT_MODIFIER_LEVEL2); goto skip_dec;
 				case 'a':	ExtendedKeyFromControlSequenceArgs(EXTENDED_KEY_UP_ARROW, INPUT_MODIFIER_LEVEL2); goto skip_dec;
 				case 'b':	ExtendedKeyFromControlSequenceArgs(EXTENDED_KEY_DOWN_ARROW, INPUT_MODIFIER_LEVEL2); goto skip_dec;
 				case 'c':	ExtendedKeyFromControlSequenceArgs(EXTENDED_KEY_RIGHT_ARROW, INPUT_MODIFIER_LEVEL2); goto skip_dec;
@@ -326,7 +602,7 @@ TUIInputBase::ControlSequence(
 				case 'S':	ExtendedKeyFromControlSequenceArgs(EXTENDED_KEY_PAD_F4); break;
 				case 'T':	ExtendedKeyFromControlSequenceArgs(EXTENDED_KEY_PAD_F5); break;
 				case 'Z':	ExtendedKeyFromControlSequenceArgs(EXTENDED_KEY_BACKTAB); break;
-				case '~':	FunctionKeyFromDECFNKArgs(0U); break;
+				case '~':	FunctionKeyFromDECFNKArgs(); break;
 			}
 skip_dec: 		;
 		} else
@@ -334,15 +610,436 @@ skip_dec: 		;
 			case 'M':	MouseFromXTerm1006Report(true); break;
 			case 'm':	MouseFromXTerm1006Report(false); break;
 		} else
-			;
+		{
+		}
 	} else
-	if ('&' == last_intermediate) switch (character) {
-/* DECLRP */	case 'w':	MouseFromDECLocatorReport(); break;
+	if ('&' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+/* DECLRP */		case 'w':	MouseFromDECLocatorReport(); break;
+		} else
+		{
+		}
 	} else
-		;
+	if (' ' == last_intermediate) {
+		if (NUL == first_private_parameter) switch (character) {
+			case 'W':	FunctionKeyFromFNKArgs(); break;
+		} else
+		if ('?' == first_private_parameter) switch (character) {
+			case 'W':	ExtendedKeyFromFNKArgs(); break;
+		} else
+		if ('=' == first_private_parameter) switch (character) {
+			case 'W':	ConsumerKeyFromFNKArgs(); break;
+		} else
+		{
+		}
+	} else
+	{
+	}
 }
 
 void
-TUIInputBase::ControlString(uint_fast32_t /*character*/)
+TUIInputBase::ControlString(char32_t /*character*/)
 {
 }
+
+void
+TUIInputBase::ConsumerKey(uint_fast16_t k, uint_fast8_t m)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->ConsumerKey(k, m))
+			break;
+}
+
+void
+TUIInputBase::ExtendedKey(uint_fast16_t k, uint_fast8_t m)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->ExtendedKey(k, m))
+			break;
+}
+
+void
+TUIInputBase::FunctionKey(uint_fast16_t k, uint_fast8_t m)
+{
+	for (std::list<EventHandler*>::const_iterator p(handlers.begin()), e(handlers.end()); p != e; ++p)
+		if ((*p)->FunctionKey(k, m))
+			break;
+}
+
+/* The handler classes ******************************************************
+// **************************************************************************
+*/
+
+bool TUIInputBase::EventHandler::ConsumerKey(uint_fast16_t, uint_fast8_t) { return false; }
+bool TUIInputBase::EventHandler::ExtendedKey(uint_fast16_t, uint_fast8_t) { return false; }
+bool TUIInputBase::EventHandler::FunctionKey(uint_fast16_t, uint_fast8_t) { return false; }
+bool TUIInputBase::EventHandler::UCS3(char32_t) { return false; }
+bool TUIInputBase::EventHandler::Accelerator(char32_t) { return false; }
+bool TUIInputBase::EventHandler::MouseMove(uint_fast16_t, uint_fast16_t, uint8_t) { return false; }
+bool TUIInputBase::EventHandler::MouseWheel(uint_fast8_t, int_fast8_t, uint_fast8_t) { return false; }
+bool TUIInputBase::EventHandler::MouseButton(uint_fast8_t, uint_fast8_t, uint_fast8_t) { return false; }
+
+// Seat of the class
+TUIInputBase::EventHandler::EventHandler(TUIInputBase & i) : input(i) { input.handlers.insert(input.handlers.end(), this); }
+TUIInputBase::EventHandler::~EventHandler() { input.handlers.remove(this); }
+
+bool
+TUIInputBase::CalculatorKeypadToPrintables::ExtendedKey(
+	uint_fast16_t k,
+	uint_fast8_t m
+) {
+	switch (k) {
+		default:				return EventHandler::ExtendedKey(k, m);
+		case EXTENDED_KEY_PAD_SLASH:		GenerateUCS3('/'); return true;
+		case EXTENDED_KEY_PAD_ASTERISK:		GenerateUCS3('*'); return true;
+		case EXTENDED_KEY_PAD_MINUS:		GenerateUCS3('-'); return true;
+		case EXTENDED_KEY_PAD_PLUS:		GenerateUCS3('+'); return true;
+		case EXTENDED_KEY_PAD_EQUALS_AS400:
+		case EXTENDED_KEY_PAD_EQUALS:		GenerateUCS3('='); return true;
+		case EXTENDED_KEY_PAD_COMMA:		GenerateUCS3(','); return true;
+		case EXTENDED_KEY_PAD_000:		GenerateUCS3('0'); [[clang::fallthrough]];
+		case EXTENDED_KEY_PAD_00:		GenerateUCS3('0'); GenerateUCS3('0'); return true;
+		case EXTENDED_KEY_PAD_THOUSANDS_SEP:	GenerateUCS3(','); return true;
+		case EXTENDED_KEY_PAD_DECIMAL_SEP:
+		case EXTENDED_KEY_PAD_DECIMAL:		GenerateUCS3('.'); return true;
+		case EXTENDED_KEY_PAD_CURRENCY_UNIT:	GenerateUCS3(0x0000A4); return true;
+		case EXTENDED_KEY_PAD_CURRENCY_SUB:	GenerateUCS3(0x0000A2); return true;
+		case EXTENDED_KEY_PAD_OPEN_BRACKET:	GenerateUCS3('['); return true;
+		case EXTENDED_KEY_PAD_OPEN_BRACE:	GenerateUCS3('{'); return true;
+		case EXTENDED_KEY_PAD_CLOSE_BRACKET:	GenerateUCS3(']'); return true;
+		case EXTENDED_KEY_PAD_CLOSE_BRACE:	GenerateUCS3('}'); return true;
+		case EXTENDED_KEY_PAD_A:		GenerateUCS3('A'); return true;
+		case EXTENDED_KEY_PAD_B:		GenerateUCS3('B'); return true;
+		case EXTENDED_KEY_PAD_C:		GenerateUCS3('C'); return true;
+		case EXTENDED_KEY_PAD_D:		GenerateUCS3('D'); return true;
+		case EXTENDED_KEY_PAD_E:		GenerateUCS3('E'); return true;
+		case EXTENDED_KEY_PAD_F:		GenerateUCS3('F'); return true;
+		case EXTENDED_KEY_PAD_XOR:
+		case EXTENDED_KEY_PAD_CARET:		GenerateUCS3('^'); return true;
+		case EXTENDED_KEY_PAD_PERCENT:		GenerateUCS3('%'); return true;
+		case EXTENDED_KEY_PAD_LESS:		GenerateUCS3('<'); return true;
+		case EXTENDED_KEY_PAD_GREATER:		GenerateUCS3('<'); return true;
+		case EXTENDED_KEY_PAD_ANDAND:		GenerateUCS3('&'); [[clang::fallthrough]];
+		case EXTENDED_KEY_PAD_AND:		GenerateUCS3('&'); return true;
+		case EXTENDED_KEY_PAD_OROR:		GenerateUCS3('|'); [[clang::fallthrough]];
+		case EXTENDED_KEY_PAD_OR:		GenerateUCS3('|'); return true;
+		case EXTENDED_KEY_PAD_COLON:		GenerateUCS3(':'); return true;
+		case EXTENDED_KEY_PAD_HASH:		GenerateUCS3('#'); return true;
+		case EXTENDED_KEY_PAD_SPACE:		GenerateUCS3(SPC); return true;
+		case EXTENDED_KEY_PAD_AT:		GenerateUCS3('@'); return true;
+		case EXTENDED_KEY_PAD_EXCLAMATION:	GenerateUCS3('!'); return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::CalculatorKeypadToPrintables::CalculatorKeypadToPrintables(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::CalculatorKeypadToPrintables::~CalculatorKeypadToPrintables() {}
+
+bool
+TUIInputBase::WheelToKeyboard::MouseWheel(
+	uint_fast8_t wheel,
+	int_fast8_t value,
+	uint_fast8_t modifiers
+) {
+	switch (wheel) {
+		default:	return EventHandler::MouseWheel(wheel, value, modifiers);
+		case 0U:
+			while (value < 0) {
+				GenerateExtendedKey(EXTENDED_KEY_UP_ARROW, 0U);
+				++value;
+			}
+			while (0 < value) {
+				GenerateExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U);
+				--value;
+			}
+			return true;
+		case 1U:
+			while (value < 0) {
+				GenerateExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U);
+				++value;
+			}
+			while (0 < value) {
+				GenerateExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U);
+				--value;
+			}
+			return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::WheelToKeyboard::WheelToKeyboard(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::WheelToKeyboard::~WheelToKeyboard() {}
+
+bool
+TUIInputBase::GamingToCursorKeypad::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return EventHandler::UCS3(character);
+		case 'W': case 'w':	GenerateExtendedKey(EXTENDED_KEY_UP_ARROW, 0U); return true;
+		case 'S': case 's':	GenerateExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U); return true;
+		case 'A': case 'a':	GenerateExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U); return true;
+		case 'D': case 'd':	GenerateExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U); return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::GamingToCursorKeypad::GamingToCursorKeypad(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::GamingToCursorKeypad::~GamingToCursorKeypad() {}
+
+bool
+TUIInputBase::CalculatorToEditingKeypad::ExtendedKey(
+	uint_fast16_t k,
+	uint_fast8_t m
+) {
+	switch (k) {
+		default:	return EventHandler::ExtendedKey(k,m);
+		// We explicitly do not translate EXTENDED_KEY_PAD_ENTER into EXTENDED_KEY_RETURN_OR_ENTER.
+		case EXTENDED_KEY_PAD_INSERT:		GenerateExtendedKey(EXTENDED_KEY_INSERT,m); return true;
+		case EXTENDED_KEY_PAD_DELETE:		GenerateExtendedKey(EXTENDED_KEY_DELETE,m); return true;
+		case EXTENDED_KEY_PAD_LEFT:		GenerateExtendedKey(EXTENDED_KEY_LEFT_ARROW,m); return true;
+		case EXTENDED_KEY_PAD_RIGHT:		GenerateExtendedKey(EXTENDED_KEY_RIGHT_ARROW,m); return true;
+		case EXTENDED_KEY_PAD_DOWN:		GenerateExtendedKey(EXTENDED_KEY_DOWN_ARROW,m); return true;
+		case EXTENDED_KEY_PAD_UP:		GenerateExtendedKey(EXTENDED_KEY_UP_ARROW,m); return true;
+		case EXTENDED_KEY_PAD_END:		GenerateExtendedKey(EXTENDED_KEY_END,m); return true;
+		case EXTENDED_KEY_PAD_HOME:		GenerateExtendedKey(EXTENDED_KEY_HOME,m); return true;
+		case EXTENDED_KEY_PAD_CENTRE:		GenerateExtendedKey(EXTENDED_KEY_CENTRE,m); return true;
+		case EXTENDED_KEY_PAD_PAGE_DOWN:	GenerateExtendedKey(EXTENDED_KEY_PAGE_DOWN,m); return true;
+		case EXTENDED_KEY_PAD_PAGE_UP:		GenerateExtendedKey(EXTENDED_KEY_PAGE_UP,m); return true;
+		case EXTENDED_KEY_PAD_TAB:		GenerateExtendedKey(EXTENDED_KEY_TAB,m); return true;
+		case EXTENDED_KEY_PAD_BACKSPACE:	GenerateExtendedKey(EXTENDED_KEY_BACKSPACE,m); return true;
+		case EXTENDED_KEY_PAD_CLEAR_ENTRY:	GenerateExtendedKey(EXTENDED_KEY_CLEAR,m); return true;
+		case EXTENDED_KEY_PAD_CLEAR:		GenerateExtendedKey(EXTENDED_KEY_CANCEL,m); return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::CalculatorToEditingKeypad::CalculatorToEditingKeypad(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::CalculatorToEditingKeypad::~CalculatorToEditingKeypad() {}
+
+bool
+TUIInputBase::ConsumerKeysToExtendedKeys::ConsumerKey(
+	uint_fast16_t k,
+	uint_fast8_t m
+) {
+	switch (k) {
+		default:	return EventHandler::ConsumerKey(k,m);
+		case CONSUMER_KEY_CLOSE:	GenerateExtendedKey(EXTENDED_KEY_CLOSE, m); return true;
+		case CONSUMER_KEY_EXIT:		GenerateExtendedKey(EXTENDED_KEY_EXIT, m); return true;
+		case CONSUMER_KEY_REFRESH:	GenerateExtendedKey(EXTENDED_KEY_REFRESH, m); return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::ConsumerKeysToExtendedKeys::ConsumerKeysToExtendedKeys(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::ConsumerKeysToExtendedKeys::~ConsumerKeysToExtendedKeys() {}
+
+bool
+TUIInputBase::CUAToExtendedKeys::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return EventHandler::UCS3(character);
+		// This is from Microsoft Windows and is not strictly a CUA thing.
+		case DC1:	// Control+Q
+			GenerateExtendedKey(EXTENDED_KEY_EXIT, 0);
+			return true;
+		// This is from Microsoft Windows and is not strictly a CUA thing.
+		case DC3:	// Control+S
+			GenerateExtendedKey(EXTENDED_KEY_SAVE, 0);
+			return true;
+		// This is from Microsoft Windows and is not strictly a CUA thing.
+		case ETB:	// Control+Q
+			GenerateExtendedKey(EXTENDED_KEY_CLOSE, 0);
+			return true;
+		case CAN:	// Control+X
+			GenerateExtendedKey(EXTENDED_KEY_CANCEL, 0);
+			return true;
+	}
+}
+
+bool
+TUIInputBase::CUAToExtendedKeys::Accelerator(
+	char32_t character
+) {
+	switch (character) {
+		default:	return EventHandler::Accelerator(character);
+		case 'W': case 'w':	GenerateExtendedKey(EXTENDED_KEY_CLOSE, 0U); return true;
+		case 'Q': case 'q':	GenerateExtendedKey(EXTENDED_KEY_EXIT, 0U); return true;
+	}
+}
+
+bool
+TUIInputBase::CUAToExtendedKeys::FunctionKey(
+	uint_fast16_t k,
+	uint_fast8_t m
+) {
+	switch (k) {
+		default:	return EventHandler::FunctionKey(k, m);
+		case 1U:	GenerateExtendedKey(EXTENDED_KEY_HELP, m); return true;
+		// In CUA F4 was save and exit, not just exit.
+		case 4U:	GenerateExtendedKey(EXTENDED_KEY_SAVE, m); [[clang::fallthrough]];
+		case 3U:	GenerateExtendedKey(EXTENDED_KEY_EXIT, m); return true;
+		// This is from Microsoft Windows and is not strictly a CUA thing.
+		case 5U:	GenerateExtendedKey(EXTENDED_KEY_REFRESH, m); return true;
+		case 10U:	GenerateExtendedKey(EXTENDED_KEY_MENU, m); return true;
+	}
+}
+
+bool
+TUIInputBase::CUAToExtendedKeys::ExtendedKey(
+	uint_fast16_t k,
+	uint_fast8_t m
+) {
+	switch (k) {
+		default:	return EventHandler::ExtendedKey(k, m);
+		case EXTENDED_KEY_PAD_F1:	GenerateExtendedKey(EXTENDED_KEY_HELP, m); return true;
+		// In CUA F4 was save and exit, not just exit.
+		case EXTENDED_KEY_PAD_F4:	GenerateExtendedKey(EXTENDED_KEY_SAVE, m); [[clang::fallthrough]];
+		case EXTENDED_KEY_PAD_F3:	GenerateExtendedKey(EXTENDED_KEY_EXIT, m); return true;
+		// This is from Microsoft Windows and is not strictly a CUA thing.
+		case EXTENDED_KEY_PAD_F5:	GenerateExtendedKey(EXTENDED_KEY_REFRESH, m); return false;
+	}
+}
+
+// Seat of the class
+TUIInputBase::CUAToExtendedKeys::CUAToExtendedKeys(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::CUAToExtendedKeys::~CUAToExtendedKeys() {}
+
+bool
+TUIInputBase::ControlCharactersToExtendedKeys::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return EventHandler::UCS3(character);
+		case IND:	GenerateExtendedKey(EXTENDED_KEY_DOWN_ARROW,0U); return true;
+		case RI:	GenerateExtendedKey(EXTENDED_KEY_UP_ARROW,0U); return true;
+		/// We have sent the right DECBKM and XTerm private mode sequences to ensure that these are the case.
+		/// @{
+		case BS:	GenerateExtendedKey(EXTENDED_KEY_BACKSPACE,0); return true;
+		case NEL:
+		case LF:	GenerateExtendedKey(EXTENDED_KEY_RETURN_OR_ENTER,INPUT_MODIFIER_CONTROL); return true;
+		case CR:	GenerateExtendedKey(EXTENDED_KEY_RETURN_OR_ENTER,0U); return true;
+		case DEL:	GenerateExtendedKey(EXTENDED_KEY_BACKSPACE,INPUT_MODIFIER_LEVEL2); return true;
+		case TAB:	GenerateExtendedKey(EXTENDED_KEY_TAB,0U); return true;
+		/// @}
+	}
+}
+
+// Seat of the class
+TUIInputBase::ControlCharactersToExtendedKeys::ControlCharactersToExtendedKeys(TUIInputBase & i) : EventHandler(i) {}
+TUIInputBase::ControlCharactersToExtendedKeys::~ControlCharactersToExtendedKeys() {}
+
+bool
+TUIInputBase::VIMToExtendedKeys::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return ControlCharactersToExtendedKeys::UCS3(character);
+		case '^':	GenerateExtendedKey(EXTENDED_KEY_HOME, 0U); return true;
+		case '$':	GenerateExtendedKey(EXTENDED_KEY_END, 0U); return true;
+		case '/':	GenerateExtendedKey(EXTENDED_KEY_FIND, 0U); return true;
+		case 'J': case 'j':	GenerateExtendedKey(EXTENDED_KEY_UP_ARROW, 0U); return true;
+		case 'K': case 'k':	GenerateExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U); return true;
+		case 'H': case 'h':	GenerateExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U); return true;
+		case 'L': case 'l':	GenerateExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U); return true;
+		case ETX:	// Control+C
+		case FS:	// Control+\ .
+			GenerateExtendedKey(EXTENDED_KEY_CANCEL, 0);
+			return true;
+		case EM:	// Control+Y
+		case SUB:	// Control+Z
+			GenerateExtendedKey(EXTENDED_KEY_STOP, 0U);
+			return true;
+		case NAK:	// Control+U
+		case STX:	// Control+B
+			GenerateExtendedKey(EXTENDED_KEY_PAGE_UP, 0U);
+			return true;
+		case EOT:	// Control+D
+		case ACK:	// Control+F
+			GenerateExtendedKey(EXTENDED_KEY_PAGE_DOWN, 0U);
+			return true;
+		case FF:	// Control+L
+		case DC2:	// Control+R
+			GenerateExtendedKey(EXTENDED_KEY_REFRESH, 0U);
+			return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::VIMToExtendedKeys::VIMToExtendedKeys(TUIInputBase & i) : ControlCharactersToExtendedKeys(i) {}
+TUIInputBase::VIMToExtendedKeys::~VIMToExtendedKeys() {}
+
+bool
+TUIInputBase::LessToExtendedKeys::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return VIMToExtendedKeys::UCS3(character);
+		case DLE:	// Control+P
+			GenerateExtendedKey(EXTENDED_KEY_PAGE_UP, 0U);
+			return true;
+		case SO:	// Control+N
+			GenerateExtendedKey(EXTENDED_KEY_PAGE_DOWN, 0U);
+			return true;
+		case SPC:	GenerateExtendedKey(EXTENDED_KEY_PAD_SPACE, 0U); return true;
+		case '?':	GenerateExtendedKey(EXTENDED_KEY_HELP, 0U); return true;
+		case '-':	GenerateExtendedKey(EXTENDED_KEY_PAD_MINUS, 0); return true;
+		case '+':	GenerateExtendedKey(EXTENDED_KEY_PAD_PLUS, 0); return true;
+		case 'Q': case 'q':	GenerateExtendedKey(EXTENDED_KEY_EXIT, 0U); return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::LessToExtendedKeys::LessToExtendedKeys(TUIInputBase & i) : VIMToExtendedKeys(i) {}
+TUIInputBase::LessToExtendedKeys::~LessToExtendedKeys() {}
+
+bool
+TUIInputBase::EMACSToCursorKeypad::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return ControlCharactersToExtendedKeys::UCS3(character);
+		case SOH:	// Control+A
+			GenerateExtendedKey(EXTENDED_KEY_HOME, INPUT_MODIFIER_CONTROL);
+			return true;
+		case ENQ:	// Control+E
+			GenerateExtendedKey(EXTENDED_KEY_END, INPUT_MODIFIER_CONTROL);
+			return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::EMACSToCursorKeypad::EMACSToCursorKeypad(TUIInputBase & i) : ControlCharactersToExtendedKeys(i) {}
+TUIInputBase::EMACSToCursorKeypad::~EMACSToCursorKeypad() {}
+
+bool
+TUIInputBase::LineDisciplineToExtendedKeys::UCS3(
+	char32_t character
+) {
+	switch (character) {
+		default:	return ControlCharactersToExtendedKeys::UCS3(character);
+		case ETX:	// Control+C
+		case FS:	// Control+\ .
+			GenerateExtendedKey(EXTENDED_KEY_CANCEL, 0);
+			return true;
+		case EOT:	// Control+D
+			GenerateExtendedKey(EXTENDED_KEY_EXIT, 0);
+			return true;
+		case EM:	// Control+Y
+		case SUB:	// Control+Z
+			GenerateExtendedKey(EXTENDED_KEY_STOP, 0);
+			return true;
+		case NAK:	// Control+U
+			GenerateExtendedKey(EXTENDED_KEY_BACKSPACE, INPUT_MODIFIER_CONTROL);
+			return true;
+		case FF:	// Control+L
+		case DC2:	// Control+R
+			GenerateExtendedKey(EXTENDED_KEY_REFRESH, 0U);
+			return true;
+	}
+}
+
+// Seat of the class
+TUIInputBase::LineDisciplineToExtendedKeys::LineDisciplineToExtendedKeys(TUIInputBase & i) : ControlCharactersToExtendedKeys(i) {}
+TUIInputBase::LineDisciplineToExtendedKeys::~LineDisciplineToExtendedKeys() {}

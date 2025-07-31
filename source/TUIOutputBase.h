@@ -10,6 +10,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <csignal>
 #include "CharacterCell.h"
 #include "ECMA48Output.h"
+#include "TUIDisplayCompositor.h"
 
 /// \brief Realize a TUIDisplayCompositor onto an ECMA48Output with the given capabilities and output stream.
 ///
@@ -20,53 +21,88 @@ For copyright and licensing terms, see the file named COPYING.
 class TUIOutputBase
 {
 public:
-	TUIOutputBase(const TerminalCapabilities & t, FILE * f, bool bold_as_colour, bool faint_as_colour, bool cursor_application_mode, bool calculator_application_mode, bool alternate_screen_buffer, TUIDisplayCompositor & comp);
+	/// \brief Options for a TUIOutputBase
+	class Options {
+	public:
+		Options() : bold_as_colour(false), faint_as_colour(false), no_default_colour(false), cursor_application_mode(false), calculator_application_mode(false), no_alternate_screen_buffer(false), scnm(false), tui_level(0U) {}
+		bool bold_as_colour;
+		bool faint_as_colour;
+		bool no_default_colour;
+		bool cursor_application_mode;
+		bool calculator_application_mode;
+		bool no_alternate_screen_buffer;
+		bool scnm;
+		unsigned short tui_level;
+		enum { TUI_LEVELS = 3U };
+	};
+
+	TUIOutputBase(const TerminalCapabilities & t, FILE * f, const Options & options, TUIDisplayCompositor & comp);
 	~TUIOutputBase();
 
+	/// \brief event handling, called by the main loops of TUIs to handle events, if they are pending
+	/// A resize is when the display compositor changes size to reflect the new ECMA48Output size.
+	/// A refresh is when the derived class's redraw_new() is called to redraw the new display onto the compositor.
+	/// An update is when changes in the display compositor are sent to the ECMA48Output.
+	/// A TUI program can send itself a terminal suspension signal.
+	/// @{
 	void handle_resize_event ();
 	void handle_refresh_event ();
 	void handle_update_event ();
 	void set_refresh_needed() { refresh_needed = true; }
 	bool has_update_pending() const { return update_needed; }
-	void enter_full_screen_mode() ;
-	void exit_full_screen_mode() ;
+	void tstp_signal ();
+	void suspend_self ();
+	/// @}
 
 protected:
 	TUIDisplayCompositor & c;
+	const Options options;
 
-	void set_resized() { window_resized = true; }
+	void set_resized() { window_resized = true; }	///< permitted to be called from a signal handler
 	void set_update_needed() { update_needed = true; }
-	void invalidate_cur() { c.touch_all(); }
+	void invalidate_cur() { c.touch_all(); }	///< the next update will update the entire screen
 	virtual void redraw_new () = 0;
-	void erase_new_to_backdrop ();
 	void write_changed_cells_to_output ();
+	void suspended ();
+	void continued ();
+	void optimize_scroll_up(unsigned short rows);
+	void optimize_scroll_down(unsigned short rows);
 
 private:
 	ECMA48Output out;
-	const bool bold_as_colour;
-	const bool faint_as_colour;
-	const bool cursor_application_mode;
-	const bool calculator_application_mode;
-	const bool alternate_screen_buffer;
+	/// \brief event pending flags
+	/// @{
 	sig_atomic_t window_resized;
 	bool refresh_needed, update_needed;
+	/// @}
 	unsigned short cursor_y, cursor_x;
-	CharacterCell::colour_type current_fg, current_bg;
+	ColourPair current;
 	CharacterCell::attribute_type current_attr;
 	CursorSprite::glyph_type cursor_glyph;
 	CursorSprite::attribute_type cursor_attributes;
+	/// \brief The inversion state of the display compositor.
+	///
+	/// We do not pass the inversion state through to ECMA48Output::DECSCNM, because various terminal emluators get that wildly wrong.
+	/// Instead, we flip the inverse video attribute of each character cell as it is output.
+	short int invert_screen;
+	bool current_attr_unknown;
 
-	unsigned width (uint32_t ch) const;
-	bool is_blank(uint32_t cols) const;
-	void print(const TUIDisplayCompositor::DirtiableCell & cell, bool inverted);
-	bool is_cheap_to_print(unsigned short row, unsigned short col, unsigned cols) const;
-	bool is_all_blank(unsigned short row, unsigned short col, unsigned cols) const;
+	unsigned width (char32_t ch) const;
+	void fixup(CharacterCell &, bool, bool) const;
+	void print(CharacterCell, bool, bool);
+	unsigned count_cheap_narrow(unsigned short row, unsigned short col, unsigned cols) const;
+	unsigned count_cheap(unsigned short row, unsigned short col, unsigned cols, CharacterCell::attribute_type attr, uint32_t ch) const;
+	unsigned count_cheap_spaces(unsigned short row, unsigned short col, unsigned cols) const;
+	unsigned count_cheap_eraseable(unsigned short row, unsigned short col, unsigned cols, CharacterCell::attribute_type attr) const;
+	unsigned count_cheap_repeatable(unsigned short row, unsigned short col, unsigned cols, uint32_t ch) const;
 	void GotoYX(unsigned short row, unsigned short col);
-	void SGRFGColour(const CharacterCell::colour_type & colour) { if (colour != current_fg) out.SGRColour(true, current_fg = colour); }
-	void SGRBGColour(const CharacterCell::colour_type & colour) { if (colour != current_bg) out.SGRColour(false, current_bg = colour); }
+	void SGRFGColour(const CharacterCell::colour_type & colour) { if (colour != current.foreground) out.SGRColour(true, current.foreground = colour); }
+	void SGRBGColour(const CharacterCell::colour_type & colour) { if (colour != current.background) out.SGRColour(false, current.background = colour); }
 	void SGRAttr(const CharacterCell::attribute_type & attr);
 	void SGRAttr1(const CharacterCell::attribute_type & attr, const CharacterCell::attribute_type & mask, char m, char & semi) const;
 	void SGRAttr1(const CharacterCell::attribute_type & attr, const CharacterCell::attribute_type & mask, const CharacterCell::attribute_type & unit, char m, char & semi) const;
+	void enter_full_screen_mode() ;
+	void exit_full_screen_mode() ;
 
 private:
 	termios original_attr;

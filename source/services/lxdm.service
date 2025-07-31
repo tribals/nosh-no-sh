@@ -4,11 +4,10 @@
 
 [Unit]
 Description=LXDE display manager
-After=ttylogin@ttyv8 ttylogin@tty9
 
 [Service]
+EnvironmentDirectory=env
 ExecStart=%p
 
 [Install]
-# TODO: This might be better as graphical.
 WantedBy=workstation.target

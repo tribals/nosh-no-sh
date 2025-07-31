@@ -8,6 +8,7 @@ Description=Kamailio (formerly known as OpenSER) SIP server
 [Service]
 EnvironmentDirectory=env
 User=%p
+SessionLeader=yes
 RuntimeDirectory=%p
 ExecStart=%p -E -D -f "${CFGFILE:-/etc/%p/%p.cfg}" -m "${SHM_MEMORY:-64}" -M "${PKG_MEMORY:-8}"
 RestartSec=5

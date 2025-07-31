@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="login-monitor-active">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>login-monitor-active</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>login-monitor-active</refname>
+<refpurpose>start/stop user manager and runtime services for active login sessions</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>login-monitor-active</command>
+<arg choice='opt'>--verbose</arg>
+<arg choice='opt'>--active-file <filename><replaceable>activefile</replaceable></filename></arg>
+<arg choice='opt'>--target-prefix <filename><replaceable>string</replaceable></filename></arg>
+<arg choice='opt'>--manager-prefix <filename><replaceable>string</replaceable></filename></arg>
+<arg choice='opt'>--runtime-prefix <filename><replaceable>string</replaceable></filename></arg>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Description</title>
+
+<para>
+<command>login-monitor-active</command> automatically runs <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> to <arg choice="plain">reset</arg>/<arg choice="plain">stop</arg> user manager and runtime services as users are inserted into/deleted from the active logins table in the login database.
+It loops forever, monitoring the state of the active logins table file with <citerefentry><refentrytitle>kevent</refentrytitle><manvolnum>2</manvolnum></citerefentry> waiting for it to be modified.
+</para>
+<caution>
+Renaming or unlinking the file requires restarting <command>login-monitor-active</command>.
+</caution>
+
+<para>
+When a new user appears in the active logins table, not already logged in, <command>login-monitor-active</command> issues a <arg choice="plain">reset</arg> to start/stop the <filename>user@<replaceable>username</replaceable></filename>, <filename>user-services@<replaceable>username</replaceable></filename>, and <filename>user-runtime@<replaceable>username</replaceable></filename> target and services (respectively) for the user.
+The prefixes in front of <replaceable>username</replaceable> can be changed with the <arg choice='plain'>--target-prefix</arg>, <arg choice='plain'>--manager-prefix</arg>, and <arg choice='plain'>--runtime-prefix</arg> command-line options.
+When the last login record for a user disappears, <command>login-monitor-active</command> issues a <arg choice="plain">stop</arg> to unconditionally stop those.
+</para>
+
+<para>
+Where the file is varies by operating system.
+On FreeBSD, it is <code>/var/run/utx.active</code>, for example.
+The <citerefentry><refentrytitle>getutxent</refentrytitle><manvolnum>3</manvolnum></citerefentry> manual page usually gives the location.
+The <arg choice='plain'>--active-file</arg> command-line option forces the use of <filename><replaceable>activefile</replaceable></filename> instead, if this is supported by the C runtime library.
+</para>
+
+<para>
+If the services do not exist, it makes no attempt to create them.
+All such services for all users should be enabled and disabled in the usual way, and <arg choice="plain">reset</arg> will respect that.
+</para>
+
+</refsection>
+
+<refsection><title>See also</title>
+
+<variablelist>
+<varlistentry>
+<term><citerefentry><refentrytitle>ttylogin-starter</refentrytitle><manvolnum>4</manvolnum></citerefentry></term>
+<listitem>
+<para>
+auto-starter for login services that enable users to log-on in the first place
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

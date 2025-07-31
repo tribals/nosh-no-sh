@@ -7,6 +7,7 @@ Description=Intel Connection Manager
 
 [Service]
 Type=dbus
+BusName=net.%p.Manager
 RuntimeDirectory=%p
 ExecStart=%p --nodaemon
 ProtectHome=true

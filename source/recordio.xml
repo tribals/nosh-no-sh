@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>recordio</command> 
+<command>recordio</command>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -31,7 +31,7 @@
 
 <para>
 <command>recordio</command> is a utility that chain loads <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry>
-function.  
+function.
 It redirects the standard input and standard output through a pipe, whose other end is a child process that it spawns.
 </para>
 

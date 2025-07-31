@@ -19,10 +19,10 @@ is_current_console (
 	const int r(sysctlnametomib("kern.console", oid, &len));
 	if (0 > r) return false;
 	std::size_t siz;
-	const int s(sysctl(oid, len, 0, &siz, 0, 0));
+	const int s(sysctl(oid, len, nullptr, &siz, nullptr, 0));
 	if (0 > s) return false;
 	std::vector<char> buf(siz, char());
-	const int t(sysctl(oid, len, buf.data(), &siz, 0, 0));
+	const int t(sysctl(oid, len, buf.data(), &siz, nullptr, 0));
 	if (0 > t) return false;
 	const char * avail(std::memchr(buf.data(), '/', siz));
 	if (!avail) return false;
@@ -45,7 +45,7 @@ bool
 is_on (
 	const struct ttyent & entry
 ) {
-	return (entry.ty_status & TTY_ON) 
+	return (entry.ty_status & TTY_ON)
 #if defined(TTY_ONIFCONSOLE)
 		|| ((entry.ty_status & TTY_ONIFCONSOLE) && is_current_console(entry))
 #endif

@@ -1,4 +1,8 @@
 #!/bin/sh -e
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=sh:
 name="$1"
 base="`basename \"${name}\"`"
 

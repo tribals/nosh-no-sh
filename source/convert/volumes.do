@@ -12,7 +12,7 @@
 redo-ifchange /etc/fstab
 
 r="/etc/service-bundles/services/"
-o="--etc-bundle --overwrite"
+o="--etc-bundle --supervise-in-run --overwrite"
 
 case "`uname`" in
 Linux)	esc='\' ;;
@@ -53,7 +53,7 @@ case "`uname`" in
 	awk '{ if ($2 != "none" && $1 == "on") { gsub("-","'${esc}'x2d",$2); gsub("/","-",$2); print "system-control enable mount@\""$2"\""; } }' | 
 	sh -e
 	zfs list -H -o canmount,mountpoint -t filesystem |
-	awk '{ if ($2 != "none") { gsub("-","'${esc}'x2d",$2); gsub("/","-",$2); print $1" mount@"$2; } }' >> "$3"
+	awk '{ if ($2 != "none") { gsub("-","'${esc}'x2d",$2); gsub("/","-",$2); print $1" zfs mount@"$2; } }' >> "$3"
 	zfs list -H -o canmount,mountpoint -t filesystem / |
 	awk '{ if ($2 != "none" && $1 != "off") { gsub("-","'${esc}'x2d",$2); gsub("/","-",$2); print "system-control enable mount@\""$2"\""; } }' | 
 	sh -e

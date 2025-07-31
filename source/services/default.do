@@ -10,7 +10,7 @@ base="`basename \"${name}\"`"
 ifchange_follow() {
 	local i l
 	for i
-	do	
+	do
 		while test -n "$i"
 		do
 			redo-ifchange "$i"
@@ -28,7 +28,7 @@ ifchange_follow() {
 # ###
 
 case "${base}" in
-*@*) 
+*@*)
 	template="${name%%@*}"
 	if test -e "${template}"@.socket
 	then
@@ -178,10 +178,10 @@ esac
 
 case "${base}" in
 cyclog@*)
-	escape="--alt-escape --escape-instance"
+	escape="--escape-format account --escape-instance"
 	;;
-ppp-log|sppp-log|rfcomm_pppd-log|snort-log|natd-log|ataidle-log|autobridge-log|brltty-log|dhclient-log|dhcpcd-log|udhcpc-log|mixer-log|ifconfig-log|iovctl-log|uhidd-log|webcamd-log|system-installer-log|wlandebug-log) 
-	escape="--alt-escape --escape-prefix"
+*-log)
+	escape="--escape-format account --escape-prefix"
 	;;
 *)
 	escape=
@@ -193,78 +193,96 @@ Linux)	etc_services="../package/common-etc-services ../package/linux-etc-service
 *BSD)	etc_services="../package/common-etc-services ../package/bsd-etc-services" ;;
 *)	etc_services="../package/common-etc-services" ;;
 esac
+redo-ifchange -- ${etc_services}
 
 case "${base}" in
-cyclog@*|dbus) 
+mount@*|fsck@*)
+	# This is just the template-generated services that cannot be listed in package/*-etc-services .
+	# Normally such services are handled by the default case, below.
+	etc="--etc-bundle --supervise-in-run"
+	;;
+*)
+	# In the default case sysinit services log to a fan-in sysinit-log service and non-sysinit services log to a dedicated log service.
+	if grep -q -- "^${base}\$" ${etc_services}
+	then
+		etc="--etc-bundle --supervise-in-run"
+	else
+		etc=
+	fi
+	;;
+esac
+
+case "${base}" in
+dbus)
+	# This is an umbrella service that has no log service.
 	log=
-	etc=
 	after=
 	;;
-ppp-log|sppp-log|rfcomm_pppd-log|snort-log|natd-log|ataidle-log|autobridge-log|brltty-log|dhclient-log|dhcpcd-log|udhcpc-log|mixer-log|ifconfig-log|iovctl-log|uhidd-log|webcamd-log|system-installer-log|wlandebug-log)
+cyclog@*|*-log)
+	# Logging services themselves have no logs.
 	log=
-	etc=
 	after=
 	;;
-emergency-login@console) 
+emergency-login@console)
+	# This is an emergency service that has no log service.
 	log=
-	etc=--etc-bundle
 	after=
 	;;
-sysinit-log|suckless-mdev-log|busybox-mdev-log|mdevd-log|vdev-log|devd-log) 
-	log=
-	etc=--etc-bundle
-	after=
-	;;
-mount@*|fsck@*|monitor-fsck-progress)
+mount@*|fsck@*)
+	# These sysinit services log to a common fan-in log service.
+	# This is just the template-generated services that cannot be listed in package/*-etc-services .
+	# Normally such services are handled by the default case, below.
 	log="../sysinit-log"
-	etc=--etc-bundle
-	after=
+	after=	# sysinit-log only comes up after filesystems have been mounted.
 	;;
-devd)
-	log="../devd-log"
-	etc=--etc-bundle
+devd|devpubd)
+	# These sysinit services log to their own dedicated log services.
+	log="../${base}-log"
 	after="log"
 	;;
 systemd-udev|systemd-udev-trigger-add@*)
+	# These sysinit services log to a common fan-in log service.
 	log="../systemd-udev-log"
-	etc=--etc-bundle
 	after="log"
 	;;
 udev|udev-trigger-add@*|udev-finish)
+	# These sysinit services log to a common fan-in log service.
 	log="../udev-log"
-	etc=--etc-bundle
 	after="log"
 	;;
 busybox-mdev|busybox-mdev-rescan)
+	# These sysinit services log to a common fan-in log service.
 	log="../busybox-mdev-log"
-	etc=--etc-bundle
 	after="log"
 	;;
 suckless-mdev|suckless-mdev-rescan)
+	# These sysinit services log to a common fan-in log service.
 	log="../suckless-mdev-log"
-	etc=--etc-bundle
 	after="log"
 	;;
 mdevd|mdevd-rescan)
+	# These sysinit services log to a common fan-in log service.
 	log="../mdevd-log"
-	etc=--etc-bundle
+	after="log"
+	;;
+ip6addrctl@*)
+	# These non-sysinit services log to a common fan-in log service.
+	log="../ip6addrctl-log"
 	after="log"
 	;;
 trueos-update-finish|trueos-install-finish|freebsd-update-finish|freebsd-install-finish)
+	# These sysinit services log to a common fan-in log service.
 	log="../system-installer-log"
-	etc=
 	after="log"
 	;;
-*) 
-	redo-ifchange -- ${etc_services}
+*)
+	# In the default case sysinit services log to a common fan-in service and non-sysinit services log to a dedicated log service.
 	if grep -q -- "^${base}\$" ${etc_services}
 	then
 		log="../sysinit-log"
-		etc=--etc-bundle
-		after=
+		after=	# sysinit-log only comes up after filesystems have been mounted.
 	else
 		log="../cyclog@${base}"
-		etc=
 		after="log"
 	fi
 	;;
@@ -286,7 +304,7 @@ test -n "${log}" && ln -s -f "${log}" services.new/"${base}"/log
 test -n "${after}" && ln -s -f "../${after}" services.new/"${base}"/after/
 
 # ###
-# Add in the environment directory and UCSPI ruleset infrastructure, if required.
+# Add in the environment directory infrastructure, if required.
 # ###
 
 if grep -q "envdir env" services.new/"${base}"/service/start services.new/"${base}"/service/run services.new/"${base}"/service/stop
@@ -294,24 +312,15 @@ then
 	install -d -m 0755 services.new/"${base}"/service/env
 fi
 
-if grep -q "ucspi-socket-rules-check" services.new/"${base}"/service/start services.new/"${base}"/service/run services.new/"${base}"/service/stop
-then
-	install -d -m 0755 services.new/"${base}"/service/ip4 services.new/"${base}"/service/ip4/10.0.0.0_8 services.new/"${base}"/service/ip4/127.0.0.0_8 services.new/"${base}"/service/ip4/192.168.0.0_16
-	install -d -m 0755 services.new/"${base}"/service/ip6 services.new/"${base}"/service/ip6/::1_128 services.new/"${base}"/service/ip6/::ffff:10.0.0.0_104 services.new/"${base}"/service/ip6/::ffff:127.0.0.0_104 services.new/"${base}"/service/ip6/::ffff:192.168.0.0_112
-fi
-
 # ###
 # Provide the "main/" courtesy link in logging services.
 # ###
 
 case "${base}" in
-cyclog@*) 
+cyclog@*)
 	ln -f -s -- /var/log/sv/"${base#cyclog@}" services.new/"${base}"/main
 	;;
-devd-log|sysinit-log)
-	ln -f -s -- /var/log/sv/"${base%-log}" services.new/"${base}"/main
-	;;
-ppp-log|sppp-log|rfcomm_pppd-log|snort-log|natd-log|ataidle-log|autobridge-log|brltty-log|dhclient-log|dhcpcd-log|udhcpc-log|mixer-log|ifconfig-log|iovctl-log|uhidd-log|webcamd-log|system-installer-log|wlandebug-log)
+*-log)
 	ln -f -s -- /var/log/sv/"${base%-log}" services.new/"${base}"/main
 	;;
 esac
@@ -334,7 +343,7 @@ kmod@vboxdrv|kmod@vboxnetadp|kmod@vboxnetflt|kmod@vboxpci)
 kmod@uvesafb)
 	ln -f -s -- /etc/service-bundles/targets/frame-buffer services.new/"${base}"/wanted-by/
 	;;
-cyclog@ttylogin@*)
+cyclog@ttylogin@*|cyclog@console-kvt-realizer@*|cyclog@ttycallout@*)
 	rm -f -- services.new/"${base}"/wanted-by/workstation
 	ln -s -f -- ../../"${base#cyclog@}" services.new/"${base}"/wanted-by/
 	;;
@@ -346,37 +355,9 @@ cyclog@kmod@vboxdrv|cyclog@kmod@vboxnetadp|cyclog@kmod@vboxnetflt|cyclog@kmod@vb
 	rm -f -- services.new/"${base}"/wanted-by/workstation
 	ln -f -s -- /etc/service-bundles/targets/virtualbox-host services.new/"${base}"/wanted-by/
 	;;
-http[46]d|ftp[46]d)
-	install -m 0644 /dev/null services.new/"${base}"/service/ip4/10.0.0.0_8/allow
-	install -m 0644 /dev/null services.new/"${base}"/service/ip4/127.0.0.0_8/allow
-	install -m 0644 /dev/null services.new/"${base}"/service/ip4/192.168.0.0_16/allow
-	install -m 0644 /dev/null services.new/"${base}"/service/ip6/::1_128/allow
-	install -m 0644 /dev/null services.new/"${base}"/service/ip6/::ffff:10.0.0.0_104/allow
-	install -m 0644 /dev/null services.new/"${base}"/service/ip6/::ffff:127.0.0.0_104/allow
-	install -m 0644 /dev/null services.new/"${base}"/service/ip6/::ffff:192.168.0.0_112/allow
-	;;
-console-fb-realizer@head0)
-	install -d -m 0755 services.new/"${base}"/service/kbdmaps
-	install -d -m 0755 services.new/"${base}"/service/fonts
-	;;
-dnscache)
-	install -d -m 0755 services.new/"${base}"/service/root
-	install -d -m 0755 services.new/"${base}"/service/root/ip
-	install -d -m 0755 services.new/"${base}"/service/root/servers
-	;;
-tinydns)
-	install -d -m 0755 services.new/"${base}"/service/root
-
-	for i in alias childns ns mx host
-	do
-		echo '#!/command/execlineb -S0' > services.new/"${base}"/service/root/add-"$i"
-		echo "tinydns-edit data data.new" >> services.new/"${base}"/service/root/add-"$i"
-		echo "add $i \$@" >> services.new/"${base}"/service/root/add-"$i"
-		chmod 0755 services.new/"${base}"/service/root/add-"$i"
-	done
-	;;
-axfrdns)
-	ln -s ../../tinydns/service/root services.new/"${base}"/service/
+cyclog@vmtoolsd|cyclog@vgathd)
+	rm -f -- services.new/"${base}"/wanted-by/workstation
+	ln -f -s -- /etc/service-bundles/targets/vmware-guest services.new/"${base}"/wanted-by/
 	;;
 dbus-daemon)
 	redo-ifchange services/system-wide.conf
@@ -388,9 +369,9 @@ esac
 # Add in any helpers and snippets.
 # ###
 
-if test -e "${name}".tmpfiles 
+if test -e "${name}".tmpfiles
 then
-	redo-ifchange "${name}".tmpfiles 
+	redo-ifchange "${name}".tmpfiles
 	install -m 0644 -- "${name}".tmpfiles services.new/"${base}"/service/tmpfiles
 fi
 if test -e "${name}".helper

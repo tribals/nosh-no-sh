@@ -15,7 +15,7 @@
 <xi:include href="version.xml" />
 </refmeta>
 
-<refnamediv><refname>unsetenv</refname><refpurpose>unset an environment variable mask then chain</refpurpose></refnamediv>
+<refnamediv><refname>unsetenv</refname><refpurpose>unset an environment variable then chain</refpurpose></refnamediv>
 
 <refsynopsisdiv>
 <cmdsynopsis>
@@ -26,14 +26,14 @@
 <refsection><title>NOTE</title>
 
 <para>
-C-shells have a built-in <command>unsetenv</command> command that does not chain.  
+C-shells have a built-in <command>unsetenv</command> command that does not chain.
 See the manual for each individual shell for its built-in command.
 </para>
 
 </refsection><refsection><title>Description</title>
 
 <para>
-<command>unsetenv</command> is a chain-loading utility that unsets the environment variable <replaceable>var</replaceable> and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>unsetenv</command> is a chain-loading utility that unsets the environment variable <replaceable>var</replaceable> and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>

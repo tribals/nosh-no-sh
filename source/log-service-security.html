@@ -1,8 +1,9 @@
-<title>Log service security</title>
 <link rel="Up" href="logging.html" title="Logging" />
 <link rel="Prev" href="beyond-cyclog.html" title="Beyond cyclog"/>
 <link rel="Next" href="old-log-services.html" title="Handling old log mechanisms"/>
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Log service security</title>
+<h1 class="Ruled">
 Log service security
 </h1>
 
@@ -10,7 +11,7 @@ Log service security
 Various security measures apply to logging.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Separate log services
 </h2>
 
@@ -43,7 +44,7 @@ The pipe is kept open at both ends by the service manager, and when <code>cylog@
 </p></li>
 </ul>
 
-<h2 id="users">
+<h2 class="Ruled" id="users">
 Dedicated log user accounts
 </h2>
 
@@ -79,7 +80,7 @@ Logging services cannot eat into the disc space that is reserved to the superuse
 </p></li>
 </ul>
 
-<h2>
+<h2 class="Ruled">
 Reliable log rotation
 </h2>
 
@@ -108,11 +109,11 @@ These behaviours can be relied upon if one wants to place log directories on sto
 </p>
 
 <p>
-(<a href="http://jdebp.eu/FGA/do-not-use-logrotate.html">GNU <code>tail</code> and BSD <code>tail</code> have more than one problem</a>, though.
+(<a href="http://jdebp.uk/FGA/do-not-use-logrotate.html">GNU <code>tail</code> and BSD <code>tail</code> have more than one problem</a>, though.
 For avoiding the other problems, one has to use something like <a href="commands/follow-log-directories.xml"><code>follow-log-directories</code></a> which actually knows that it is looking at a log directory, rather than only knowing to look at a single file.)
 </p>
 
-<h2 id="old-services">
+<h2 class="Ruled" id="old-services">
 Compatibility services
 </h2>
 

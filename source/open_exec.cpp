@@ -16,7 +16,7 @@ unsigned int
 page_size()
 {
 	const long rc(sysconf(_SC_PAGE_SIZE));
-	if (0 > rc) 
+	if (0 > rc)
 #if defined(PAGE_SIZE)
 		return PAGE_SIZE;
 #else
@@ -41,21 +41,21 @@ is_interpreter_magic (
 	int i(2);
 
 	// Skip leading whitespace
-	while (i < n) 
+	while (i < n)
 		if (buf[i] && std::isspace(buf[i])) ++i; else break;
 	const int beg(i);
 
 	// Skip non-terminators
-	while (i < n) 
+	while (i < n)
 		if (std::isspace(buf[i])) break; else ++i;
 
 	return i < n && i > beg;
 }
 
 extern
-int 
+int
 open_non_interpreted_exec_at (
-	int dir_fd, 
+	int dir_fd,
 	const char * name
 ) {
 	// Witness this SUS/POSIX madness.
@@ -66,6 +66,8 @@ open_non_interpreted_exec_at (
 			errno = ENOEXEC;
 			return -1;
 		}
+	} else if (EACCES != errno) {
+		return fd;
 	}
 #if defined(O_EXEC)
 	const int efd(openat(dir_fd, name, O_NOCTTY|O_CLOEXEC|O_EXEC|O_NONBLOCK));
@@ -78,9 +80,9 @@ open_non_interpreted_exec_at (
 }
 
 extern
-int 
+int
 open_exec_at (
-	int dir_fd, 
+	int dir_fd,
 	const char * name
 ) {
 	// Witness this SUS/POSIX madness.
@@ -91,6 +93,8 @@ open_exec_at (
 			set_close_on_exec(fd, false);
 			return fd;
 		}
+	} else if (EACCES != errno) {
+		return fd;
 	}
 #if defined(O_EXEC)
 	const int efd(openat(dir_fd, name, O_NOCTTY|O_CLOEXEC|O_EXEC|O_NONBLOCK));

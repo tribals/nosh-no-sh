@@ -1,6 +1,7 @@
-<title>Packages and ports</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Packages and ports</title>
+<h1 class="Ruled">
 Packages and ports
 </h1>
 
@@ -8,7 +9,7 @@ Packages and ports
 Here are some tips for people wanting to make packages, or to add nosh service bundles to existing packages or ports.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Converting systemd units
 </h2>
 
@@ -32,11 +33,12 @@ The conventional location for an environment directory is <code>service/env</cod
 <li>
 <p>
 Conversion will not create any rules directories, as used by <a href="commands/ucspi-socket-rules-check.xml"><code>ucspi-socket-rules-check</code></a> commands.
-If your package is intended to also install the rules directories, then you need to explicitly create them in your package's staging area yourself.
+If your package is intended to also install the rules directories, then you need to explicitly create them in your package yourself.
+Usually this is not done by hardwired rules files in your package, but by creating the necessary directories and files in your package's (post-)install script.
 </p>
 <p>
 The conventional locations for the rules directories are <code>service/ip4</code> and <code>service/ip6</code> within the service bundle.
-For administrator convenience, you may want to supply at least the <code>service/ip4/10.0.0.0_8</code>, <code>service/ip4/127.0.0.0_8</code>, <code>service/ip4/192.168.0.0_16</code>, <code>service/ip6/::1_128</code>, <code>service/ip6/::ffff:10.0.0.0_104</code>, <code>service/ip6/::ffff:127.0.0.0_104</code>, and <code>service/ip6/::ffff:192.168.0.0_112</code> directories in your package as well.
+For administrator convenience, you may want to supply at least the <code>service/ip4/10.0.0.0_8</code>, <code>service/ip4/127.0.0.0_8</code>, <code>service/ip4/192.168.0.0_16</code>, <code>service/ip6/::1_128</code>, <code>service/ip6/::ffff:10.0.0.0_104</code>, <code>service/ip6/::ffff:127.0.0.0_104</code>, and <code>service/ip6/::ffff:192.168.0.0_112</code> directories in your package as well; and symbolically link the IPv6 aliases to the IPv4 directories.
 </p>
 </li>
 
@@ -49,7 +51,7 @@ This symbolic link is not actually necessary to the operation of the service, bu
 
 </ul>
 
-<h2>
+<h2 class="Ruled">
 The problem of <code>down</code> files
 </h2>
 
@@ -81,42 +83,3 @@ There are two approaches to dealing with this.
 One can arrange for the post-installation and post-upgrade scripts for one's package to explicitly preset all services at every install, reinstall, or upgrade; this matching the installing-package-enables-services philosophy of some operating systems.
 Or one can arrange for the post-installation and post-upgrade scripts for one's package to attempt to bring the mechanisms back into synch, usually by bringing the <code>down</code> file into synch with the <code>wants/</code> and <code>conflicts/</code> symbolic links rather than the converse.
 </p>
-
-<h2>
-Porting the toolset to other operating systems
-</h2>
-
-<p>
-The toolset is packaged as multiple binary packages built from a single source package.
-</p>
-
-<p>
-For operating systems outwith the core ones that have binary packages built for them by the author, the source package requires patching.
-This is in two general areas:
-</p>
-
-<ul>
-<li><p>
-In <code>package/stage</code> patch the operating system's choices of directory layout in the section marked as distributor-patchable stuff.
-</p></li>
-<li><p>
-In the following files patch to select an appropriate variant of various Desktop Bus configurations, according to whatever choices of non-<code>PATH</code> directories and user account names are made by the packages on the operating system.
-</p>
-<ul>
-<li><code>source/convert/per-user/per-user.conf.do</code>
-<li><code>source/convert/per-user/gconfd.service.do</code>
-<li><code>source/convert/per-user/at-spi-dbus-bus.service.do</code>
-<li><code>source/services/dbus-daemon.service.do</code>
-<li><code>source/services/dbus-broker.service.do</code>
-<li><code>source/services/system-wide.conf.do</code>
-<li><code>source/systemd/service-manager.socket.do</code>
-</ul>
-</li>
-<li><p>
-In the following files patch to select appropriate pathnames, according to whatever choices are made by the packages on the operating system.
-</p>
-<ul>
-<li><code>source/convert/rc.conf.do</code> (in particular <code>entropy_file</code>)
-</ul>
-</li>
-</ul>

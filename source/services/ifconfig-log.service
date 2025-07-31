@@ -7,6 +7,7 @@ Description=Combined logger for ifscript@ and ifconfig@ services
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog ifconfig/
 RestartSec=1

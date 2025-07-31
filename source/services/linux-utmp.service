@@ -13,8 +13,9 @@ AfterMountsFor=/run
 [Service]
 Type=oneshot
 ExecStart=touch /run/utmp
+ExecStart=chmod 0664 /run/utmp
+ExecStart=chown :utmp /run/utmp
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

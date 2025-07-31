@@ -22,8 +22,8 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>plug-and-play-event-handler</command> 
-<arg choice='req'><replaceable>prog</replaceable></arg> 
+<command>plug-and-play-event-handler</command>
+<arg choice='req'><replaceable>prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 

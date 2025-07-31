@@ -16,7 +16,6 @@ Before=shutdown.target sysinit.target
 Type=oneshot
 ExecStart=udevadm settle
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

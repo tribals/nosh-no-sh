@@ -14,16 +14,17 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "fdutils.h"
 #include "popt.h"
+#include "SignalManagement.h"
 
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-pipe ( 
+pipe (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool in(false);
@@ -53,20 +54,19 @@ pipe (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog} {|} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	std::vector<const char *> lhs, rhs, *c = &lhs;
 	for (std::vector<const char *>::const_iterator i(args.begin()); args.end() != i; ++i) {
 		const char * arg(*i);
-		if (0 == std::strcmp(sep, arg)) {
+		if (&lhs == c && 0 == std::strcmp(sep, arg)) {
 			c = &rhs;
 		} else {
 			c->push_back(arg);
@@ -74,26 +74,20 @@ pipe (
 	}
 
 	if (lhs.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing left-hand side.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "left-hand side");
 	}
 	if (rhs.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing right-hand side.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "right-hand side");
 	}
 
 	int fds[2];
 	if (0 > pipe_close_on_exec(fds)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "pipe", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "pipe");
 	}
 
 	pid_t child(fork());
 	if (0 > child) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "fork", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "fork");
 	}
 	if (grandchild) {
 		if (0 == child) {
@@ -104,22 +98,16 @@ pipe (
 				throw error;	// Parent is us, and we understand this convention.
 			}
 			if (0 != child)
-				throw 0;
+				throw 0;	// Parent is us, and we understand this convention.
 		} else {
 			int status, code;
 			wait_blocking_for_exit_of(child, status, code);
-			if (0 != code) {
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "fork", std::strerror(code));
-				throw EXIT_FAILURE;
-			}
+			if (0 != code)
+				die_errno(prog, envs, code, "fork");
 		}
 	} else
 	if (ignore_children && 0 != child) {
-		struct sigaction sa;
-		sa.sa_flags=0;
-		sigemptyset(&sa.sa_mask);
-		sa.sa_handler=SIG_IGN;
-		sigaction(SIGCHLD,&sa,NULL);
+		auto_reap_children();
 	}
 
 	// Outward mode: parent | child

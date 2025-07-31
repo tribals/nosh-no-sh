@@ -1,1 +1,4 @@
-upstart shim service and system management utilities
+ This package provides shims for upstart service and system management commands.
+  * initctl, start, stop, status
+ .
+ The shims simply invoke native service management commands.

@@ -78,7 +78,24 @@ The kernel can be configured with a hot-key sequence in the virtual terminal sub
 </para>
 
 </refsection>
+
+<refsection><title>Console output</title>
+
+<para>
+The kernel virtual terminal subsystem usually (unless this is configured out) registers a console I/O handler by the internal name <filename>tty</filename>, enabling it to be the target for application and kernel console I/O (see <citerefentry><refentrytitle>linux-console</refentrytitle><manvolnum>4</manvolnum></citerefentry>).
+When <filename>tty</filename> has been made the target for console I/O, the console I/O by default always goes to the currently active kernel virtual terminal.
+This can be modified from user-mode by applications calling the <citerefentry><refentrytitle>ioctl</refentrytitle><manvolnum>2</manvolnum></citerefentry> function against a kernel virtual terminal device, using <code>TIOCLINUX</code> and the undocumented <code>TIOCL_SETKMSGREDIRECT</code> subcode.
+This directs console I/O to a particular kernel virtual terminal, or reinstates the default behaviour (when virtual terminal number 0 is passed).
+</para>
+<note>
+Whilst technically this <citerefentry><refentrytitle>ioctl</refentrytitle><manvolnum>2</manvolnum></citerefentry> can be issued against any open kernel virtual terminal device, it is wise to issue it against the device that is to be selected.
+This ensures that the internal data structures for the kernel virtual terminal actually exist, by opening its device file; because if they do not console I/O via the kernal virtual terminal subsystem has no effect.
+</note>
+
 </refsection>
+
+</refsection>
+
 <refsection><title>See also</title>
 
 <variablelist>
@@ -95,6 +112,7 @@ This describes the input and output control and escape sequences recognized and 
 <listitem>
 <para>
 This describes the <code>ioctl()</code> controls that are peculiar to kernel virtual terminal devices.
+As of 2020, many controls are missing.
 </para>
 </listitem>
 </varlistentry>
@@ -118,9 +136,11 @@ a utility that can be used to query and set the mapping between kernel virtual t
 <term><citerefentry><refentrytitle>fgetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></term>
 <term><citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></term>
 <term><citerefentry><refentrytitle>mingetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></term>
+<term><citerefentry><refentrytitle>ngetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></term>
+<term><citerefentry><refentrytitle>mgetty</refentrytitle><manvolnum>8</manvolnum></citerefentry></term>
 <listitem>
 <para>
-the family of programs that are usually responsible for first opening kernel virtual terminal device files
+the <ulink url="http://jdebp.uk./FGA/getty-flavours.html">family of programs</ulink> (obsoleted by <citerefentry><refentrytitle>ttymon</refentrytitle><manvolnum>8</manvolnum></citerefentry> before Linux was invented, on actual Unices) that are usually responsible for first opening kernel virtual terminal device files
 </para>
 </listitem>
 </varlistentry>

@@ -1,0 +1,19 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Bernstein's TAICLOCK server daemon, modified to use systemd LISTEN_FDS protocol
+After=network-interfaces.service
+After=system-time-synchronized.target
+After=persistent-clock-loaded.target
+
+[Service]
+User=%p
+SessionLeader=yes
+LimitDATA=3000000
+ExecStart=%p
+RestartSec=0.2
+
+[Install]
+WantedBy=server.target

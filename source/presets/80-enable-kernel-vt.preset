@@ -3,8 +3,55 @@
 #
 # This is not a systemd preset.
 # It goes in a special nosh system-manager preset directory.
-# It is used by the nosh-bundles package in order to enable certain mandatory basics without which a system simply won't work.
+# It is used by the nosh-run-kernel-vt package in order to enable the user-space virtual terminals themselves.
 #
 
+# The innards of user-space virtual terminals are enabled, as they might be in use with non-KVT realizers.
+enable	terminal-emulator@*.service
+enable	cyclog@terminal-emulator@*.service
+enable	console-input-method@*.service
+enable	cyclog@console-input-method@*.service
+enable	console-multiplexor@*.service
+enable	cyclog@console-multiplexor@*.service
+
+# All statically made realizers are disabled.
+disable	console-kvt-realizer@*.service
+disable	cyclog@console-kvt-realizer@*.service
+disable	console-fb-realizer@*.service
+disable	console-fb-realizer-log.service
+disable	console-fb-realizer.target
+disable	console-evdev-realizer@*.service
+disable	console-evdev-realizer-log.service
+disable	console-evdev-realizer.target
+disable	console-ps2-mouse-realizer@*.service
+disable	console-ps2-mouse-realizer-log.service
+disable	console-ps2-mouse-realizer.target
+disable	console-wscons-realizer@*.service
+disable	console-wscons-realizer-log.service
+disable	console-wscons-realizer.target
+
+# KVT settings services are enabled.
 enable	kernel-vt-*.service
 enable	cyclog@kernel-vt-*.service
+
+# Dynamically generated HID realizers are enabled.
+enable	console-pcat-mouse-realizer@*.service
+enable	console-pcat-mouse-realizer-log.service
+enable	console-pcat-mouse-realizer.target
+enable	console-pcat-kbd-realizer@*.service
+enable	console-pcat-kbd-realizer-log.service
+enable	console-pcat-kbd-realizer.target
+enable	console-ugen-hid-realizer@*.service
+enable	console-ugen-hid-realizer-log.service
+enable	console-ugen-hid-realizer.target
+enable	console-uhid-realizer@*.service
+enable	console-uhid-realizer-log.service
+enable	console-uhid-realizer.target
+
+# Conflicting non-nosh toolkit aggregation services are enabled.
+enable	uhidd@*.service
+enable	uhidd-log.service
+enable	uhidd.target
+enable	moused@*.service
+enable	moused-log.service
+enable	moused.target

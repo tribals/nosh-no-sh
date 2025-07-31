@@ -1,0 +1,9 @@
+tinydns/Makefile
+tinydns/convert.awk
+tinydns/main
+tinydns/split-horizon
+tinydns/add-alias
+tinydns/add-mx
+tinydns/add-host
+tinydns/add-childns
+tinydns/add-ns

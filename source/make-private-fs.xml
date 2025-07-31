@@ -34,7 +34,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>make-private-fs</command> is a chain-loading utility that mounts private volumes in various parts of the filesystem namespace and pre-populates them, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>make-private-fs</command> is a chain-loading utility that mounts private volumes in various parts of the filesystem namespace and pre-populates them, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -75,8 +75,10 @@ On BSD systems, a <code>fdescfs</code> filesystem is mounted at <filename>/dev/f
 <para>
 This is causes empty directories, held below a superuser-only-accessible parent, to be mounted at various user home directories, or collections of user home directories.
 It is currently equivalent to <arg choice='plain'>--hide</arg> <filename>/home</filename>, <arg choice='plain'>--hide</arg> <filename>/run/user</filename>, and <arg choice='plain'>--hide</arg> <filename>/root</filename>.
-Note that pseudo-user home directories such as <filename>/var/lib/rabbitmq</filename>, <filename>/var/lib/qmail</filename>, and <filename>/var/lib/mysql</filename> are not covered by this, as they are not considered to hold an individual real user's private files.
 </para>
+<note>
+Pseudo-user home directories such as <filename>/var/lib/rabbitmq</filename>, <filename>/var/lib/qmail</filename>, and <filename>/var/lib/mysql</filename> are not covered by this, as they are not considered to hold an individual real user's private files.
+</note>
 </listitem>
 </varlistentry>
 
@@ -93,13 +95,13 @@ They have <code>rwx</code> permissions for the owner, and no permissions for any
 </variablelist>
 
 <para>
-The command will fail if the process is not running under the aegis of the superuser, because most of the internal operations necessary are not permitted to non-superusers. 
+The command will fail if the process is not running under the aegis of the superuser, because most of the internal operations necessary are not permitted to non-superusers.
 </para>
 
 </refsection><refsection><title>Usage</title>
 
 <para>
-<command>make-private-fs</command> is usually run chain-loaded from <citerefentry><refentrytitle>unshare</refentrytitle><manvolnum>1</manvolnum></citerefentry>.  
+<command>make-private-fs</command> is usually run chain-loaded from <citerefentry><refentrytitle>unshare</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 Beware: Running it without unsharing first will affect the global mount namespace.
 </para>
 

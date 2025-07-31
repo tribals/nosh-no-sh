@@ -45,14 +45,6 @@ make_run_on_empty (
 	int socket_fd,
 	int supervise_dir_fd
 );
-#if 1	/// \todo TODO: Eventually we can switch off this mechanism.
-void
-unload (
-	const char * prog,
-	int socket_fd,
-	int supervise_dir_fd
-);
-#endif
 int
 start (
 	int supervise_dir_fd
@@ -143,14 +135,14 @@ void
 make_supervise_fifos (
 	const int supervise_dir_fd
 ) ;
-int 
-open_bundle_directory ( 
+int
+open_bundle_directory (
 	const ProcessEnvironment & envs,
-	const char * prefix, 
-	const char * arg, 
-	std::string & path, 
-	std::string & basename, 
-	std::string & suffix 
+	const char * prefix,
+	const char * arg,
+	std::string & path,
+	std::string & basename,
+	std::string & suffix
 ) ;
 int
 open_service_dir (
@@ -189,14 +181,14 @@ bool
 is_use_kill_signal (
 	const int service_dir_fd
 ) ;
-int 
+int
 listen_service_manager_socket (
-	const bool is_system, 
+	const bool is_system,
 	const char * prog
 ) ;
-int 
+int
 connect_service_manager_socket (
-	const bool is_system, 
+	const bool is_system,
 	const char * prog
 ) ;
 

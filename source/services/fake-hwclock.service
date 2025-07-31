@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Save/restore the system time in a persistent clock file on a DASD
+Before=persistent-clock-loaded.target
+Wants=persistent-clock-loaded.target
+
+[Service]
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
+EnvironmentDirectory=env
+ExecStartPre=./helper load
+ExecStart=./helper save
+ExecStopPost=./helper save
+
+[Install]
+WantedBy=workstation.target

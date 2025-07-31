@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+#After=console-input-method@.service
+Wants=frame-buffer.target
+
+[Service]
+PermissionsStartOnly=yes
+EnvironmentDirectory=env/
+SessionLeader=yes
+User=user-vt-kvt-realizer
+Group=user-vt-realizer
+ExecStart=%p ${fonts} ${flags} '/dev/%I'
+
+[Install]

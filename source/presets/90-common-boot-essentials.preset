@@ -3,12 +3,10 @@
 #
 # This is not a systemd preset.  
 # It goes in a special nosh system-manager preset directory.
-# It is used by the nosh-bundles package in order to enable certain mandatory basics without which a system simply won't work.
+# It is used by the nosh-run={freebsd,debian,trueos}-{desktop,server}-base packages in order to enable certain mandatory basics without which a system simply won't work.
 #
 
 # Ordinary services
-enable	cyclog@motd-dynamic.service
-enable	motd-dynamic.service
 enable	cyclog@network-interfaces.service
 enable	network-interfaces.service
 enable	cyclog@network-runtime.service
@@ -19,6 +17,9 @@ enable	cyclog@urandom.service
 enable	urandom.service
 enable  cyclog@nisdomain.service
 enable  nisdomain.service
+# As noted in the service source file, this became obsolete on Debian/Ubuntu in 2017.
+disable	cyclog@motd-dynamic.service
+disable	motd-dynamic.service
 
 # Sysinit services
 enable	sysinit-log.service

@@ -1,1 +1,7 @@
-Running the nosh system manager as process #1.
+ This package runs the nosh system manager as process #1.
+ .
+ It does this on FreeBSD/TrueOS by modifying /boot/loader.conf .
+ .
+ It does this on Linux by installing a symbolic link as /sbin/init .
+ .
+ Additionally, as part of (re-)installation, it invokes redo on the external configuration import subsystem.

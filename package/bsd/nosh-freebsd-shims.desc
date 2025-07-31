@@ -1,1 +1,5 @@
-FreeBSD shim service and system management utilities
+ This package provides shims for FreeBSD commands.
+  * procstat
+  * ps
+  * unvis
+  * utx

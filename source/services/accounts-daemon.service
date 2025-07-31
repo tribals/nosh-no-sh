@@ -7,8 +7,8 @@ Description=Accounts daemon
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.Accounts
 EnvironmentDirectory=env
-ExecStart=/usr/lib/accountsservice/%p
 Environment=GVFS_DISABLE_FUSE=1
 Environment=GIO_USE_VFS=local
 Environment=GVFS_REMOTE_VOLUME_MONITOR_IGNORE=1

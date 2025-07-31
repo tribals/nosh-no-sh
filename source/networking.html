@@ -1,8 +1,9 @@
-<title>Networking</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
 <link rel="Prev" href="mounting.html" title="Mounting filesystems" />
 <link rel="Next" href="logging.html" title="Logging" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Networking</title>
+<h1 class="Ruled">
 Networking
 </h1>
 
@@ -13,7 +14,7 @@ The difference between <i>dynamic configuration</i> and <i>static configuration<
 The difference between <i>dynamic address assignment</i> and <i>static address assignment</i> is whether the IP address(es) are hardwired into the configuration or obtained at runtime by a DHCP client/assigned by stateless auto-configuration.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Generated services
 </h2>
 
@@ -22,7 +23,7 @@ The nitty-gritty of managing network configuration is done with two suites of se
 They are individually preset and disabled in accordance with how the various network interfaces and static networking table entries are intended to be configured.
 </p>
 
-<h3>
+<h3 class="Ruled">
 per-network-interface generated services
 </h3>
 
@@ -70,7 +71,7 @@ For starters, one generally only wants one of the DHCP clients to be running, fo
 
 </dl>
 
-<h3>
+<h3 class="Ruled">
 administrator-labelled generated services
 </h3>
 
@@ -128,14 +129,14 @@ This ensures that link-local unicast addresses, FE80::/10, are not routed.
 </dl>
 <p>
 Various other parts of the system match up with these.
-<a href="services/djbdns.html">The <code>tinydns</code> service</a> by default is set up to <a href="http://jdebp.eu./FGA/dns-private-address-split-horizon.html#WhatToDo">publish reverse lookups</a> for these IP address ranges.
+<a href="services/djbdns.html">The <code>tinydns</code> service</a> by default is set up to <a href="https://jdebp.uk/FGA/dns-private-address-split-horizon.html#WhatToDo">publish reverse lookups</a> for these IP address ranges.
 The <code>ip6addrctl</code> service sets an explicit address selection policy for these address ranges.
 </p>
 </dd>
 
 </dl>
 
-<h2>
+<h2 class="Ruled">
 Standard services
 </h2>
 
@@ -156,7 +157,7 @@ Not only are these commands not necessarily available across all such operating 
 The <code>network-runtime</code> service handles the creation and destruction of the <code>/run/network</code> runtime directory that various other services use.
 </p>
 
-<h2 id="Plug-and-Play">
+<h2 class="Ruled" id="Plug-and-Play">
 Plug-and-Play and dynamic configuration
 </h2>
 
@@ -168,8 +169,15 @@ Dynamically-configured networking involves starting services in response to netw
 
 <li>
 <p>
-On FreeBSD/TrueOS the Plug and Play manager is <code>devd</code> and the link from the Plug and Play manager to the network services is the <code>/usr/local/etc/devd/netif-nosh.conf</code> configuration file.
+On FreeBSD the Plug and Play manager is <code>devd</code> and the link from the Plug and Play manager to the network services is the <code>/usr/local/etc/devd/netif-nosh.conf</code> configuration file.
 This configuration file specifies various events that will start the <code>ifscript@<i>name</i></code>, <code>ifconfig@<i>name</i></code>, and <code>dhclient@<i>name</i></code> services for an interface.
+</p>
+</li>
+
+<li>
+<p>
+On NetBSD the Plug and Play manager is <code>devpubd</code>.
+There are as yet no supplied configuration files for linking it to the network services.
 </p>
 </li>
 
@@ -183,11 +191,13 @@ There are as yet no supplied configuration files for linking them to the network
 </ul>
 
 <p>
-Note that services are not generated on the fly by the Plug-and-Play subsystem.
+<p class="note">
+Note:
+Services are not generated on the fly by the Plug-and-Play subsystem.
 The services to invoke must have been already generated.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Presets and static configuration
 </h2>
 

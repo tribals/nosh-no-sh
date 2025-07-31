@@ -4,22 +4,55 @@
 ## **************************************************************************
 
 # PROVIDE: service-manager
-# REQUIRE: FILESYSTEMS
+# REQUIRE: CRITLOCALMOUNTED
 # BEFORE: DAEMON
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
-name="service_manager"
-rcvar="service_manager_enable"
-command="/usr/local/bin/prependpath"
-start_precmd="service_manager_precmd"
-command_args="PATH /usr/local/bin:/usr/local/sbin local-datagram-socket-listen /run/service-manager/control service-manager &"
+name='service_manager'
+rcvar='service_manager_enable'		# FreeBSD style, with "_enable" suffix.
+pidfile='/run/service-manager/manager.pid'
+procname='service-manager'
+start_precmd='service_manager_start_precmd'
+start_cmd='service_manager_start_cmd'
 
-service_manager_precmd()
+service_manager_start_precmd()
 {
-	mount -t fdescfs fdescfs /dev/fd
-	mkdir -p /run/service-manager/log
+	if ! test -d /run
+	then
+		install -d -m 0700 /run || err 1 "Cannot create /run to be mounted on."
+	fi
+	# The system manager normally mounts and populates /run, and more besides.
+	if ! test -d /run/service-manager/log
+	then
+		mount_tmpfs -s 20M -m 0755 tmpfs /run || err 1 "Cannot mount tmpfs on /run."
+		install -d -m 0755 /run/service-manager/log /run/dev /run/service-bundles/early-supervise
+		ln -s /var/run/* /run/
+	fi
+	return 0
+}
+
+service_manager_start_cmd()
+{
+	# We have to log to a different log than the normal one, because we cannot funnel into a single logger under Mewburn rc.
+	/package/admin/nosh/command/prependpath PATH /package/admin/nosh/command:/package/admin/djbwares/command \
+	fdredir --non-blocking --write 2 /dev/console \
+	setsid \
+	pipe \
+		fdmove -c 2 1 \
+		local-datagram-socket-listen --mode 0700 /run/service-manager/control \
+		hardlimit -o 16384 \
+		softlimit -o hard \
+		service-manager \
+	\| \
+		pipe \
+			fdmove -c 2 1 \
+			cyclog --max-total-size 4Mi --max-file-size 1Mi /run/service-manager/log \
+		\| \
+			logger -c -t service-manager \
+	&
+	command printf '%s\n' $! > "${pidfile}"
 }
 
 load_rc_config $name

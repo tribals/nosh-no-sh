@@ -1,6 +1,7 @@
-<title>Importing jail configurations</title>
 <link rel="Up" href="external-formats.html" title="External formats" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Importing jail configurations</title>
+<h1 class="Ruled">
 Importing jail configurations
 </h1>
 
@@ -17,8 +18,9 @@ All converted services, when enabled, are wanted by the <code>jails</code> targe
 To enable the converted jails each jail and jailed service must have an explicit enable and the <code>jails</code> target enabled with <code>jails_enable="YES"</code> in <code>rc.conf</code>.
 </p>
 
-<p>
-Note that converted jails <em>always</em> start in parallel.
+<p class="note">
+Note:
+Converted jails <em>always</em> start in parallel.
 There is no notion of starting them sequentially.
 The <code>jail_parallel_start</code> setting is ignored.
 </p>

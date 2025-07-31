@@ -4,3 +4,4 @@
   <!-- This is a helper that is used to launch system-wide services -->
   <servicehelper>/usr/bin/dbus-daemon-launch-helper</servicehelper>
 </busconfig>
+<!-- vim: set filetype=xml: -->

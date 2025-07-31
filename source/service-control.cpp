@@ -44,7 +44,7 @@ void
 service_control [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 
@@ -66,6 +66,7 @@ service_control [[gnu::noreturn]] (
 		control_character_definition kill_option('k', "kill", "Send a SIGKILL signal to the service.", 'k', controls);
 		control_character_definition kill_main_option('K', "kill-main", "Send a SIGKILL signal to only the main process of the service.", 'K', controls);
 		control_character_definition quit_option('q', "quit", "Send a SIGQUIT signal to the service.", 'q', controls);
+		control_character_definition null_option('0', "null", "Send a null signal to the service.", '0', controls);
 		control_character_definition usr1_option('1', "usr1", "Send a SIGUSR1 signal to the service.", '1', controls);
 		control_character_definition usr2_option('2', "usr2", "Send a SIGUSR2 signal to the service.", '2', controls);
 		control_character_definition window_option('w', "window", "Send a SIGWINCH signal to the service.", 'w', controls);
@@ -87,6 +88,7 @@ service_control [[gnu::noreturn]] (
 			&kill_option,
 			&kill_main_option,
 			&quit_option,
+			&null_option,
 			&usr1_option,
 			&usr2_option,
 			&window_option,
@@ -95,26 +97,24 @@ service_control [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{file(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing directory name(s).");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "directory name(s)");
 	}
 
 	sigset_t original_signals;
-	sigprocmask(SIG_SETMASK, 0, &original_signals);
+	sigprocmask(SIG_SETMASK, nullptr, &original_signals);
 	sigset_t masked_signals(original_signals);
 	sigaddset(&masked_signals, SIGPIPE);
-	sigprocmask(SIG_SETMASK, &masked_signals, 0);
+	sigprocmask(SIG_SETMASK, &masked_signals, nullptr);
 
 	for (std::vector<const char *>::const_iterator i(args.begin()); i != args.end(); ++i) {
 		const char * name(*i);

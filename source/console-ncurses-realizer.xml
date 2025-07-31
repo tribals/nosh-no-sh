@@ -32,14 +32,14 @@
 <refsection><title>Description</title>
 
 <para>
-<command>console-ncurses-realizer</command> is the I/O back-end for a (user-space) virtual terminal, that realizes the virtual terminal on another terminal.
+<command>console-ncurses-realizer</command> is the I/O back end for a (user-space) virtual terminal, that realizes the virtual terminal on another terminal.
 It uses wide-character ncurses (sometimes a.k.a. ncursesw) to do so, and thus expects that terminal to be already connected to its standard input and standard output.
 It only uses its standard error for diagnostic messages.
 </para>
 
 <para>
 It opens the character/attribute buffer file <filename><replaceable>vcname</replaceable>/display</filename> and the input FIFO <filename><replaceable>vcname</replaceable>/input</filename>.
-These are the "master side" interfaces of the user-space virtual terminal, as detailed in <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+These are the back-end interfaces of the user-space virtual terminal, as detailed in <citerefentry><refentrytitle>user-vt</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
 </para>
 
 <para>
@@ -83,7 +83,7 @@ It does not attempt to create the file or FIFO if they do not exist, because thi
 
 </refsection>
 
-<refsection><title>Limitations</title>
+<refsection id="LIMITATIONS" xreflabel="LIMITATIONS"><title>Limitations</title>
 
 <para>
 Because it employs ncursesw, <command>console-ncurses-realizer</command> has several limitations compared to a realizer with a more powerful rendering mechanism:
@@ -121,9 +121,11 @@ The placeholders for control and zero-width characters in the display buffer are
 <para>
 Display attributes are badly translated by or entirely missing on the realizing terminal.
 For examples:
-Blink is not implemented; or is displayed as a bright background colour.
-Underline and italics are not implemented.
+Blink is wrongly displayed as a bright background colour.
+Underline and italics are not implemented; let alone the modern underline extensions for different kinds of underlining.
 Concealed text is not concealed.
+Framed and encircled are not implemented.
+Font weights are conflated with colour changes.
 </para>
 </listitem>
 
@@ -146,6 +148,21 @@ If you run <command>console-ncurses-realizer</command> outputting to the very sa
 Because of the modular nature of user space virtual terminals, it is not possible for <command>console-ncurses-realizer</command> to detect this.
 Don't do it.
 </para>
+
+</refsection>
+
+<refsection><title>SEE ALSO</title>
+
+<variablelist>
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>console-termio-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem><para>
+an alternative realizer built upon <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry>
+</para></listitem>
+</varlistentry>
+</variablelist>
 
 </refsection>
 

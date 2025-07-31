@@ -8,6 +8,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #include <stdint.h>
 
+/// \brief input message types
 enum {
 	INPUT_MSG_MASK		= 0xFF000000,
 	INPUT_MSG_UCS3		= 0x01000000,
@@ -15,9 +16,9 @@ enum {
 	// Don't clash with 0x03000000 being modifiers in keyboard maps.
 	INPUT_MSG_XPOS		= 0x04000000,
 	INPUT_MSG_YPOS		= 0x05000000,
-	INPUT_MSG_WHEEL		= 0x06000000,
+	INPUT_MSG_ZPOS		= 0x06000000,
 	INPUT_MSG_BUTTON	= 0x07000000,
-	INPUT_MSG_PUCS3		= 0x09000000,
+	INPUT_MSG_WHEEL		= 0x08000000,
 	INPUT_MSG_SESSION	= 0x0A000000,
 	INPUT_MSG_CKEY		= 0x0C000000,
 	INPUT_MSG_EKEY		= 0x0E000000,
@@ -25,10 +26,11 @@ enum {
 	INPUT_MSG_AUCS3		= 0x11000000,
 	// Don't clash with 0x1E000000 being unshifted extended keys in keyboard maps.
 	// Don't clash with 0x1F000000 being unmodifiable function keys in keyboard maps.
+	INPUT_MSG_PUCS3		= 0x21000000,
 };
 
-// modifiers as encoded in DEC VT control sequences (plus 1)
-// These are expressed in terms of the ISO 9995 levels and groups.
+/// \brief modifiers as encoded in DEC VT control sequences (minus 1)
+/// These are expressed in terms of the ISO 9995 levels and groups.
 enum {
 	INPUT_MODIFIER_LEVEL2	= (1U << 0U),
 	INPUT_MODIFIER_LEVEL3	= (1U << 1U),
@@ -37,7 +39,7 @@ enum {
 	INPUT_MODIFIER_SUPER	= (1U << 4U),	///< Windows, Apple/Command, Meta (Sun), or GUI (USB)
 };
 
-// These values are intentionally the same as USB keyboard HID codes, General Desktop page.
+/// \brief These are the USB HID codes, General Desktop page, with some extensions.
 enum {
 	SYSTEM_KEY_POWER		= 0x0081,
 	SYSTEM_KEY_HALT			= 0x0F81,	// non-USB
@@ -50,12 +52,14 @@ enum {
 	SYSTEM_KEY_HIBERNATE		= 0x00A8,
 };
 
-// These values are intentionally the same as USB keyboard HID codes, Keyboard page.
-// However, clearly there are a lot more editing and application keys in the termcap model than in the USB model.
+/// \brief These are the USB HID codes, Keyboard page, with some extensions.
+/// However, clearly there are a lot more editing and application keys in the termcap model than in the USB model.
 enum {
-	// Main keypad keys that emulations might make switchable.
+	// Main keypad keys that terminal emulations might make switchable.
  	EXTENDED_KEY_RETURN_OR_ENTER	= 0x0028,
+ 	EXTENDED_KEY_ESCAPE		= 0x0029,
  	EXTENDED_KEY_BACKSPACE		= 0x002A,
+ 	EXTENDED_KEY_TAB		= 0x002B,
  	EXTENDED_KEY_ALTERNATE_ERASE	= 0x0099,
 
 	// CJK keypad
@@ -190,7 +194,7 @@ enum {
  	EXTENDED_KEY_CANCEL		= 0x009B,
  	EXTENDED_KEY_CLEAR		= 0x009C,
  	EXTENDED_KEY_PRIOR		= 0x009D,
- 	EXTENDED_KEY_RETURN		= 0x009E,
+ 	EXTENDED_KEY_APP_RETURN		= 0x009E,
  	EXTENDED_KEY_SEPARATOR		= 0x009F,
  	EXTENDED_KEY_OUT		= 0x00A0,
  	EXTENDED_KEY_OPER		= 0x00A1,
@@ -231,8 +235,9 @@ enum {
  	EXTENDED_KEY_VOLUME_DOWN	= 0x0081,
 };
 
-// These values are intentionally the same as USB keyboard HID codes, Consumer page.
+/// \brief These are the USB HID codes, Consumer page.
 enum {
+	// Media transport controls:
 	CONSUMER_KEY_PLAY		= 0x00B0,
 	CONSUMER_KEY_PAUSE		= 0x00B1,
 	CONSUMER_KEY_RECORD		= 0x00B2,
@@ -250,6 +255,7 @@ enum {
 	CONSUMER_KEY_STOP_EJECT		= 0x00CC,
 	CONSUMER_KEY_PLAY_PAUSE		= 0x00CD,
 	CONSUMER_KEY_PLAY_SKIP		= 0x00CE,
+	// Audio controls:
 	CONSUMER_KEY_MUTE_PLAYER	= 0x00E2,
 	CONSUMER_KEY_BASS_BOOST		= 0x00E5,
 	CONSUMER_KEY_LOUDNESS		= 0x00E7,
@@ -261,6 +267,10 @@ enum {
 	CONSUMER_KEY_BASS_DOWN		= 0x0153,
 	CONSUMER_KEY_TREBLE_UP		= 0x0154,
 	CONSUMER_KEY_TREBLE_DOWN	= 0x0155,
+	// Application launch:
+	CONSUMER_KEY_AL_CONFIGURATION	= 0x0181,
+	CONSUMER_KEY_PB_CONFIGURATION	= 0x0182,
+	CONSUMER_KEY_CC_CONFIGURATION	= 0x0183,
 	CONSUMER_KEY_WORDPROCESSOR	= 0x0184,
 	CONSUMER_KEY_TEXT_EDITOR	= 0x0185,
 	CONSUMER_KEY_SPREADSHEET	= 0x0186,
@@ -274,11 +284,11 @@ enum {
 	CONSUMER_KEY_CALENDAR		= 0x018E,
 	CONSUMER_KEY_PROJECT_MANAGER	= 0x018F,
 	CONSUMER_KEY_TIMECARD		= 0x0190,
-	CONSUMER_KEY_CHECKBOOK		= 0x0191,
+	CONSUMER_KEY_CHEQUEBOOK		= 0x0191,
 	CONSUMER_KEY_CALCULATOR		= 0x0192,
-	CONSUMER_KEY_COMPUTER		= 0x0194,
-	CONSUMER_KEY_NETWORK		= 0x0195,
-	CONSUMER_KEY_WWW		= 0x0196,
+	CONSUMER_KEY_LOCAL_COMPUTER	= 0x0194,
+	CONSUMER_KEY_LOCAL_NETWORK	= 0x0195,
+	CONSUMER_KEY_WWW_BROWSER	= 0x0196,
 	CONSUMER_KEY_CONFERENCE		= 0x0198,
 	CONSUMER_KEY_CHAT		= 0x0199,
 	CONSUMER_KEY_DIALLER		= 0x019A,
@@ -295,10 +305,14 @@ enum {
 	CONSUMER_KEY_HELP_CENTRE	= 0x01A6,
 	CONSUMER_KEY_DOCUMENTS		= 0x01A7,
 	CONSUMER_KEY_DESKTOP		= 0x01AA,
+	CONSUMER_KEY_SPELL_CHECK	= 0x01AB,
 	CONSUMER_KEY_CLOCK		= 0x01B3,
 	CONSUMER_KEY_FILE_MANAGER	= 0x01B4,
+	CONSUMER_KEY_IMAGE_BROWSER	= 0x01B5,
 	CONSUMER_KEY_INSTANT_MESSAGING	= 0x01BC,
 	CONSUMER_KEY_WWW_SHOPPING	= 0x01C1,
+	CONSUMER_KEY_AUDIO_PLAYER	= 0x01C7,
+	// Generic GUI application controls:
 	CONSUMER_KEY_NEW		= 0x0201,
 	CONSUMER_KEY_OPEN		= 0x0202,
 	CONSUMER_KEY_CLOSE		= 0x0203,
@@ -316,6 +330,7 @@ enum {
 	CONSUMER_KEY_FIND		= 0x021F,
 	CONSUMER_KEY_FIND_AND_REPLACE	= 0x0220,
 	CONSUMER_KEY_SEARCH		= 0x0221,
+	CONSUMER_KEY_GOTO		= 0x0222,
 	CONSUMER_KEY_HOME		= 0x0223,
 	CONSUMER_KEY_BACK		= 0x0224,
 	CONSUMER_KEY_FORWARD		= 0x0225,
@@ -325,6 +340,15 @@ enum {
 	CONSUMER_KEY_NEXT_LINK		= 0x0229,
 	CONSUMER_KEY_BOOKMARKS		= 0x022A,
 	CONSUMER_KEY_HISTORY		= 0x022B,
+	CONSUMER_KEY_PAN_LEFT		= 0x0236,
+	CONSUMER_KEY_PAN_RIGHT		= 0x0237,
+	// Input Assist selectors:
+	CONSUMER_KEY_IA_PREVIOUS	= 0x02C7,
+	CONSUMER_KEY_IA_NEXT		= 0x02C8,
+	CONSUMER_KEY_IA_PREVIOUS_GROUP	= 0x02C9,
+	CONSUMER_KEY_IA_NEXT_GROUP	= 0x02CA,
+	CONSUMER_KEY_IA_ACCEPT		= 0x02CB,
+	CONSUMER_KEY_IA_CANCEL		= 0x02CC,
 };
 
 extern inline uint32_t MessageForUCS3(uint32_t c) { return INPUT_MSG_UCS3 | (c & ~INPUT_MSG_MASK); }
@@ -336,6 +360,7 @@ extern inline uint32_t MessageForFunctionKey(uint8_t k, uint8_t m) { return INPU
 extern inline uint32_t MessageForSession(uint16_t n, uint8_t m) { return INPUT_MSG_SESSION | (uint32_t(n & 0xFFFF) << 8U) | uint32_t(m & 0xFF); }
 extern inline uint32_t MessageForMouseColumn(uint16_t n, uint8_t m) { return INPUT_MSG_XPOS | (uint32_t(n & 0xFFFF) << 8U) | uint32_t(m & 0xFF); }
 extern inline uint32_t MessageForMouseRow(uint16_t n, uint8_t m) { return INPUT_MSG_YPOS | (uint32_t(n & 0xFFFF) << 8U) | uint32_t(m & 0xFF); }
+extern inline uint32_t MessageForMouseDepth(uint16_t n, uint8_t m) { return INPUT_MSG_ZPOS | (uint32_t(n & 0xFFFF) << 8U) | uint32_t(m & 0xFF); }
 extern inline uint32_t MessageForMouseWheel(uint8_t n, uint8_t v, uint8_t m) { return INPUT_MSG_WHEEL | (uint32_t(n & 0xFF) << 16U) | (uint32_t(v & 0xFF) << 8U) | uint32_t(m & 0xFF); }
 extern inline uint32_t MessageForMouseButton(uint8_t n, uint8_t v, uint8_t m) { return INPUT_MSG_BUTTON | (uint32_t(n & 0xFF) << 16U) | (uint32_t(v & 0xFF) << 8U) | uint32_t(m & 0xFF); }
 

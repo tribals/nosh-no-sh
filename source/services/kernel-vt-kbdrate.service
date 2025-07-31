@@ -4,6 +4,7 @@
 
 [Unit]
 Description=Set up kernel virtual terminal screen-saving
+Description=The kbdrate program is part of the kbd packages.
 After=kernel-vt-loadkeys.service
 
 [Service]
@@ -14,7 +15,6 @@ StandardError=log
 EnvironmentDirectory=env
 ExecStart=kbdrate ${rate:+-r "${rate}"} ${delay:+-d "${delay}"} ${flags}
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

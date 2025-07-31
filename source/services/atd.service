@@ -4,7 +4,6 @@
 
 [Unit]
 Description=Deferred execution scheduler
-Conflicts=atrun
 
 [Service]
 ExecStart=%p -f

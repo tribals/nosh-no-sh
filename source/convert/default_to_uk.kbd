@@ -1,6 +1,4 @@
-# This is an overlay keymap that just contains 
-# the differences between the default built-in keyboard map
-# and U.K. keyboards.
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and U.K. keyboards.
 #
 # Note that the standard for the Euro symbol is to be Level 3 + 'E'.
 # The common U.K. practice, in contrast, is to use Level 3 + '4'.
@@ -20,6 +18,6 @@
   012   '-'    '_'    us     us     '|'    '|'    us     us      O
   013   '='    '+'    nop    nop    '}'    '}'    nop    nop     O
   040   '''    '@'    nul    nul    '''    '@'    nul    nul     O
-  041   '`'    0xac   nop    nop    '|'    '|'    nop    nop     O
+  041   '`'    0xac   nop    nop    0xa6   0xa6   nop    nop     O
   043   '#'    '~'    nop    nop    '#'    '~'    nop    nop     O
   086   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O

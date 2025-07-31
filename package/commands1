@@ -2,6 +2,7 @@ exec
 system-control
 console-ncurses-realizer
 console-terminal-emulator
+emergency-login
 getty
 ptybandage
 ptyrun

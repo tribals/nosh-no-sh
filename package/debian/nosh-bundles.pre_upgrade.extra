@@ -22,28 +22,43 @@ do
 		ln -s -f -- ../system-control/presets "${d}"etc/system-manager
 	fi
 done
+# Convert from the old 1.40 and earlier directory structure.
+if test \! -L /var/sv && test -d /var/sv && test \! -e /var/service-bundles/services
+then
+	install -d -m 0755 -- /var/service-bundles
+	mv -i -- /var/sv /var/service-bundles/services
+	ln -s -f -- service-bundles/services /var/sv
+fi
+if test \! -L /var/local/sv && test -d /var/local/sv && test \! -e /var/local/service-bundles/services
+then
+	install -d -m 0755 -- /var/local/service-bundles
+	mv -i -- /var/local/sv /var/local/service-bundles/services
+	ln -s -f -- service-bundles/services /var/local/sv
+fi
+
+pwescape() { system-control escape --format account -- "$@" ; }
+
+relocate_var_service() {
+        local e
+	e=1
+        if test -d "/var/service-bundles/services/$1" && test \! -d "/var/service-bundles/services/$2"
+        then
+                if system-control is-enabled "/var/service-bundles/services/$1"
+		then
+			e=0
+			system-control disable "/var/service-bundles/services/$1"
+		fi
+		printf 1>&2 "Renaming service bundle directory: %s to %s\n" "$1" "$2"
+                mv -i -- "/var/service-bundles/services/$1" "/var/service-bundles/services/$2"
+                test $e -ne 0 || system-control enable "/var/service-bundles/services/$2"
+        fi
+}
 
 discontinue_alias() {
 	for I
 	do
-		test \! -L "/var/sv/$I" || rm -f -- "/var/sv/$I"
+		test \! -L "/var/service-bundles/services/$I" || rm -f -- "/var/service-bundles/services/$I"
 	done
-}
-
-relocate_var_sv() {
-        local e
-	e=1
-        if test -d "/var/sv/$1" && test \! -d "/var/sv/$2"
-        then
-                if system-control is-enabled "/var/sv/$1"
-		then
-			e=0
-			system-control disable "/var/sv/$1"
-		fi
-		printf 1>&2 "Renaming service bundle directory: %s to %s\n" "$1" "$2"
-                mv -i -- "/var/sv/$1" "/var/sv/$2"
-                test $e -ne 0 || system-control enable "/var/sv/$2"
-        fi
 }
 
 discontinue() {
@@ -69,18 +84,20 @@ discontinue() {
 # Always invoke this before renaming the log service bundle, therefore.
 rename_log() {
 	local e
+	local pwescaped1="`pwescape "$1"`-log"
+	local pwescaped2="`pwescape "$2"`-log"
 	e=1
-	if getent passwd "$1"-log > /dev/null &&
-	!  getent passwd "$2"-log > /dev/null
+	if getent passwd "${pwescaped1}" > /dev/null &&
+	!  getent passwd "${pwescaped2}" > /dev/null
 	then
-		printf 1>&2 "Renaming user: %s to %s\n" "$1"-log "$2"-log
+		printf 1>&2 "Renaming user: %s to %s\n" "${pwescaped1}" "${pwescaped2}"
 		if system-control is-loaded cyclog@"$1" &&
 		   system-control is-active cyclog@"$1"
 		then
 			e=0
 			system-control stop cyclog@"$1"
 		fi
-		usermod -l "$2"-log "$1"-log
+		usermod -l "${pwescaped2}" "${pwescaped1}"
 		test $e -ne 0 || system-control start cyclog@"$1"
 	fi
         if test -d "/var/log/sv/$1" && test \! -d "/var/log/sv/$2"
@@ -90,23 +107,47 @@ rename_log() {
         fi
 }
 
+remove_ready_after_run() {
+        local e
+	local I
+        for I
+        do
+                if e="`system-control find \"$I\" 2>/dev/null`"
+                then
+			find "${e}"/service -maxdepth 1 -name ready_after_run -mtime +1 -delete
+                fi
+        done
+}
+
 # These services have been discontinued.
 discontinue \
-	/var/sv/openvpn@server \
-	/var/sv/openvpn@client \
+	/var/service-bundles/services/openvpn@server \
+	/var/service-bundles/services/openvpn@client \
 	stty-sane@console \
 	make-utx-log \
 	linux-utmp \
 	;
 
+# These services are now always running
+remove_ready_after_run \
+	org.cups.cups-cancel \
+	taiclock \
+	certbot-renew \
+	convert_varrun \
+	phpsessionclean \
+	;
+
 # These services have been relocated.
-relocate_var_sv gnucron debian-cron
-rename_log gnucron debian-cron	# Must run before relocate_var_sv.
-relocate_var_sv cyclog@gnucron cyclog@debian-cron
-relocate_var_sv dbus dbus-daemon
-rename_log dbus dbus-daemon	# Must run before relocate_var_sv.
-relocate_var_sv cyclog@dbus cyclog@dbus-daemon
+relocate_var_service gnucron debian-cron
+rename_log gnucron debian-cron	# Must run before relocate_var_service.
+relocate_var_service cyclog@gnucron cyclog@debian-cron
+relocate_var_service dbus dbus-daemon
+rename_log dbus dbus-daemon	# Must run before relocate_var_service.
+relocate_var_service cyclog@dbus cyclog@dbus-daemon
 discontinue_alias cyclog@dbus dbus
-relocate_var_sv clamd clamav
-rename_log clamd clamav	# Must run before relocate_var_sv.
-relocate_var_sv cyclog@clamd cyclog@clamav
+relocate_var_service clamd clamav
+rename_log clamd clamav	# Must run before relocate_var_service.
+relocate_var_service cyclog@clamd cyclog@clamav
+relocate_var_service console-fb-realizer@head0 console-kvt-realizer@tty9
+rename_log console-fb-realizer@head0 console-kvt-realizer@tty9	# Must run before relocate_var_service.
+relocate_var_service cyclog@console-fb-realizer@head0 cyclog@console-kvt-realizer@tty9

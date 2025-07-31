@@ -19,11 +19,12 @@ For copyright and licensing terms, see the file named COPYING.
 
 static
 void
-foreground_background_common ( 
+foreground_background_common (
 	bool do_wait,
 	const char * sep,
 	const char * & next_prog,
-	std::vector<const char *> & args
+	std::vector<const char *> & args,
+	const ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -34,14 +35,13 @@ foreground_background_common (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog} {;}|{&} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	std::vector<const char *> lhs, rhs, *c = &lhs;
@@ -55,19 +55,15 @@ foreground_background_common (
 	}
 
 	if (lhs.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing left-hand side.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "left-hand side");
 	}
 	if (rhs.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing right-hand side.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "right-hand side");
 	}
 
 	const pid_t pid(fork());
 	if (0 > pid) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "fork", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "fork");
 	}
 
 	args = 0 < pid ? rhs : lhs;
@@ -79,19 +75,19 @@ foreground_background_common (
 }
 
 void
-foreground ( 
+foreground (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
-	foreground_background_common(true, ";", next_prog, args);
+	foreground_background_common(true, ";", next_prog, args, envs);
 }
 
 void
-background ( 
+background (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
-	foreground_background_common(false, "&", next_prog, args);
+	foreground_background_common(false, "&", next_prog, args, envs);
 }

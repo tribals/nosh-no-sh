@@ -10,6 +10,7 @@
 
 # This is the BSD system, with settings in /etc/rc.conf{,.local}
 read_rc() { clearenv read-conf rc.conf printenv "$1" || true ; }
+
 list_modules() { 
 	( 
 		read_rc kld_list || true
@@ -23,8 +24,8 @@ list_modules() {
 redo-ifchange rc.conf
 
 case "`uname`" in
-*BSD)
-	# This is the list of "known" BSD kernel modules for which service bundles are pre-supplied.
+FreeBSD)
+	# This is the list of "known" FreeBSD kernel modules for which service bundles are pre-supplied.
 	# Note that we cannot just disable kmod@* and cyclog@kmod@* because of VirtualBox and others.
 	for n in \
 		fuse \

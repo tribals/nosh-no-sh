@@ -1,8 +1,9 @@
-<title>Log post-processing</title>
 <link rel="Up" href="logging.html" title="Logging" />
 <link rel="Prev" href="log-service-plumbing.html" title="Logging services and plumbing" />
 <link rel="Next" href="beyond-cyclog.html" title="Beyond cyclog"/>
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Log post-processing</title>
+<h1 class="Ruled">
 Log post-processing
 </h1>
 
@@ -16,14 +17,16 @@ There are a number of tools that can be used to post-process the contents of log
 <li><p>
 One can "follow" a log with the <code>tail&nbsp;-F</code> (not <code>-f</code>) command applied to its <code>current</code> file.
 </p><p>
-Note that this does not "catch up" with old logs, and only processes the current file.
+<p class="note">
+Note:
+This does not "catch up" with old logs, and only processes the current file.
 The <code>-n +0</code> option can be added to follow from the beginning of the current file.
 </p><p>
 Also note that it has a race condition where <code>tail</code> will miss out stuff if (for whatever reason) rotation from one file to the next happens faster than <code>tail</code> can switch files to keep up.
 <code>tail</code> ends up skipping whole files.
 (This is fairly easy to trigger in practice if the output of <code>tail</code> is to something slow like a slow scrolling remote terminal over a low bandwidth or lossy network connection.)
 </p><p>
-<a href="http://jdebp.eu/FGA/do-not-use-logrotate.html">GNU <code>tail</code> and BSD <code>tail</code> have a multiplicity of problems handling rotated log files</a>.
+<a href="http://jdebp.uk/FGA/do-not-use-logrotate.html">GNU <code>tail</code> and BSD <code>tail</code> have a multiplicity of problems handling rotated log files</a>.
 </p></li>
 
 <li><p>

@@ -13,10 +13,15 @@ read_rc() { clearenv read-conf rc.conf printenv "$1" ; }
 get_var() { read_rc openvpn_"$1"_"$2" || read_rc openvpn_"$2" || true ; }
 
 list_instances() {
-	find "${config_dir}"/ -maxdepth 2 -name '*.conf' |
-	while read -r i
-	do 
-		basename "$i" .conf
+	local l
+	local i
+	for l
+	do
+		find "${l}"/ -maxdepth 2 -name '*.conf' -a \( -type l -o -type f \) |
+		while read -r i
+		do 
+			basename "$i" .conf
+		done
 	done |
 	awk '!x[$0]++'
 }
@@ -37,17 +42,17 @@ redo-ifchange rc.conf general-services "openvpn-server@.service" "openvpn-client
 
 install -d -m 0755 -- "/var/log/openvpn/sv"
 
-r="/var/local/sv"
-e="--no-systemd-quirks --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --local-bundle"
 
 find "$r/" -maxdepth 1 -type d \( -name 'openvpn@*' -o -name 'openvpn-client@*' -o -name 'openvpn-server@*' -o -name 'openvpn-otp@*' -o -name 'openvpn-log@*' \) -print0 |
 xargs -0 system-control disable -- || true
 
 config_dir="/etc/openvpn"
 
-for config_dir in "/etc/openvpn" "/usr/share/openvpn" "/usr/local/etc/openvpn" "/usr/local/share/openvpn" ""
+for config_dir in "/usr/local/etc/openvpn" "/etc/openvpn" "/usr/local/share/openvpn" "/usr/share/openvpn"
 do
-	test -n "${config_dir}" || exit 0
 	if ! test -e "${config_dir}"
 	then
 		redo-ifcreate "${config_dir}"
@@ -60,12 +65,10 @@ do
 		echo >>"$3" "${config_dir}" "is not valid."
 		continue
 	fi
+	echo >>"$3" "Config in" "${config_dir}" "."
+	list_instances "${config_dir}" 2>>"$3"
 	break
-done
-
-echo >>"$3" "Config in" "${config_dir}" "."
-
-list_instances |
+done |
 while read -r i
 do
 	# In the old system, there was one config file which was usually the client.
@@ -79,7 +82,7 @@ do
 	log="openvpn-log@$i"
 	otp="openvpn-otp@$i"
 
-	system-control convert-systemd-units $e "$r/" "./${srv}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${srv}.service"
 	rm -f -- "$r/${srv}/log"
 	ln -s -- "../${log}" "$r/${srv}/log"
 	rm -f -- "$r/${srv}/service/config"
@@ -91,7 +94,7 @@ do
 		system-control disable -- "${srv}"
 	fi
 
-	system-control convert-systemd-units $e "$r/" "./${cli}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${cli}.service"
 	rm -f -- "$r/${cli}/log"
 	ln -s -- "../${log}" "$r/${cli}/log"
 	rm -f -- "$r/${cli}/service/secret.up"
@@ -109,7 +112,7 @@ do
 		system-control disable -- "${cli}"
 	fi
 
-	system-control convert-systemd-units $e "$r/" "./${otp}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${otp}.service"
 	rm -f -- "$r/${otp}/log"
 	ln -s -- "../${log}" "$r/${otp}/log"
 	install -d -m 0700 "$r/${otp}/service/root"
@@ -123,7 +126,7 @@ do
 		setfacl -m "u:openvpn-otp:r" "$r/${otp}/service/root/$f" || setfacl -m "user:openvpn-otp:r::allow" "$r/${otp}/service/root/$f" || :
 	done
 
-	system-control convert-systemd-units $e "$r/" "./${log}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${log}.service"
 	rm -f -- "$r/${log}/main"
 	ln -s -- "/var/log/openvpn/sv/$i" "$r/${log}/main"
 	install -d -m 0755 -- "/var/log/openvpn/sv/$i"

@@ -8,9 +8,10 @@ Description=NOTE: djbwares' gopherd supports GOPHER over both IPv4 and IPv6 with
 
 [Service]
 User=publicfile
+SessionLeader=yes
 EnvironmentUserOnly=true
 EnvironmentDirectory=env
-LimitNOFILE=20
+LimitNOFILE=8
 LimitDATA=5000000
 ExecStart=${localhost:+setenv ${PROTO:-TCP}LOCALHOST "${localhost}"} sh -c 'exec gopherd ~publicfile/public'
 

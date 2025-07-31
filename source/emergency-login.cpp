@@ -10,17 +10,18 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cerrno>
 #include <cctype>
 #include <unistd.h>
-#include <paths.h>
 #include <termios.h>
 #if defined(__LINUX__) || defined(__linux__)
 #include <shadow.h>
 #endif
-#include <paths.h>
 #include <pwd.h>
 #include "popt.h"
 #include "utils.h"
 #include "ProcessEnvironment.h"
+#include "DefaultEnvironment.h"
 #include "ttyutils.h"
+
+namespace {
 
 termios
 make_noecho (
@@ -31,12 +32,16 @@ make_noecho (
 	return t;
 }
 
+const char SH[] = "sh";
+
+}
+
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-emergency_login ( 
+emergency_login (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -48,22 +53,19 @@ emergency_login (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
-	const char * shell(_PATH_BSHELL);
-	struct passwd * const p(getpwuid(0));
+	const char * shell(nullptr);
+	struct passwd * p(getpwnam("root"));
+	if (!p || p->pw_uid != 0) p = getpwuid(0);
 	if (p) {
 #if defined(__LINUX__) || defined(__linux__)
 		struct spwd * const s(getspnam(p->pw_name));
@@ -104,29 +106,30 @@ emergency_login (
 			endspent();
 		}
 #endif
-		if (p->pw_shell)
+		if (p->pw_shell && *p->pw_shell)
 			shell = strdup(p->pw_shell);
 	}
 	endpwent();
 
-	execl(shell, shell, static_cast<const char *>(0));
-	std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, shell, std::strerror(errno));
-
-	shell = envs.query("SHELL");
-	if (shell) {
-		execl(shell, shell, static_cast<const char *>(0));
+	if (shell && *shell) {
+		execl(shell, SH, static_cast<const char *>(nullptr));
 		std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, shell, std::strerror(errno));
 	}
 
-	shell = _PATH_BSHELL;
-	execl(shell, shell, static_cast<const char *>(0));
+	shell = envs.query("SHELL");
+	if (shell && *shell) {
+		execl(shell, SH, static_cast<const char *>(nullptr));
+		std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, shell, std::strerror(errno));
+	}
+
+	shell = DefaultEnvironment::UserLogin::SHELL;
+	execl(shell, SH, static_cast<const char *>(nullptr));
 	std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, shell, std::strerror(errno));
 
 	shell = "/bin/sh";
-	execl(shell, shell, static_cast<const char *>(0));
+	execl(shell, SH, static_cast<const char *>(nullptr));
 	std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, shell, std::strerror(errno));
 
-	args.insert(args.end(), shell);
-	args.insert(args.end(), 0);
+	args.push_back(SH);
 	next_prog = arg0_of(args);
 }

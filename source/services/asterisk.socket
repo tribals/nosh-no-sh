@@ -1,0 +1,39 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Asterisk PBX and telephony sockets
+
+[Socket]
+Backlog=2
+Accept=false
+
+ListenStream=%t/%p/%p.ctl
+SocketUser=%p
+SocketGroup=%p
+SocketMode=0660
+
+BindIPv6Only=both
+FreeBind=true
+FileDescriptorName=http4
+ListenStream=127.0.0.1:8088
+FileDescriptorName=http4s
+ListenStream=127.0.0.1:8089
+FileDescriptorName=http6
+ListenStream=[::1]:8088
+FileDescriptorName=http6s
+ListenStream=[::1]:8089
+FileDescriptorName=sip
+ListenStream=[::]:5060
+FileDescriptorName=sips
+ListenStream=[::]:5061
+# Manager interface
+FileDescriptorName=ami
+ListenStream=[::]:5038
+# Manager interface with TLS
+FileDescriptorName=amis
+ListenStream=[::]:5039
+
+[Install]
+WantedBy=server.target

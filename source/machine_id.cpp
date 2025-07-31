@@ -7,6 +7,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <fstream>
 #include "machine_id.h"
 #include "jail.h"
+#include "utils.h"
 #include "ProcessEnvironment.h"
 
 /* library functions for accessing the machine ID ***************************
@@ -17,11 +18,11 @@ namespace {
 
 	const char volatile_filename[] = "/run/machine-id";
 	const char non_volatile_filename[] = "/etc/machine-id";
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
+#if !defined(__LINUX__) && !defined(__linux__)
 	const char volatile_hostuuid_filename[] = "/run/hostid";
 	const char non_volatile_hostuuid_filename[] = "/etc/hostid";
-	const char non_volatile_local_etc_machineid_filename[] = "/usr/local/etc/machine-id";
 #endif
+	const char non_volatile_local_etc_machineid_filename[] = "/usr/local/etc/machine-id";
 
 }
 
@@ -63,9 +64,9 @@ guid_to_uuid (
 }
 #endif
 
-inline 
-int 
-x2c ( int c ) 
+inline
+int
+x2c ( int c )
 {
 	if (std::isdigit(c)) return c - '0';
 	if (std::isalpha(c)) {
@@ -75,9 +76,9 @@ x2c ( int c )
 	return EOF;
 }
 
-inline 
-int 
-c2x ( int c ) 
+inline
+int
+c2x ( int c )
 {
 	if (EOF == c || c < 0) return EOF;
 	if (c < 10) return c + '0';
@@ -128,7 +129,6 @@ read_uuid (
 #endif
 }
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
 bool
 read_first_line_uuid (
 	std:: istream & i
@@ -148,7 +148,6 @@ read_first_line_uuid (
 	if (s.fail()) return false;
 	return read_first_line_uuid(s);
 }
-#endif
 
 void
 write_one_line_machine_id (
@@ -162,13 +161,13 @@ write_one_line_machine_id (
 	i.put('\n');
 }
 
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
+#if !defined(__LINUX__) && !defined(__linux__)
 inline
 void
 write_one_line_hostuuid (
 	std:: ostream & i
 ) {
-	char * buf(0);
+	char * buf(nullptr);
 	uint32_t status;
 	const uuid_t guid(uuid_to_guid(machine_id::the_machine_id));
 	uuid_to_string(&guid, &buf, &status);
@@ -183,6 +182,7 @@ inline
 void
 write_or_bind_mount_machine_id (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * write_filename,
 	const char * mount_filename
 ) {
@@ -193,23 +193,22 @@ write_or_bind_mount_machine_id (
 	}
 	if ((EROFS != errno)
 #if defined(MS_BIND)
-		|| (0 > mount(mount_filename, write_filename, "bind", MS_BIND, 0))
+	||  (0 > mount(mount_filename, write_filename, "bind", MS_BIND, 0))
 #endif
-	   ) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, write_filename, std::strerror(error));
-		throw EXIT_FAILURE;
+	) {
+		die_errno(prog, envs, write_filename);
 	}
 #if !defined(MS_BIND)
 	static_cast<void>(mount_filename);	// Silence a compiler warning.
 #endif
 }
 
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
+#if !defined(__LINUX__) && !defined(__linux__)
 inline
 void
 write_or_bind_mount_hostuuid (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * write_filename,
 	const char * mount_filename
 ) {
@@ -220,12 +219,10 @@ write_or_bind_mount_hostuuid (
 	}
 	if ((EROFS != errno)
 #if defined(MS_BIND)
-		|| (0 > mount(mount_filename, write_filename, "bind", MS_BIND, 0))
+	|| (0 > mount(mount_filename, write_filename, "bind", MS_BIND, 0))
 #endif
-	   ) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, write_filename, std::strerror(error));
-		throw EXIT_FAILURE;
+	) {
+		die_errno(prog, envs, write_filename);
 	}
 #if !defined(MS_BIND)
 	static_cast<void>(mount_filename);	// Silence a compiler warning.
@@ -246,25 +243,25 @@ inline
 bool
 read_backwards_compatible_non_volatile ()
 {
-	return	
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+	return
+#if !defined(__LINUX__) && !defined(__linux__)
 		read_first_line_uuid(non_volatile_hostuuid_filename) ||
-		read_first_line_uuid(non_volatile_local_etc_machineid_filename) ||
 #endif
-		read_first_line_machine_id("/var/lib/dbus/machine-id") || 
+		read_first_line_uuid(non_volatile_local_etc_machineid_filename) ||
+		read_first_line_machine_id("/var/lib/dbus/machine-id") ||
 		read_first_line_machine_id("/var/db/dbus/machine-id");
 }
 
 inline
 void
-write_backwards_compatible_non_volatile (const char * prog)
-{
-#if defined(__FreeBSD__) || defined(__DragonFly__)
-	write_or_bind_mount_hostuuid(prog, non_volatile_hostuuid_filename, volatile_hostuuid_filename);
-	write_or_bind_mount_machine_id(prog, non_volatile_local_etc_machineid_filename, volatile_filename);
-#else
-	static_cast<void>(prog);	// Silence a compiler warning.
+write_backwards_compatible_non_volatile (
+	const char * prog,
+	const ProcessEnvironment & envs
+) {
+#if !defined(__LINUX__) && !defined(__linux__)
+	write_or_bind_mount_hostuuid(prog, envs, non_volatile_hostuuid_filename, volatile_hostuuid_filename);
 #endif
+	write_or_bind_mount_machine_id(prog, envs, non_volatile_local_etc_machineid_filename, volatile_filename);
 }
 
 #if defined(__FreeBSD__) || defined(__DragonFly__)
@@ -279,18 +276,18 @@ read_host_uuid ()
 {
 #if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
 	std::size_t siz(0);
-	if (0 > sysctl(host_uuid_oid, sizeof host_uuid_oid/sizeof *host_uuid_oid, 0, &siz, 0, 0)) return false;
+	if (0 > sysctl(host_uuid_oid, sizeof host_uuid_oid/sizeof *host_uuid_oid, nullptr, &siz, nullptr, 0)) return false;
 	if (37 > siz) return false;
 	char * buf(static_cast<char *>(malloc(siz)));
 	if (!buf) return false;
-	if (0 > sysctl(host_uuid_oid, sizeof host_uuid_oid/sizeof *host_uuid_oid, buf, &siz, 0, 0)) {
+	if (0 > sysctl(host_uuid_oid, sizeof host_uuid_oid/sizeof *host_uuid_oid, buf, &siz, nullptr, 0)) {
 		free(buf);
 		return false;
 	}
 	const bool r(read_uuid(buf));
 	free(buf);
 	return r;
-#elif defined(__LINUX__) || defined(__linux__)
+#elif defined(__LINUX__) || defined(__linux__) || defined(__NetBSD__)
 	return false;
 #else
 #error "Don't know how to manipulate volatile host UUID on your platform."
@@ -300,20 +297,21 @@ read_host_uuid ()
 inline
 void
 write_host_uuid (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
 #if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
-	char * buf(0);
+	char * buf(nullptr);
 	uint32_t status;
 	const uuid_t guid(uuid_to_guid(machine_id::the_machine_id));
 	uuid_to_string(&guid, &buf, &status);
-	if (0 > sysctl(host_uuid_oid, sizeof host_uuid_oid/sizeof *host_uuid_oid, 0, 0, buf, std::strlen(buf) + 1)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: ERROR: %s: %s\n", prog, "kern.hostuuid", std::strerror(error));
+	if (0 > sysctl(host_uuid_oid, sizeof host_uuid_oid/sizeof *host_uuid_oid, nullptr, 0, buf, std::strlen(buf) + 1)) {
+		message_error_errno(prog, envs, "kern.hostuuid");
 	}
 	free(buf);
-#elif defined(__LINUX__) || defined(__linux__)
+#elif defined(__LINUX__) || defined(__linux__) || defined(__NetBSD__)
 	static_cast<void>(prog);	// Silences a compiler warning.
+	static_cast<void>(envs);	// Silences a compiler warning.
 #else
 #error "Don't know how to manipulate volatile host UUID on your platform."
 #endif
@@ -327,18 +325,15 @@ read_volatile ()
 
 void
 write_volatile (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
-	write_host_uuid(prog);
+	write_host_uuid(prog, envs);
 
 	std::ofstream s(volatile_filename);
-	if (!s.fail()) {
-		write_one_line_machine_id(s);
-		return;
-	}
-	const int error(errno);
-	std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, volatile_filename, std::strerror(error));
-	throw EXIT_FAILURE;
+	if (s.fail())
+		die_errno(prog, envs, volatile_filename);
+	write_one_line_machine_id(s);
 }
 
 }
@@ -390,7 +385,7 @@ human_readable_form()
 	uuid_unparse(the_machine_id, buf);
 	return std::string(buf);
 #else
-	char * buf(0);
+	char * buf(nullptr);
 	uint32_t s;
 	const uuid_t guid(uuid_to_guid(the_machine_id));
 	uuid_to_string(&guid, &buf, &s);
@@ -401,7 +396,7 @@ human_readable_form()
 }
 
 std::string
-human_readable_form_compact () 
+human_readable_form_compact ()
 {
 	std::string r;
 	unsigned char * m(reinterpret_cast<unsigned char *>(&the_machine_id));
@@ -421,12 +416,13 @@ read_non_volatile ()
 
 void
 write_non_volatile (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
-	write_or_bind_mount_machine_id(prog, non_volatile_filename, volatile_filename);
+	write_or_bind_mount_machine_id(prog, envs, non_volatile_filename, volatile_filename);
 }
 
-bool 
+bool
 validate ()
 {
 	if (is_null()) return false;
@@ -452,10 +448,12 @@ read_fallbacks (const ProcessEnvironment & envs)
 }
 
 void
-write_fallbacks (const char * prog)
-{
-	write_volatile(prog);
-	write_backwards_compatible_non_volatile(prog);
+write_fallbacks (
+	const char * prog,
+	const ProcessEnvironment & envs
+) {
+	write_volatile(prog, envs);
+	write_backwards_compatible_non_volatile(prog, envs);
 }
 
 }

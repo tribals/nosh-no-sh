@@ -3,7 +3,7 @@
 #
 # This is not a systemd preset.  
 # It goes in a special nosh system-manager preset directory.
-# It is used by the nosh-bundles package in order to enable certain mandatory basics without which a system simply won't work.
+# It is used by the nosh-run-{trueos,freebsd,netbsd}-{desktop,server}-base packages in order to enable certain mandatory basics without which a system simply won't work.
 #
 
 # Ordinary services
@@ -16,18 +16,18 @@ enable	cyclog@savecore.service
 enable	savecore.service
 enable	cyclog@virecover.service
 enable	virecover.service
-enable	cyclog@vixiecron.service
-enable	vixiecron.service
+# Everything that was in here is now a proper service.
+#enable	cyclog@vixiecron.service
+#enable	vixiecron.service
+enable	cyclog@atrun.service
+enable	atrun.service
 enable	cyclog@crashinfo.service
 enable	crashinfo.service
-enable	freebsd-install-finish.service
-enable	trueos-install-finish.service
-enable	freebsd-update-finish.service
-enable	trueos-update-finish.service
+# Proper size-limited syslog readers are available.
+#enable	cyclog@newsyslog.service
+#enable	newsyslog.service
 
 # Sysinit services
-enable	devd-log.service
-enable	devd.service
 enable	nextboot.service
 enable	gptboot.service
 # This has been superseded by individual fsck@ services for every entry in the fstab database and zfs list.

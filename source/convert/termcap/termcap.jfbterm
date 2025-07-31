@@ -1,0 +1,23 @@
+jfbterm|jfbterm-256color|jfbterm-16color|J framebuffer terminal:\
+	:am:eo:es:hs:mi:ms:xn:xo:\
+	:co#80:it#8:li#25:cs=\E[%i%d;%dr:\
+	:pa#32767:Co#256:AF=\E[38;5;%dm:AB=\E[48;5;%dm:op=\E[39;49m\E[m:\
+	:cr=^M:nw=^M^J:bl=^G:ta=^I:vb=200\E[?5h\E[?5l:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:IC=\E[%d@:\
+	:al=\E[L:dc=\E[P:dl=\E[M:ic=\E[@:up=\E[A:do=\E[B:nd=\E[C:le=\E[D:sf=\E[B:sr=\EM:\
+	:cd=\E[J:ce=\E[K:cl=\E[H\E[J:\
+	:ho=\E[H:cm=\E[%i%d;%dH:\
+	:im=\E[4h:ei=\E[4l:\
+	:k1=\E[[A:k2=\E[[B:k3=\E[[C:k4=\E[[D:k5=\E[[E:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:F3=\E[25~:F4=\E[26~:F5=\E[28~:F6=\E[29~:F7=\E[31~:F8=\E[32~:F9=\E[33~:FA=\E[34~:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:@7=\E[4~:kH=\E[4~:kP=\E[5~:kN=\E[6~:@0=\E[7~:*6=\E[8~:\
+	:kb=\177:@8=^M:\
+	:kd=\E[B:kl=\E[D:kr=\E[C:ku=\E[A:K2=\E[G:\
+	:as=\E[11m:ae=\E[10m:mb=\E[5m:md=\E[1m:me=\E[0;10m:mh=\E[2m:mr=\E[7m:us=\E[4m:ue=\E[24m:so=\E[7m:se=\E[27m:\
+	:rc=\E8:sc=\E7:\
+	:ct=\E[3g:st=\EH:\
+	:ds=\E[?H\E[?E:fs=\E[?F:ts=\E[?T:\
+	:ve=\E[?25h:vi=\E[?25l:
+
+jfbterm-color|jfbterm-8color|J framebuffer terminal with only 8 colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:\
+	:tc=jfbterm-256color:

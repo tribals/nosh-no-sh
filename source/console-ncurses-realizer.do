@@ -7,4 +7,12 @@ main="`basename "$1"`"
 objects="main-exec.o builtins-${main}.o"
 libraries="builtins.a utils.a"
 redo-ifchange link ${objects} ${libraries}
-exec ./link "$3" ${objects} ${libraries} -lncursesw
+case "`uname`" in
+	NetBSD)
+		curses=-lcurses
+		;;
+	*)
+		curses=-lncursesw
+		;;
+esac
+exec ./link "$3" ${objects} ${libraries} ${curses}

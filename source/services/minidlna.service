@@ -3,10 +3,11 @@
 ## **************************************************************************
 
 [Unit]
-Description=lightweight DLNA/UPnP-AV server 
+Description=lightweight DLNA/UPnP-AV server
 
 [Service]
 User=%p
+SessionLeader=yes
 RuntimeDirectory=%p
 RuntimeDirectoryMode=0755
 ExecStart=%pd -S ${configfile:+-f "${configfile}"} ${flags}

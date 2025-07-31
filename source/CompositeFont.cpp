@@ -18,21 +18,31 @@ For copyright and licensing terms, see the file named COPYING.
 #include "UnicodeClassification.h"
 #include "vtfont.h"
 
-static inline
+namespace {
+
+inline
 uint_fast16_t
 Expand8To16 (
-	uint_fast16_t c
+	const uint_fast16_t c
 ) {
-	uint_fast16_t r(0U);
+	uint_fast16_t r(0U), m(0x8000), s(0xC000);
 	for (unsigned n(0U); n < 8U; ++n) {
-		r <<= 2U;
-		if (c & 0x8000) r |= 0x0003;
-		c <<= 1U;
+		if (c & m) r |= s;
+		s >>= 2U;
+		m >>= 1U;
 	}
 	return r;
 }
 
-static inline
+}
+
+/* The abstract base font class and Unicode map handling ********************
+// **************************************************************************
+*/
+
+namespace {
+
+inline
 CombinedFont::Font::UnicodeMap::const_iterator
 find (
 	const CombinedFont::Font::UnicodeMap & unicode_map,
@@ -42,6 +52,8 @@ find (
 	CombinedFont::Font::UnicodeMap::const_iterator p(std::lower_bound(unicode_map.begin(), unicode_map.end(), one));
 	if (p < unicode_map.end() && !p->Contains(character)) p = unicode_map.end();
 	return p;
+}
+
 }
 
 bool
@@ -59,146 +71,150 @@ CombinedFont::Font::UnicodeMapEntry::Contains (
 	return codepoint <= character && character < codepoint + count;
 }
 
+void
+CombinedFont::Font::AddMapping(CombinedFont::Font::UnicodeMap & unicode_map, uint32_t character, std::size_t glyph_number, std::size_t count)
+{
+	const UnicodeMapEntry map_entry = { character, glyph_number, count };
+	unicode_map.push_back(map_entry);
+}
+
 CombinedFont::Font::~Font ()
 {
 }
 
-bool 
-CombinedFont::MemoryFont::Read(uint32_t character, uint16_t b[16], unsigned short & h, unsigned short & w)
+CombinedFont::MemoryMappedFont::~MemoryMappedFont ()
 {
+	munmap(const_cast<void*>(real_base), size);
+}
+
+/* Raw file format fonts ****************************************************
+// **************************************************************************
+*/
+
+bool
+CombinedFont::RawFileFont::Read(uint32_t character, Weight wt, uint16_t b[16], unsigned short & h, unsigned short & w)
+{
+	if (weight != wt) return false;
 	UnicodeMap::const_iterator map_entry(find(unicode_map, character));
 	if (unicode_map.end() == map_entry) return false;
 	const std::size_t g(character - map_entry->codepoint + map_entry->glyph_number);
 	const void * start(static_cast<const char *>(base) + offset);
 	if (width > 8U) {
 		const uint16_t *glyph(static_cast<const uint16_t (*)[16]>(start)[g]);
-		for (unsigned row(0U); row < height; ++row) b[row] = glyph[row];
+		for (unsigned row(0U); row < height && row < 16U; ++row) b[row] = glyph[row];
 	} else {
 		const uint8_t *glyph(static_cast<const uint8_t (*)[16]>(start)[g]);
-		for (unsigned row(0U); row < height; ++row) b[row] = static_cast<uint16_t>(glyph[row]) << 8U;
+		for (unsigned row(0U); row < height && row < 16U; ++row) b[row] = static_cast<uint16_t>(glyph[row]) << 8U;
 	}
 	w = width;
 	h = height;
 	return true;
 }
 
-CombinedFont::MemoryMappedFont::~MemoryMappedFont ()
+/* VT file format files *****************************************************
+// **************************************************************************
+*/
+
+bool
+CombinedFont::VTFileFont::CheckWeight(Weight wt, std::size_t & vtfont_index)
 {
-	munmap(base, size);
+	switch (wt) {
+		case LIGHT:
+			if (!faint) return false;
+			vtfont_index = 0U;
+			return true;
+		case MEDIUM:
+			if (faint) return false;
+			vtfont_index = 0U;
+			return true;
+		case DEMIBOLD:
+			if (!faint) return false;
+			vtfont_index = 2U;
+			return true;
+		case BOLD:
+			if (faint) return false;
+			vtfont_index = 2U;
+			return true;
+		default:
+			return false;
+	}
 }
 
-CombinedFont::FileFont::FileFont(
-	int f, 
-	CombinedFont::Font::Weight w, 
-	CombinedFont::Font::Slant s, 
-	unsigned short y, 
-	unsigned short x
-) : 
-	Font(w, s), 
-	FileDescriptorOwner(f), 
-	height(y), 
-	width(x) 
+bool
+CombinedFont::LeftVTFileFont::Read(uint32_t character, Weight wt, uint16_t b[16], unsigned short & h, unsigned short & w)
 {
+	if (16U < width) return false;
+	std::size_t vtfont_index;
+	if (!CheckWeight(wt, vtfont_index)) return false;
+	const void * const glyph_start(reinterpret_cast<const uint8_t *>(static_cast<const unsigned char *>(base) + offset));
+	for (;; vtfont_index -= 2U) {
+		const UnicodeMap & unicode_map(unicode_maps[vtfont_index]);
+		const UnicodeMap::const_iterator map_entry(find(unicode_map, character));
+		if (unicode_map.end() != map_entry) {
+			const std::size_t g(character - map_entry->codepoint + map_entry->glyph_number);
+			unsigned short h0(height);
+			if (width <= 8U) {
+				const uint8_t * glyph(reinterpret_cast<const uint8_t *>(glyph_start) + g * height);
+				while (16U < h0 && 0U == glyph[0]) { ++glyph; --h0; }
+				for (unsigned short row(0U); row < h0 && row < 16U; ++row) b[row] = static_cast<uint16_t>(glyph[row]) << 8U;
+			} else {
+				const uint16_t * glyph(reinterpret_cast<const uint16_t *>(glyph_start) + g * height);
+				while (16U < h0 && 0U == glyph[0]) { ++glyph; --h0; }
+				for (unsigned short row(0U); row < h0 && row < 16U; ++row) b[row] = be16toh(glyph[row]);
+			}
+			w = width;
+			h = h0 > 16U ? 16U : h0;
+			return true;
+		}
+		if (0U == vtfont_index) return false;
+	}
 }
 
-CombinedFont::LeftFileFont::LeftFileFont(
-	int f, 
-	CombinedFont::Font::Weight w, 
-	CombinedFont::Font::Slant s, 
-	unsigned short y, 
-	unsigned short x
-) : 
-	FileFont(f, w, s, y, x)
+bool
+CombinedFont::LeftRightVTFileFont::Read(uint32_t character, Weight wt, uint16_t b[16], unsigned short & h, unsigned short & w)
 {
-}
-
-CombinedFont::LeftRightFileFont::LeftRightFileFont(
-	int f, 
-	CombinedFont::Font::Weight w, 
-	CombinedFont::Font::Slant s, 
-	unsigned short y, 
-	unsigned short x
-) : 
-	FileFont(f, w, s, y, x)
-{
-}
-
-CombinedFont::FileFont::~FileFont()
-{
-}
-
-off_t 
-CombinedFont::FileFont::GlyphOffset (std::size_t g) 
-{
-	return sizeof (bsd_vtfont_header) + query_cell_size() * g;
-}
-
-bool 
-CombinedFont::LeftFileFont::Read(uint32_t character, uint16_t b[16], unsigned short & h, unsigned short & w)
-{
-	UnicodeMap::const_iterator map_entry(find(unicode_map, character));
-	if (unicode_map.end() == map_entry) return false;
-	const std::size_t g(character - map_entry->codepoint + map_entry->glyph_number);
-	const off_t start(GlyphOffset(g));
+	if (16U < width) return false;
+	std::size_t vtfont_index;
+	if (!CheckWeight(wt, vtfont_index)) return false;
+	const void * const glyph_start(reinterpret_cast<const uint8_t *>(static_cast<const unsigned char *>(base) + offset));
+	for (std::size_t left_vtfont_index(vtfont_index); ; left_vtfont_index -= 2U) {
+		const UnicodeMap & unicode_map(unicode_maps[left_vtfont_index]);
+		const UnicodeMap::const_iterator map_entry(find(unicode_map, character));
+		if (unicode_map.end() != map_entry) {
+			const std::size_t g(character - map_entry->codepoint + map_entry->glyph_number);
+			if (width <= 8U) {
+				const uint8_t * glyph(reinterpret_cast<const uint8_t *>(glyph_start) + g * height);
+				for (unsigned short row(0U); row < height && row < 16U; ++row) b[row] = static_cast<uint16_t>(glyph[row]) << 8U;
+			} else {
+				const uint16_t * glyph(reinterpret_cast<const uint16_t *>(glyph_start) + g * height);
+				for (unsigned short row(0U); row < height && row < 16U; ++row) b[row] = be16toh(glyph[row]);
+			}
+			break;
+		}
+		if (0U == left_vtfont_index) return false;
+	}
+	w = width;
 	if (width <= 8U) {
-		uint8_t glyph[16];
-		pread(fd, glyph, height < sizeof glyph ? height : sizeof glyph, start);
-		for (unsigned row(0U); row < height; ++row) b[row] = static_cast<uint16_t>(glyph[row]) << 8U;
-	} else {
-		uint16_t glyph[16];
-		pread(fd, glyph, height * sizeof *glyph < sizeof glyph ? height * sizeof *glyph : sizeof glyph, start);
-		for (unsigned row(0U); row < height; ++row) b[row] = be16toh(glyph[row]);
+		for (std::size_t right_vtfont_index(vtfont_index); ; right_vtfont_index -= 2U) {
+			const UnicodeMap & unicode_map(unicode_maps[right_vtfont_index + 1U]);
+			const UnicodeMap::const_iterator map_entry(find(unicode_map, character));
+			if (unicode_map.end() != map_entry) {
+				const std::size_t g(character - map_entry->codepoint + map_entry->glyph_number);
+				const uint8_t * glyph(reinterpret_cast<const uint8_t *>(glyph_start) + g * height);
+				for (unsigned short row(0U); row < height && row < 16U; ++row) b[row] = (b[row] & (~0x00FF << (8U - width))) | (static_cast<uint16_t>(glyph[row]) << (8U - width));
+				w = width * 2U;
+				break;
+			}
+			if (0U == right_vtfont_index) break;
+		}
 	}
-	w = width;
-	h = height;
+	h = height > 16U ? 16U : height;
 	return true;
 }
 
-bool 
-CombinedFont::LeftRightFileFont::Read(uint32_t character, uint16_t b[16], unsigned short & h, unsigned short & w)
-{
-	UnicodeMap::const_iterator left_map_entry(find(left_map, character));
-	UnicodeMap::const_iterator right_map_entry(find(right_map, character));
-
-	if (left_map.end() == left_map_entry && right_map.end() == right_map_entry) return false;
-
-	uint8_t left_glyph[16] = { 0 }, right_glyph[16] = { 0 };
-
-	if (left_map.end() != left_map_entry) {
-		const std::size_t g(character - left_map_entry->codepoint + left_map_entry->glyph_number);
-		const off_t start(GlyphOffset(g));
-		pread(fd, left_glyph, height < sizeof left_glyph ? height : sizeof left_glyph, start);
-	}
-
-	if (right_map.end() != right_map_entry) {
-		const std::size_t g(character - right_map_entry->codepoint + right_map_entry->glyph_number);
-		const off_t start(GlyphOffset(g));
-		pread(fd, right_glyph, height < sizeof right_glyph ? height : sizeof right_glyph, start);
-	}
-
-	if (left_map.end() == left_map_entry) {
-		for (unsigned row(0U); row < height; ++row) b[row] = static_cast<uint16_t>(right_glyph[row]) << 8U;
-		w = 8U;
-	} else
-	if (right_map.end() == right_map_entry) {
-		for (unsigned row(0U); row < height; ++row) b[row] = static_cast<uint16_t>(left_glyph[row]) << 8U;
-		w = 8U;
-	} else
-	{
-		for (unsigned row(0U); row < height; ++row) b[row] = (static_cast<uint16_t>(left_glyph[row]) << 8U) | static_cast<uint16_t>(right_glyph[row]);
-		w = 16U;
-	}
-	h = height;
-
-	return true;
-}
-
-void 
-CombinedFont::Font::AddMapping(CombinedFont::Font::UnicodeMap & unicode_map, uint32_t character, std::size_t glyph_number, std::size_t count)
-{
-	const UnicodeMapEntry map_entry = { character, glyph_number, count };
-	unicode_map.push_back(map_entry);
-}
+/* The combined font class **************************************************
+// **************************************************************************
+*/
 
 CombinedFont::~CombinedFont()
 {
@@ -206,69 +222,40 @@ CombinedFont::~CombinedFont()
 		delete *i;
 }
 
-CombinedFont::MemoryFont * 
-CombinedFont::AddMemoryFont(CombinedFont::Font::Weight w, CombinedFont::Font::Slant s, unsigned short y, unsigned short x, void * b, std::size_t z, std::size_t o) 
-{ 
-	MemoryFont * f(new MemoryFont(w, s, y, x, b, z, o));
+CombinedFont::RawFileFont *
+CombinedFont::AddRawFileFont(CombinedFont::Font::Weight w, CombinedFont::Font::Slant s, unsigned short y, unsigned short x, const void * b, std::size_t z, std::size_t o)
+{
+	RawFileFont * f(new RawFileFont(w, s, y, x, b, z, o));
 	if (f) fonts.push_back(f);
 	return f;
 }
 
-CombinedFont::MemoryMappedFont * 
-CombinedFont::AddMemoryMappedFont(CombinedFont::Font::Weight w, CombinedFont::Font::Slant s, unsigned short y, unsigned short x, void * b, std::size_t z, std::size_t o) 
-{ 
-	MemoryMappedFont * f(new MemoryMappedFont(w, s, y, x, b, z, o));
+CombinedFont::LeftVTFileFont *
+CombinedFont::AddLeftVTFileFont(bool faint, Font::Slant s, unsigned short y, unsigned short x, const void * b, const void * rb, std::size_t z, std::size_t o)
+{
+	LeftVTFileFont * f(new LeftVTFileFont(faint, s, y, x, b, rb, z, o));
 	if (f) fonts.push_back(f);
 	return f;
 }
 
-CombinedFont::LeftFileFont * 
-CombinedFont::AddLeftFileFont(int d, Font::Weight w, Font::Slant s, unsigned short y, unsigned short x)
+CombinedFont::LeftRightVTFileFont *
+CombinedFont::AddLeftRightVTFileFont(bool faint, Font::Slant s, unsigned short y, unsigned short x, const void * b, const void * rb, std::size_t z, std::size_t o)
 {
-	LeftFileFont * f(new LeftFileFont(d, w, s, y, x));
+	LeftRightVTFileFont * f(new LeftRightVTFileFont(faint, s, y, x, b, rb, z, o));
 	if (f) fonts.push_back(f);
 	return f;
 }
 
-CombinedFont::LeftRightFileFont * 
-CombinedFont::AddLeftRightFileFont(int d, Font::Weight w, Font::Slant s, unsigned short y, unsigned short x)
-{
-	LeftRightFileFont * f(new LeftRightFileFont(d, w, s, y, x));
-	if (f) fonts.push_back(f);
-	return f;
-}
-
-bool 
-CombinedFont::has_bold() const
-{
-	for (FontList::const_iterator fontit(fonts.begin()); fontit != fonts.end(); ++fontit) {
-		const Font * font(*fontit);
-		if (Font::LIGHT == font->query_weight() && !font->empty()) 
-			return true;
-	}
-	return false;
-}
-
-bool 
-CombinedFont::has_faint() const
-{
-	for (FontList::const_iterator fontit(fonts.begin()); fontit != fonts.end(); ++fontit) {
-		const Font * font(*fontit);
-		if (Font::BOLD == font->query_weight() && !font->empty()) 
-			return true;
-	}
-	return false;
-}
-
-const uint16_t * 
+const uint16_t *
 CombinedFont::ReadGlyph (
-	CombinedFont::Font & font, 
-	uint32_t character, 
-	bool synthesize_bold, 
-	bool synthesize_oblique
+	CombinedFont::Font & font,
+	uint32_t character,
+	CombinedFont::Font::Weight w,
+	bool synthesize_bold,		///< never called with a bold weight: synthesize bold from non-bold
+	bool synthesize_oblique		///< never called with an oblique slant: synthesize oblique from non-oblique
 ) {
 	unsigned short width, height;
-	if (!font.Read(character, synthetic, height, width)) return 0;
+	if (!font.Read(character, w, synthetic, height, width)) return nullptr;
 	const unsigned short y_slack(16U - height);
 	if (y_slack) {
 		if (8U <= y_slack) {
@@ -277,19 +264,25 @@ CombinedFont::ReadGlyph (
 		} else
 			for (unsigned row(height); row < 16U; ++row) synthetic[row] = 0U;
 	}
-	if (const unsigned short x_slack = 16U - width) {
-		if (synthesize_oblique)
+	if (unsigned short x_slack = 16U - width) {
+		if (synthesize_oblique) {
 			for (unsigned row(0U); row < 16U; ++row) synthetic[row] >>= (((16U - row) * x_slack) / 16U);
-		else
+			x_slack = 0U;
+		}
 		// Square quarter-sized (or smaller) glyphs will have already been doubled in height, and are now doubled in width.
 		// Half-width (or smaller) rectangular glyphs for box drawing and block graphic characters can also be doubled in width.
-		if (8U <= x_slack && (8U <= y_slack || UnicodeCategorization::IsDrawing(character)))
+		if (8U <= x_slack && (8U <= y_slack || UnicodeCategorization::IsDrawing(character))) {
 			for (unsigned row(0U); row < 16U; ++row) synthetic[row] = Expand8To16(synthetic[row]);
-		// Larger than half-width rectangular glyphs for horizontally repeatable characters are repeated horizontally to the right.
-		if (8U > x_slack && UnicodeCategorization::IsHorizontallyRepeatable(character)) {
+			x_slack = 0U;
+		}
+		// Half-width or larger rectangular glyphs for horizontally repeatable characters are repeated horizontally to the right.
+		// Non-horizontally-repeatable or smaller than half-width characters are centred.
+		if (8U >= x_slack && UnicodeCategorization::IsHorizontallyRepeatable(character)) {
 			const uint_fast16_t mask((1U << x_slack) - 1U);
 			for (unsigned row(0U); row < 16U; ++row) synthetic[row] |= (synthetic[row] >> 8U) & mask;
-		} else
+			x_slack = 0U;
+		}
+		if (x_slack)
 			for (unsigned row(0U); row < 16U; ++row) synthetic[row] >>= (x_slack / 2U);
 	}
 	if (synthesize_bold)
@@ -300,19 +293,19 @@ CombinedFont::ReadGlyph (
 inline
 const uint16_t *
 CombinedFont::ReadGlyph (
-	uint32_t character, 
-	CombinedFont::Font::Weight w, 
+	uint32_t character,
+	CombinedFont::Font::Weight w,
 	CombinedFont::Font::Slant s,
 	bool synthesize_bold,
 	bool synthesize_oblique
 ) {
 	for (FontList::iterator fontit(fonts.begin()); fontit != fonts.end(); ++fontit) {
 		Font * font(*fontit);
-		if (w != font->query_weight() || s != font->query_slant()) continue;
-		if (const uint16_t * r = ReadGlyph(*font, character, synthesize_bold, synthesize_oblique))
+		if (s != font->query_slant()) continue;
+		if (const uint16_t * r = ReadGlyph(*font, character, w, synthesize_bold, synthesize_oblique))
 			return r;
 	}
-	return 0;
+	return nullptr;
 }
 
 const uint16_t *
@@ -321,40 +314,42 @@ CombinedFont::ReadGlyph (uint32_t character, bool bold, bool faint, bool italic)
 	if (faint) {
 		if (bold) {
 			if (italic) {
-				if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::DEMIBOLD, CombinedFont::Font::ITALIC, false, false))
+				if (const uint16_t * const f = ReadGlyph(character, Font::DEMIBOLD, Font::ITALIC, false, false))
 					return f;
-				if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::DEMIBOLD, CombinedFont::Font::OBLIQUE, false, false))
+				if (const uint16_t * const f = ReadGlyph(character, Font::DEMIBOLD, Font::OBLIQUE, false, false))
 					return f;
 			}
-			if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::DEMIBOLD, CombinedFont::Font::UPRIGHT, false, italic)) 
+			if (const uint16_t * const f = ReadGlyph(character, Font::DEMIBOLD, Font::UPRIGHT, false, italic))
 				return f;
 		}
 		if (italic) {
-			if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::LIGHT, CombinedFont::Font::ITALIC, bold, false))
+			if (const uint16_t * const f = ReadGlyph(character, Font::LIGHT, Font::ITALIC, bold, false))
 				return f;
-			if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::LIGHT, CombinedFont::Font::OBLIQUE, bold, false))
+			if (const uint16_t * const f = ReadGlyph(character, Font::LIGHT, Font::OBLIQUE, bold, false))
 				return f;
 		}
-		if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::LIGHT, CombinedFont::Font::UPRIGHT, bold, italic)) 
+		if (const uint16_t * const f = ReadGlyph(character, Font::LIGHT, Font::UPRIGHT, bold, italic))
 			return f;
-	}
-	if (bold) {
+	} else
+	{
+		if (bold) {
+			if (italic) {
+				if (const uint16_t * const f = ReadGlyph(character, Font::BOLD, Font::ITALIC, false, false))
+					return f;
+				if (const uint16_t * const f = ReadGlyph(character, Font::BOLD, Font::OBLIQUE, false, false))
+					return f;
+			}
+			if (const uint16_t * const f = ReadGlyph(character, Font::BOLD, Font::UPRIGHT, false, italic))
+				return f;
+		}
 		if (italic) {
-			if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::BOLD, CombinedFont::Font::ITALIC, false, false))
+			if (const uint16_t * const f = ReadGlyph(character, Font::MEDIUM, Font::ITALIC, bold, false))
 				return f;
-			if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::BOLD, CombinedFont::Font::OBLIQUE, false, false))
+			if (const uint16_t * const f = ReadGlyph(character, Font::MEDIUM, Font::OBLIQUE, bold, false))
 				return f;
 		}
-		if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::BOLD, CombinedFont::Font::UPRIGHT, false, italic)) 
+		if (const uint16_t * const f = ReadGlyph(character, Font::MEDIUM, Font::UPRIGHT, bold, italic))
 			return f;
 	}
-	if (italic) {
-		if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::MEDIUM, CombinedFont::Font::ITALIC, bold, false))
-			return f;
-		if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::MEDIUM, CombinedFont::Font::OBLIQUE, bold, false))
-			return f;
-	}
-	if (const uint16_t * const f = ReadGlyph(character, CombinedFont::Font::MEDIUM, CombinedFont::Font::UPRIGHT, bold, italic)) 
-		return f;
-	return 0;
+	return nullptr;
 }

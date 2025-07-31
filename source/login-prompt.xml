@@ -26,7 +26,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>login-prompt</command> is a chain-loading utility that prompts to standard output, waits for standard input to have data ready, flushes standard input with the <citerefentry><refentrytitle>tcflush</refentrytitle><manvolnum>3</manvolnum></citerefentry> function, and then (if successful) chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>login-prompt</command> is a chain-loading utility that prompts to standard output, waits for standard input to have data ready, flushes standard input with the <citerefentry><refentrytitle>tcflush</refentrytitle><manvolnum>3</manvolnum></citerefentry> function, and then (if successful) chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -45,7 +45,7 @@ This can be used as a means to defer running a login program until a user has ac
 
 <para>
 <command>login-prompt</command> expects the terminal and the line discipline to be in relatively sane states.
-To reset to these states, run <citerefentry><refentrytitle>vc-reset-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>reset</refentrytitle><manvolnum>1</manvolnum></citerefentry> before <command>login-prompt</command>.
+To reset to these states, run <citerefentry><refentrytitle>vc-reset-terminal</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>reset</refentrytitle><manvolnum>1</manvolnum></citerefentry> before <command>login-prompt</command>.
 </para>
 
 </refsection><refsection><title>Author</title>

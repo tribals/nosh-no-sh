@@ -7,5 +7,6 @@
 # scan                       cntrl         option option cntrl lock
 # code  base   shift  cntrl  shift  option shift  cntrl  shift state
 # ------------------------------------------------------------------
-  041   0xa5   '|'    fs     us     0xa5   '|'    fs     us      O
-  125   imsw   imsw   imsw   imsw   imsw   imsw   imsw   imsw    O
+# E00 has the Yen symbol.
+  041   0xa5   '|'    fs     us     0xac   0xac   nop    nop     O
+# E13 does not exist on the 104/106/107-key keyboards.

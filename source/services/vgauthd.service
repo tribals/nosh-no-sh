@@ -1,0 +1,15 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=VMWare guest additions daemon
+Conflicts=ntpd.service systemd-timesyncd.service openntpd.service chrony.service VBoxService.service
+Before=vmtoolsd
+
+[Service]
+ExecStart=VGAuthService -s
+RestartSec=5
+
+[Install]
+WantedBy=vmware-guest.target

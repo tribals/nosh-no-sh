@@ -1,8 +1,8 @@
-<title>terminal resources</title>
 <link rel="Up" href="terminals.html" title="Terminals" />
-<link rel="Next" href="real-terminal-login.html" title="real terminal login" />
-<link rel="Prev" href="user-virtual-terminals.html" title="user-space virtual terminals" />
-<h1>
+<link rel="Prev" href="login-conf.html" title="login.conf" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>terminal resources</title>
+<h1 class="Ruled">
 terminal resources
 </h1>
 
@@ -10,12 +10,12 @@ terminal resources
 The virtual terminal subsystem requires various resources.
 </p>
 
-<h2 id="kbdmaps">
+<h2 class="Ruled" id="kbdmaps">
 keyboard maps
 </h2>
 
 <p>
-On systems with <code>/usr/share/vt/keymaps/</code> (such as FreeBSD), <a href="external-formats.html">the external formats conversion subsystem</a> takes the old-style SCO/FreeBSD kernel virtual terminal keyboard maps from there and generates a range of keyboard map files suitable for <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> by passing them through <a href="commands/console-convert-kbdmap.xml"><code>console-convert-kbdmap</code></a>.
+On systems with <code>/usr/share/vt/keymaps/</code> (such as FreeBSD), <a href="external-formats.html">the external formats conversion subsystem</a> takes the old-style SCO/FreeBSD kernel virtual terminal keyboard maps from there and generates a range of keyboard map files suitable for <a href="commands/console-ugen-hid-realizer.xml"><code>console-ugen-hid-realizer</code></a> (and the other keyboard realizers) by passing them through <a href="commands/console-convert-kbdmap.xml"><code>console-convert-kbdmap</code></a>.
 The original maps are converted with some modifications supplied by overlay map files:
 </p>
 <dl id="FreeBSDOverlays">
@@ -38,6 +38,19 @@ The DEC VT enter key is actually programmable with the DECNKM control sequence.
 The <code>enter</code> action lets <code>console-terminal-emulator</code> handle the mapping to control characters in concert with the DECNKM setting.
 The <code>return</code> action ensures that the return key can be distinguished from a <code>CR</code> or <code>LF</code> control character in input messages.
 </p></dd>
+<dt><a href="gazetteer.html#soft_escape.kbd"><code>soft_escape.kbd</code></a></dt>
+<dd><p>
+The escape &#x232b; key is actually programmable with a control sequence.
+The FreeBSD keyboard maps hardwire the mapping from the escape &#x232b; keycode to the <code>ESC</code> control character, and if used as they stand would prevent the key from being soft-switchable.
+This overlay replaces that with a mapping to the <code>escape</code> action, letting <code>console-terminal-emulator</code> handle the mapping to control characters in concert with the terminal emulator setting.
+</p></dd>
+<dt>
+<dt><a href="gazetteer.html#soft_tab.kbd"><code>soft_tab.kbd</code></a></dt>
+<dd><p>
+The FreeBSD keyboard maps hardwire the mapping from the tab &#x21e5; keycode to the <code>TAB</code> control character, and if used as they stand would prevent the key from being soft-switchable.
+This overlay replaces that with a mapping to the <code>tab</code> action, letting <code>console-terminal-emulator</code> handle the mapping to control characters.
+The <code>tab</code> action ensures that the tab key can be distinguished from a <code>TAB</code> control character in input messages.
+</p></dd>
 <dt>
 <a href="gazetteer.html#jp_to_jp.104.kbd"><code>jp_to_jp.104.kbd</code></a>
 <a href="gazetteer.html#jp_to_jp.109.kbd"><code>jp_to_jp.109.kbd</code></a>
@@ -52,49 +65,127 @@ The FreeBSD <code>jp.kbd</code> keyboard map maps the "Grave" key (engraved with
 </p>
 <ul>
 <li><p>
-<code>jp_to_jp.109.kbd</code> fixes it for 109-key keyboards to instead map the "Grave" key to the "IM Switch" input event that activates and deactivates the input method front-end processor.
+<code>jp_to_jp.109.kbd</code> fixes it for 109-key keyboards to instead map the "Grave" key to the "IM Switch" input event that activates and deactivates the input method front-end processor, mapping the extra "International3" key on the 109-key keyboard to (most of) what the "Grave" key does on 104-key keyboards.
 </p></li>
 <li><p>
 <code>jp_to_jp.104.kbd</code> fixes it for other keycount keyboards to instead map the "Grave" key to what the "International3" key does on 109-key keyboards.
 </p></li>
 </ul>
 </dd>
+<dt>
+<a href="gazetteer.html#swap_capsctrl.kbd"><code>swap_capsctrl.kbd</code></a>
+<a href="gazetteer.html#modelm_capsctrl.kbd"><code>modelm_capsctrl.kbd</code></a>
+</dt>
+<dd>
+<p>
+Normally keyboard maps are built with the <a href="gazetteer.html#modelm_capsctrl.kbd"><code>modelm_capsctrl.kbd</code></a> overlay that uses the normal Model M/Windows keyboard placement of the "Caps Lock" and "Ctrl" keys, but adds a "Shift Lock" capability to the "Caps Lock" key.
+When the <code>.capsctrl</code> option is used they are instead built with the <a href="gazetteer.html#swap_capsctrl.kbd"><code>swap_capsctrl.kbd</code></a> overlay that still adds "Shift Lock" but swaps the positions of the two keys.
+</p>
+</dd>
 </dl>
 
 <p>
 On systems where there is no <code>/usr/share/vt/keymaps/</code>, <a href="external-formats.html">the external formats conversion subsystem</a> generates a (narrower) range of keyboard map files by overlaying the default null map, U.S. International, built into <a href="commands/console-convert-kbdmap.xml"><code>console-convert-kbdmap</code></a> with map files that provide just the differences between U.S. International and other layouts rather than entire maps as come with FreeBSD.
 For example:
-<a href="gazetteer.html#default_to_uk.kbd"><code>default_to_uk.kbd</code></a> is the difference between U.S. International and U.K. International.
 </p>
+<ul>
+<li><p>
+<a href="gazetteer.html#default_to_de.kbd"><code>default_to_de.kbd</code></a> is the difference between U.S. International and DIN standard.
+</p></li>
+<li><p>
+<a href="gazetteer.html#default_to_uk.kbd"><code>default_to_uk.kbd</code></a> is the difference between U.S. International and U.K. International.
+</p></li>
+</ul>
 
 <p>
-The generated keyboard maps are placed in <a href="gazetteer.html#kbdmaps"><code>/etc/system-control/convert/kbdmaps/</code></a> and can be linked to the service directories of, or simply used directly by, <code>console-fb-realizer@*</code> services.
-Their names follow a regular pattern comprising the ISO country code, the PC Windows keyboard variant (i.e. 104, 105, 106, 107, or 109), and any options such as <code>.capsctrl</code> for maps generated with the <a href="gazetteer.html#swap_capsctrl.kbd"><code>swap_capsctrl.kbd</code></a> overlay that swaps the capitals lock &#x21ec; and control &#x2388; keys.
+The generated keyboard maps are placed in <a href="gazetteer.html#kbdmaps"><code>/etc/system-control/convert/kbdmaps/</code></a> and can be linked to the service directories of, or simply used directly by, any keyboard device user-space virtual terminal realizer services.
+Their names follow a regular pattern comprising the ISO country code, the PC Windows keyboard variant (i.e. 104, 105, 106, 107, or 109), and any options such as <code>.capsctrl</code>.
 </p>
 
-<h2 id="fonts">
+<p class="note">
+N.B.:
+Each country has multiple keycount variants as there are different conventional mappings for the different keycounts in several countries.
+One could have either a 105-key ABNT keyboard or a 107-key ABNT2 keyboard in Brazil, for example, which differ for starters in how the key at B10 is mapped.
+(Technically, the old ABNT NBR 10346:1988 standard was replaced by the newer NBR 10346:1991 standard.)
+</p>
+
+<h2 class="Ruled" id="fonts">
 fonts
 </h2>
 
 <p>
-Fonts suitable for <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> have to be in the "vt" format of FreeBSD.
-BDF fonts can be converted to this format with <a href="https://www.freebsd.org/cgi/man.cgi?query=vtfontcvt&apropos=0&sektion=8">FreeBSD's <code>vtfontcvt</code> tool</a>, as long as they are (arbitrarily) limited to 8 or 16 pixel-wide bounding rectangles.
-(This unfortunately prevented FreeBSD's <code>vtfontcvt</code> until 2019 from being able to convert <a href="https://wiki.ubuntu.com/UbuntuFontFamily">Ubuntu Monospace</a>, which has varying-sized bounding rectangles for individual characters.)
+Fonts suitable for <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> and <a href="commands/console-kvt-realizer.xml"><code>console-kvt-realizer</code></a> have to be in the "vt" format of FreeBSD.
+Unifont-style HEX fonts and BDF fonts can be converted to this format with <a href="https://www.freebsd.org/cgi/man.cgi?query=vtfontcvt&apropos=0&sektion=8">FreeBSD's <code>vtfontcvt</code> tool</a>.
 </p>
 
+<h3 class="Ruled" id="vtfontcvt-caveats">
+<code>vtfontcvt</code> caveats
+</h3>
+
 <p>
-Useful monospace fonts that can be obtained and converted to "vt" format (sometimes by converting to BDF format first, using tools like <a href="http://jengelh.medozas.de./projects/hxtools/">Jan Engelhardt's fnt2bdf</a>):
+In order to work with <a href="https://www.freebsd.org/cgi/man.cgi?query=vtfontcvt&apropos=0&sektion=8">FreeBSD's <code>vtfontcvt</code> tool</a>:
 </p>
 <ul>
 <li><p>
-vgarom-8x16 is a "vt" font that comes in the box with FreeBSD, purportedly taken from VGA ROM firmware of a PC compatible.
-It only has a small glyph repertoire.
+HEX fonts must either be height 16 or begin with an explicit <code>#&nbsp;Height&nbsp;:</code> directive.
+Otherwise, <code>vtfontcvt</code> will by default do things such as erroneously treat an 8&times;8 font as a 4&times;16 font, processing it nybble by nybble instead of byte by byte.
+</p></li>
+<li><p>
+BDF fonts must be (arbitrarily) limited to 8 or 16 pixel-wide bounding rectangles.
+This unfortunately prevented FreeBSD's <code>vtfontcvt</code> until 2019 from being able to convert <a href="https://wiki.ubuntu.com/UbuntuFontFamily">Ubuntu Monospace</a>, which has varying-sized bounding rectangles for individual characters.
+</p></li>
+</ul>
+<p>
+One can convert other formats to BDF format first, using tools like <a href="http://jengelh.medozas.de./projects/hxtools/">Jan Engelhardt's fnt2bdf</a>.
+</p>
+<p>
+The "vt" font format uses 16-bit integers for some fields, such as the internal glyph index.
+It cannot cope with fonts that cover more than about half of a Unicode plane.
+Fortunately, <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> and <a href="commands/console-kvt-realizer.xml"><code>console-kvt-realizer</code></a> allow one to build up full Unicode coverage using multiple font files as a sequence of overlays.
+</p>
+
+<h3 class="Ruled" id="BroadMonospaceFonts">
+Broad range monospace fonts
+</h3>
+
+<p>
+These cover large parts or even all of the defined Unicode code pointsm, ranging from a few thousand to over a hundred thousand glyphs.
+</p>
+
+<ul>
+<li><p>
+<a href="http://unifoundry.com/unifont.html">GNU Unifont</a> has extensive glyph coverage of Unicode, and comes in HEX form.
+</p><p>
+The "_all" files exceed the 16-bit limits of "vt" font files; and they also fill in unused glyphs with placeholders.
+The latter would make falling back <em>from</em> Unifont to another font that has the placeholders impossible, even without the 16-bit limits.
+Fortunately, Unifont also (now) comes in the form of one-file-per-plane, and those are what must be used.
+</p></li>
+<li><p>
+vgarom-8x16 is a "vt" font that comes in the box with FreeBSD (in <code>/usr/share/vt/fonts/</code>), purportedly taken from VGA ROM firmware of a PC compatible.
+It only has a very small glyph repertoire of some 600 glyphs, covering mainly the common 8-bit code pages of MS/PC/DR-DOS systems.
 </p></li>
 <li><p>
 Ed Maste also produced <a href="https://github.com/emaste/fontstuff">a small repository of "vt" fonts</a> for FreeBSD's "vt" subsystem.
+Amongst others, this includes HEX versions of fonts which are also available standalone:
+</p><ul>
+<li><p>
+<a href="http://web.mit.edu/ghudson/dev/nokrb/third/intlfonts/Japanese/k16-1990.bdf">k16-1990.bdf</a> &mdash; a square 16&times;16 pixels JISX0208.1990 font with many CJK glyphs.
+</p></li>
+</ul></li>
+<li><p>
+<a href="http://viznut.fi/unscii/">Ville-Matias Heikkil&auml;'s unscii-16</a> font takes inspiration from personal and home computer 8&times;8 and 8&times;16 fonts, and comes in HEX form.
+Home computer 8&times;8, 8&times;16, and 16&times;16 fonts are particularly useful for <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> and <a href="commands/console-kvt-realizer.xml"><code>console-kvt-realizer</code></a> as they were designed for a square aspect ratio rather than for an oblong one.
+They also provide useful glyph close to or the same as the originals for microcomputer text-glyph art often used in TUIs, such as indeed the MouseText that is used by the <a href="commands/login-envuidgid.xml"><code>login-envuidgid</code></a> command.
+</p><p>
+The "-full" variant fills in the code points not supplied by unscii itself with glyphs from a years out-of-date version of GNU Unifont, and also mixes in a few thousand glyphs from Darien Valentine's FixedSys Excelsior (a clone of Microsoft Windows' FixedSys, whose old WWW site is long since defunct but which is <a href="https://github.com/kika/fixedsys">nowadays available from Kirill Pertsev</a>).
+The source includes glyphs from 8&times;8 fonts from old home computers, such as the BBC Micro, CPC64, and Sinclair ZX Spectrum; but they are not incorporated into the built HEX fonts supplied by the author.
+</p><p>
+<a href="https://github.com/jdebp/unscii/tree/2.1.1f">This fork</a> builds more fine-grained HEX files, suitable for use as overlay fonts with <a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a>. including all of the home computer fonts as individual overlays, and the just over 3 thousand glyphs that are actually Unscii's own in its own individual overlay too.
+It also contains enlarged 16&times;16 versions of the 8&times;8 Commodore PET, Dragon 32/64, and BBC Micro fonts; which have better curves and diagonals for the strokes.
 </p></li>
 <li><p>
-<a href="http://web.mit.edu/ghudson/dev/nokrb/third/intlfonts/Japanese/k16-1990.bdf">k16-1990.bdf</a> is a square 16&times;16 pixels JISX0208.1990 font with many CJK glyphs.
+<a href="https://bjh21.me.uk/bedstead/">Ben Harris's bedstead fonts</a> cover the character sets in every national variant of the Mullard SAA5050 teletext chip, which is roughly 2 thousand glyphs.
+It comes in BDF form.
 </p></li>
 <li><p>
 <a href="https://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html">Markus Kuhn's -misc-fixed- fonts</a>, especially 9x15 and 9x15B, have a fairly wide coverage of the BMP.
@@ -102,21 +193,95 @@ They come in BDF form.
 </p></li>
 <li><p>
 <a href="http://www.inp.nsk.su./~bolkhov/files/fonts/univga/">Dmitry Yu. Bolkhovityanov's Unicode VGA</a> is based upon the vga.bdf in XDosEmu.
-It covers much of the BMP, but none of the supplementary Unicode planes.
+It covers several thousand glyphs in the BMP, but not all of it, nor any of the supplementary Unicode planes.
 </p></li>
 <li><p>
-<a href="https://github.com/hchargois/gohufont">Hugo Chargois's GoHuFont</a> is partly based upon Markus Kuhn's, and comes in BDF form.
-</p></li>
-<li><p>
-<a href="http://people.mpi-inf.mpg.de/~uwe/misc/uw-ttyp0/">Uwe Waldmann's UW ttyp0</a> covers only some of the BMP.
+<a href="https://people.mpi-inf.mpg.de/~uwe/misc/uw-ttyp0/">Uwe Waldmann's UW ttyp0</a> covers only some of the BMP.
 It comes in BDF form.
 </p></li>
 <li><p>
-<a href="http://unifoundry.com/unifont.html">GNU Unifont</a> has extensive glyph coverage of Unicode.
-It is in a "hex" file format that needs first to be converted to BDF.
+<a href="https://www.inp.nsk.su./~bolkhov/files/fonts/univga/">Dmitry Bolkhovityanov's VGA font</a> covers only some of the BMP.
+It comes in BDF form.
 </p></li>
 <li><p>
-<a href="http://pelulamu.net/unscii/">Ville-Matias Heikkil&auml;'s unscii-16</a> font takes inspiration from personal and home computer 8&times;8 and 8&times;16 fonts, and is available in the same "hex" file format as GNU Unifont.
+<a href="http://mplus-fonts.osdn.jp/mplus-bitmap-fonts/index.html">M+ fonts</a> come in BDF form and cover roughly 7 thousand Kanji (JISX0208) glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/hishamhm/lode-fonts">Hisham Muhammad's lode fonts</a> come in BDF form (in the X11 subdirectory &mdash; not the consolefont subdirectory) and cover roughly 4 thousand glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/MicahElliott/Orp-Font">Micah Elliott's Orp font</a> (<a href="https://github.com/hchargois/gohufont">git</a>) is based upon Markus Kuhn's, with some alterations and som imports from other fonts, and comes in BDF form.
+</p></li>
+<li><p>
+<a href="https://github.com/lucy/tewi-font">tewi font</a> comes in BDF form and covers roughly 3400 glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/dylex/fonts">Dylan Simon's font</a> comes in BDF form and covers roughly 3300 glyphs, with explicit bold and oblique variants.
+</p></li>
+<li><p>
+<a href="https://github.com/cmvnd/fonts">lemon font</a> comes in BDF form and covers roughly 2700 glyphs.
+The source code repository includes copies of several other people's fonts in BDF form, including antidote, uushi, limey, and berry.
+</p></li>
+<li><p>
+<a href="https://memleek.org/leggie">Wiktor Kerr's leggie font</a> (<a href="https://github.com/wikkyk/leggie">git</a>) comes in BDF form and covers roughly 1700 glyphs.
+</p></li>
+<li><p>
+<a href="https://www.cambus.net/spleen-monospaced-bitmap-fonts/">Frederic Cambus's spleen font</a> (<a href="https://github.com/fcambus/spleen">git</a>) comes in BDF form and covers roughly 900 glyphs.
+The FreeBSD port builds and installs "vt" format font files, but does not place them in <code>/usr/share/vt/fonts/</code>.
+</p></li>
+<li><p>
+<a href="https://github.com/usonianhorizon/vt-fnt">IBM PlexMono</a> in "vt" font form.
+</p></li>
+</ul>
+
+<h3 class="Ruled" id="LimitedMonospaceFonts">
+Limited range monospace fonts
+</h3>
+
+<p>
+These cover only small parts of Unicode, usually little more than a few hundred glyphs that form a subset defined by an 8-bit character set such as an ISO 8859 one or an IBM/Microsoft code page.
+Generally these are not useful for the more modern, more free, uses of Unicode in terminals, which will often extend to many things not in the old 8-bit character sets, from non-VGA drawing and box characters through extra punctuation and symbols to MouseText and emoji.
+</p>
+
+<ul>
+<li><p>
+<a href="https://github.com/robhagemans/hoard-of-bitfonts">Rob Hagemans' "hoard of bitfonts</a> does not have very extensive glyph coverage, but like Unscii provides useful 8&times;8 glyphs of many home computer flavours covering ASCII and some of the ISO/IEC 8859-1 code points, as well as quite a few non-Latin dingbat glyphs such as arrows and box/line drawing characters.
+</p><p>
+The fonts come in an idiosyncratic YAFF format, for which the collector has not coincidentally developed a font editor program, and there is no direct conversion from that to BDF.
+However, it is a matter of a short Perl script to convert YAFF to Unscii's more versatile text form, and from that use Unscii tooling to generate Unifont HEX format files and thence a "vt" format font.
+</p></li>
+<li><p>
+<a href="https://github.com/metan-ucw/fonts">Cyril Hrubis's Haxor fonts</a> come in BDF form, and cover only ISO 8859-2.
+</p></li>
+<li><p>
+<a href="https://github.com/kakwa/kakwafont">Carpentier Pierre-Francois's kakwa font</a> comes in BDF form, and covers only ISO 8859-1.
+</p></li>
+<li><p>
+<a href="https://github.com/Lokaltog/lokaltog-fonts/tree/develop">Kim A. &#xd8;degaard's lokaltag fonts</a> come in BDF form, and cover only ISO 8859-1 plus a few symbols in the PUA.
+</p></li>
+<li><p>
+<a href="https://font.gohu.org">Hugo Chargois's GoHuFont</a> (<a href="https://github.com/hchargois/gohufont">git</a>) is partly based upon Markus Kuhn's, and comes in BDF form.
+(<strong>Note:</strong> The FreeBSD port does not build or install any "vt" fonts, even though it could; it only builds fonts for X11.)
+It only includes a few hundred glyphs, mostly ISO 8859-1, and not the entire range of the base Kuhn fonts.
+</p></li>
+<li><p>
+<a href="https://github.com/bjin/ctrld-font">bijn's ctrl-d font</a> comes in BDF form, and covers only ISO 8859-1 plus a few arrows and blocks and some symbols in the PUA, coming to just over 3 hundred glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/ninjaaron/bitocra">Aaron Chrisianson's biatocra and bitubuntu fonts</a> come in BDF form, and cover only ISO 8859-1 plus Latin Extended-A, coming to just over 4 hundred glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/Sorixelle/envypn-powerline">Ruby Juricf's augmented version of ypnose's envypn font</a> comes in BDF form, and covers only ISO 8859-1, a few triangles, and some PUA characters, coming to just over 2 hundred glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/leahneukirchen/sq">Leah Neukirchen's sq font</a> comes in BDF form, and covers only ISO 8859-1, coming to just under 2 hundred glyphs.
+</p></li>
+<li><p>
+<a href="https://github.com/turquoise-hexagon/cherry">cherry font</a> comes in BDF form, and covers only ISO 8859-1, coming to just under 2 hundred glyphs.
+</p></li>
+<li><p>
+<a href="http://www.bok.net/MonteCarlo/">Gilles Boccon-Gibod's MonteCarlo</a> has derivative <a href="http://www.fial.com/~scott/tamsyn-font/">Scott Fial's Tamsyn</a> which in turn has derivative <a href="https://github.com/sunaku/tamzen-font">Suraj N. Kurapati's Tamzen</a>.
+They all come in BDF form, but only cover ISO 8859-1, coming to just under 2 hundred glyphs.
 </p></li>
 <li><p>
 <a href="ftp://ftp.columbia.edu/kermit/pcfonts/fntcol16.zip">Joseph Gil's fntcol16.zip package</a> is a collection of VGA firmware and MS/PC-DOS fonts.
@@ -124,13 +289,13 @@ The fonts are in an idiosyncratic format that first must be converted to BDF and
 </p></li>
 </ul>
 
-<h2 id="FEP">
+<h2 class="Ruled" id="FEP">
 input methods
 </h2>
 
 <p>
 <a href="commands/console-input-method.xml"><code>console-input-method</code></a> is table-driven.
-The tables that it uses are the same CIN data files as are used by xcin, gcin (<a href="https://github.com/pkg-ime/gcin/tree/master/data">GitHub</a>), jscin (<a href="https://github.com/google/jscin/tree/master/src/tables">GitHub</a>), hime (<a href="https://github.com/hime-ime/hime/tree/master/data">GitHub</a>), PIME (<a href="https://github.com/EasyIME/PIME/tree/master/python/cinbase/cin">GitHub</a>), OpenVanilla (<a href="https://github.com/openvanilla/openvanilla/tree/master/DataTables">GitHub</a>), Chinese Open Desktop (<a href="https://github.com/chinese-opendesktop/cin-tables">GitHub</a>), OkidoKey.app (<a href="https://github.com/ethanliu/OkidoKeyCharsets/tree/master/DataTables">GitHub</a>), and MacOS.
+The tables that it uses are the same <a href="commands/cin.xml">CIN data files</a> as are used by xcin, gcin (<a href="https://github.com/pkg-ime/gcin/tree/master/data">GitHub</a>), jscin (<a href="https://github.com/google/jscin/tree/master/src/tables">GitHub</a>), hime (<a href="https://github.com/hime-ime/hime/tree/master/data">GitHub</a>), PIME (<a href="https://github.com/EasyIME/PIME/tree/master/python/cinbase/cin">GitHub</a>), OpenVanilla (<a href="https://github.com/openvanilla/openvanilla/tree/master/DataTables">GitHub</a>), Chinese Open Desktop (<a href="https://github.com/chinese-opendesktop/cin-tables">GitHub</a>), OkidoKey.app (<a href="https://github.com/ethanliu/OkidoKeyCharsets/tree/master/table">GitHub</a>), and MacOS.
 </p>
 
 <p>

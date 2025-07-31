@@ -3,7 +3,7 @@
 #
 # This is not a systemd preset.  
 # It goes in a special nosh system-manager preset directory.
-# It is used by the nosh-bundles package in order to enable certain mandatory basics without which a system simply won't work.
+# It is used by the nosh-run-{trueos,freebsd}-{desktop,server}-base packages in order to enable certain mandatory basics without which a system simply won't work.
 #
 
 # Ordinary services

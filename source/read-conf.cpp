@@ -12,6 +12,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cctype>
 #include "utils.h"
 #include "ProcessEnvironment.h"
+#include "FileStar.h"
 #include "popt.h"
 
 /* Main function ************************************************************
@@ -34,24 +35,22 @@ read_conf (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing file name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "file name");
 	}
 	const char * file(args.front());
 	args.erase(args.begin());
 	next_prog = arg0_of(args);
 
-	FILE * f(std::fopen(file, "r"));
+	FileStar f(std::fopen(file, "r"));
 	if (!f) {
 		const int error(errno);
 		std::fprintf(stderr, "%s: %s: %s: %s\n", prog, oknofile ? "WARNING": "ERROR", file, std::strerror(error));
@@ -59,16 +58,14 @@ read_conf (
 		throw EXIT_FAILURE;
 	}
 
-	std::vector<std::string> env_strings(read_file(prog, file, f));
+	std::vector<std::string> env_strings(read_file(prog, envs, file, f));
 	for (std::vector<std::string>::const_iterator i(env_strings.begin()); i != env_strings.end(); ++i) {
 		const std::string & s(*i);
 		const std::string::size_type p(s.find('='));
 		const std::string var(s.substr(0, p));
 		const std::string val(p == std::string::npos ? std::string() : s.substr(p + 1, std::string::npos));
 		if (!envs.set(var, val)) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, var.c_str(), std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, var.c_str());
 		}
 	}
 }

@@ -53,6 +53,7 @@ make_mount_interdependencies (
 void
 flag_file (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const std::string & service_dirname,
 	const FileDescriptorOwner & service_dir_fd,
 	const char * name,

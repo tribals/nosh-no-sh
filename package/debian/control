@@ -2,14 +2,17 @@ Source: nosh
 Section: admin
 Priority: optional
 Maintainer: Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@ntlworld.com>
-Build-Depends: redo, xmlto, pax, libncursesw5-dev, uuid-dev, libssl-dev
+Build-Depends: redo, xmlto, pax, libncursesw5-dev, uuid-dev, libssl-dev, libpam0g-dev
+Rules-Requires-Root: no
 
 Package: nosh-guide
 Architecture: amd64
+Section: doc
 Depends:
 Suggests: 
 Recommends: 
 Description: User guide for the various nosh-* packages.
+  .
 
 Package: nosh-exec
 Architecture: amd64
@@ -65,19 +68,26 @@ Description: Extra service and system management utilities
 Package: nosh-terminal-management
 Architecture: amd64
 Depends: ${shlibs:Depends}, nosh-service-management (>=1.14)
-Breaks: nosh-bundles (<= 1.20)
+Breaks: nosh-bundles (<= 1.40)
 Suggests: openvanilla-imgeneric-data-all
 Recommends: 
 Description: Virtual terminal, pseudo-terminal, and TUI login tools
  This package provides tools for creating and using pseudo-terminals and virtual consoles.
  .
- Included here are tools for TUI login:
- * login-banner, login-process, login-prompt, open-controlling-tty, ttylogin-starter
+ Included here are tools for terminal login, full screen TUI and dumb printer-terminal style:
+  * login-envuidgid, open-controlling-terminal, ttylogin-starter, login-monitor-active
+  * list-logins
+  * login-banner, login-process, login-prompt
  .
- Also present are commands for pseudo-terminals and virtual consoles:
-  * console-terminal-emulator, console-termio-realizer, console-fb-realizer, console-multiplexor, console-input-method, console-control-sequence
+ Also present are commands for pseudo-terminals and virtual consoles and their associated I/O devices:
+  * console-terminal-emulator, console-multiplexor, console-multiplexor-control, console-input-method, console-input-method-control, console-control-sequence
+  * console-termio-realizer, console-fb-realizer, console-evdev-realizer, console=ps2-mouse-realizer, console-kvt-realizer
+  * vc-get-terminal, vc-reset-terminal
+  * framebuffer-dump
+ .
+ And commands for pseudo-terminals and the old Network Virtual Terminal:
   * pty-get-tty, pty-run
-  * vc-get-tty, vc-reset-tty
+  * nvt-client
 
 Package: nosh-terminal-extras
 Architecture: amd64
@@ -90,6 +100,7 @@ Description: Extra terminal utilities
 
 Package: nosh-zsh-completion
 Architecture: amd64
+Section: shells
 Depends: 
 Suggests: 
 Recommends: zsh, nosh-exec, nosh-service-management, nosh-terminal-management
@@ -102,9 +113,9 @@ Depends: ${shlibs:Depends}, nosh-service-management
 Suggests: 
 Recommends: 
 Will-Conflict: sysvinit-utils (<< 2.88dsf-59), upstart-sysv, systemd-sysv, init-system-helpers (>= 1.48)
+Will-Provide: systemd-sysv
 Description: BSD and System 5 shim service and system management utilities
  This package provides shims for old-style BSD and System 5 system management commands.
-  * chkconfig
   * init, shutdown, telinit, halt, haltsys, poweroff, reboot, runlevel
   * emergency, normal, rescue
  .
@@ -113,7 +124,7 @@ Description: BSD and System 5 shim service and system management utilities
  For rcctl, use the nosh-openbsd-shims package.
  For utx, use the nosh-freebsd-shims package.
  For fastboot, fasthalt, and fastpoweroff, use the nosh-bsd-shims package.
- For invoke-rc.d and update-rc.d, use the nosh-debian-shims package.
+ For chkconfig, invoke-rc.d, update-rc.d, and deb-systemd-invoke use the nosh-debian-shims package.
  For rc-update and rc-service use the nosh-openrc-shims package.
 
 Package: nosh-systemd-shims
@@ -136,7 +147,19 @@ Recommends:
 Conflicts: upstart
 Description: upstart shim service and system management utilities
  This package provides shims for upstart service and system management commands.
-  * initctl, start, stop, enable, disable
+  * initctl, start, stop, status
+ .
+ The shims simply invoke native service management commands.
+
+Package: nosh-smf-shims
+Architecture: amd64
+Depends: nosh-service-management
+Suggests: 
+Recommends: 
+Will-Conflict: smf
+Description: SunOS SMF shim service and system management utilities
+ This package provides shims for SunOS SMF service and system management commands.
+  * svcadm
  .
  The shims simply invoke native service management commands.
 
@@ -154,6 +177,7 @@ Description: execline utility shims
 
 Package: nosh-core-shims
 Architecture: amd64
+Section: utils
 Depends: nosh-exec
 Suggests: 
 Recommends: 
@@ -168,6 +192,7 @@ Description: core utility shims
 
 Package: nosh-linux-shims
 Architecture: amd64
+Section: utils
 Depends: nosh-exec, nosh-terminal-management
 Suggests: 
 Recommends: 
@@ -194,15 +219,17 @@ Architecture: amd64
 Depends: nosh-service-management, nosh-service-command-shim, nosh-systemv-shims
 Suggests: 
 Recommends: 
-Will-Conflict: sysvinit-core (<< 2.88dsf-59.9), file-rc, sysv-rc, init-system-helpers (>= 1.48)
-Provides: sysv-rc, file-rc, init-system-helpers
+Will-Conflict: sysvinit-core (<< 2.88dsf-59.9), init-system-helpers (>= 1.48)
+Will-Provide: init-system-helpers
 Description: Debian shim service and system management utilities
  This package provides shims for Debian service and system management commands.
-  * invoke-rc.d, update-rc.d
+  * chkconfig, invoke-rc.d, update-rc.d, deb-systemd-invoke
  .
  The shims simply invoke native service management commands.
  .
- It satisfies any packages that depend from sysv-rc, file-rc, or init-system-helpers in order to obtain these commands.
+ It satisfies any packages that depend from init-system-helpers in order to obtain these commands.
+ .
+ This chkconfig is a shim for the original IRIX command of that name, and thus is not syntax compatible with the chkconfig found in non-Debian-related Linux-based operating systems such as CentOS.
 
 Package: nosh-openrc-shims
 Architecture: amd64
@@ -233,15 +260,17 @@ Description: OpenBSD shim service and system management utilities
 
 Package: nosh-freebsd-shims
 Architecture: amd64
+Section: utils
 Depends: nosh-terminal-management
 Conflicts: nosh-systemv-shims (<= 1.27)
 Suggests: 
 Recommends: 
-Description: FreeBSD shim service and system management utilities
- This package provides shims for FreeBSD service, login, and system management commands.
+Description: FreeBSD shim utilities
+ This package provides shims for FreeBSD commands.
+  * procstat
+  * ps
+  * unvis
   * utx
- .
- The shims simply invoke native management commands.
 
 Package: nosh-bsd-shims
 Architecture: amd64
@@ -258,6 +287,7 @@ Description: BSD shim service and system management utilities
 
 Package: nosh-ucspi-tcp-shims
 Architecture: amd64
+Section: net
 Depends: nosh-exec
 Suggests: 
 Recommends: 
@@ -270,6 +300,7 @@ Description: Bernstein UCSPI-TCP shim service utilities
 
 Package: nosh-kbd-shims
 Architecture: amd64
+Section: utils
 Depends: nosh-terminal-management
 Will-Conflict: kbd
 Suggests: 
@@ -283,12 +314,13 @@ Description: shim kbd utilities
 
 Package: nosh-net-tools-shims
 Architecture: amd64
+Section: net
 Depends: nosh-exec
 Suggests: 
 Recommends: 
 Will-Conflict: net-tools
 Description: Linux utility shims 
- This package provides shims for  commands with names from net-tools
+ This package provides shims for commands with names from net-tools
   * ifconfig
  .
  The shims simply invoke nosh built-in commands.
@@ -325,9 +357,9 @@ Description: Replacements for Desktop Bus utilities
 
 Package: nosh-bundles
 Architecture: amd64
-Depends: nosh-exec (>=1.39), nosh-service-management (>=1.39), nosh-terminal-management (>=1.39), adduser
+Depends: nosh-exec (>=1.39), nosh-service-management (>=1.41), nosh-terminal-management (>=1.41), adduser, athena-jot
 Suggests: 
-Recommends: 
+Recommends:
 Conflicts: nosh-standard-targets, nosh-sysinit-services, nosh-bsd-services, nosh-bsd-sockets, nosh-regular-sockets, nosh-regular-services
 Description: Service bundles
  This package provides pre-packaged bundle directories for
@@ -359,7 +391,7 @@ Package: nosh-run-system-manager
 Architecture: amd64
 Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, redo
 Suggests: 
-Recommends: nosh-run-kernel-vt | nosh-run-user-vt, nosh-systemv-shims, nosh-debian-shims, nosh-bsd-shims, nosh-openbsd-shims, nosh-freebsd-shims, nosh-run-local-syslog, nosh-run-klog
+Recommends: nosh-run-user-vt | nosh-run-kernel-vt, nosh-systemv-shims, nosh-debian-shims, nosh-bsd-shims, nosh-openbsd-shims, nosh-freebsd-shims, nosh-run-local-syslog, nosh-run-klog
 Conflicts: nosh-run-via-systemd, upstart, sysvinit-core, systemd-sysv
 Provides: init, systemd-shim
 Description: Run the nosh system manager
@@ -389,6 +421,42 @@ Conflicts: nosh-run-debian-desktop-base, nosh-bundles (<=1.32)
 Description: Run base Debian services for a server system
  This package runs base Debian services for a server system.
 
+Package: nosh-run-trueos-desktop-base
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-terminal-management, nosh-bundles (>=1.33)
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-trueos-server-base, nosh-bundles (<=1.32)
+Description: Run base TrueOS services for a desktop system
+ This package runs base TrueOS services for a desktop system.
+
+Package: nosh-run-trueos-server-base
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-terminal-management, nosh-bundles (>=1.33)
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-trueos-desktop-base, nosh-bundles (<=1.32)
+Description: Run base TrueOS services for a server system
+ This package runs base TrueOS services for a server system.
+
+Package: nosh-run-freebsd-desktop-base
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-terminal-management, nosh-bundles (>=1.33)
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-freebsd-server-base, nosh-bundles (<=1.32)
+Description: Run base FreeBSD services for a desktop system
+ This package runs base FreeBSD services for a desktop system.
+
+Package: nosh-run-freebsd-server-base
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-terminal-management, nosh-bundles (>=1.33)
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-freebsd-desktop-base, nosh-bundles (<=1.32)
+Description: Run base FreeBSD services for a server system
+ This package runs base FreeBSD services for a server system.
+
 Package: nosh-run-kernel-vt
 Architecture: amd64
 Depends: nosh-exec, nosh-service-management (>=1.33), nosh-terminal-management, nosh-bundles
@@ -405,14 +473,32 @@ Recommends: nosh-kbd-shims
 Description: Run new-style application-mode virtual terminals
  This package runs new-style application-mode virtual terminals, rendered via the (first) framebuffer and the input event stream.
 
+Package: nosh-run-via-mewburn-rc
+Architecture: amd64
+Depends: nosh-service-management (>=1.33), systemd, nosh-bundles (>=1.40)
+Suggests: 
+Recommends: 
+Description: Run the nosh service manager and daemontools service scanner via Mewburn rc
+ This package provides rc.d scripts for running the nosh service manager under Mewburn rc, instead of running the nosh system manager.
+ It disables the nosh sysinit.target, on the basis that Mewburn rc is doing that part of the work.
+
 Package: nosh-run-via-open-rc
 Architecture: amd64
 Depends: nosh-service-management (>=1.33), systemd, nosh-bundles (>=1.40)
 Suggests: 
 Recommends: 
 Description: Run the nosh service manager and daemontools service scanner via OpenRC
- This package provides init.d scripts for running the nosh service manager and daemontools service scanner under OpenRC, instead of running the nosh service manager.
+ This package provides init.d scripts for running the nosh service manager and daemontools service scanner under OpenRC, instead of running the nosh system manager.
  It disables the nosh sysinit.target, on the basis that OpenRC is doing that part of the work.
+
+Package: nosh-run-via-openbsd-rc
+Architecture: amd64
+Depends: nosh-service-management (>=1.33), systemd, nosh-bundles (>=1.40)
+Suggests: 
+Recommends: 
+Description: Run the nosh service manager and daemontools service scanner via OpenBSD rc
+ This package provides rc.d scripts for running the nosh service manager under OpenBSD rc, instead of running the nosh system manager.
+ It disables the nosh sysinit.target, on the basis that OpenBSD rc is doing that part of the work.
 
 Package: nosh-run-via-systemd
 Architecture: amd64
@@ -421,7 +507,7 @@ Suggests:
 Recommends: 
 Replaces: nosh-systemd-services
 Description: Run the nosh service manager and daemontools service scanner via systemd
- This package provides systemd service units for running the nosh service manager and daemontools service scanner under systemd, instead of running the nosh service manager.
+ This package provides systemd service units for running the nosh service manager and daemontools service scanner under systemd, instead of running the nosh system manager.
  It presets systemd services that:
   * run the nosh service-manager server under systemd;
   * run the nosh service-dt-scanner (a.k.a. svscan) service under systemd; and
@@ -438,17 +524,17 @@ Description: Run VirtualBox guest additions
 
 Package: nosh-run-freedesktop-system-bus
 Architecture: amd64
-Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, dbus
 Suggests: 
-Recommends: dbus, nosh-desktop-bus-shims
+Recommends: nosh-desktop-bus-shims
 Description: Run the system-wide message bus from freedesktop.org
  This package runs the system-wide message bus from freedesktop.org.
 
 Package: nosh-run-freedesktop-kits
 Architecture: amd64
-Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, nosh-run-freedesktop-system-bus
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, nosh-run-freedesktop-system-bus, network-manager, modemmanager, packagekit, policykit-1, consolekit, rtkit
 Suggests: 
-Recommends: network-manager, modemmanager, packagekit, policykit-1, consolekit, rtkit
+Recommends:
 Description: Run the various "kit" programs from freedesktop.org
  This package runs the various "kit" programs from freedesktop.org:
   * Accounts
@@ -465,9 +551,9 @@ Description: Run the various "kit" programs from freedesktop.org
 
 Package: nosh-run-openssh-server
 Architecture: amd64
-Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, openssh-server
 Suggests: 
-Recommends: openssh-server
+Recommends:
 Description: Run the OpenSSH server
  This package runs the OpenSSH server.
 
@@ -483,12 +569,30 @@ Description: Run the various AppleTalk services
   * Timelord
   * dbd
 
-Package: nosh-run-udev
+Package: nosh-run-devd
 Architecture: amd64
-Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, udev, nosh-run-mdevd
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
 Suggests: 
 Recommends: 
-Conflicts: nosh-run-busybox-mdev, nosh-run-suckless-mdev, nosh-run-vdev, nosh-run-systemd-udev
+Conflicts: nosh-run-busybox-mdev, nosh-run-suckless-mdev, nosh-run-udev, nosh-run-systemd-udev, nosh-run-vdev, nosh-run-mdevd
+Description: Run FreeBSD devd as the device manager.
+ This package causes FreeBSD's devd to be run as the plug-and-play device manager.
+
+Package: nosh-run-devpubd
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-busybox-mdev, nosh-run-suckless-mdev, nosh-run-udev, nosh-run-systemd-udev, nosh-run-vdev, nosh-run-mdevd
+Description: Run NetBSD devpubd as the device manager.
+ This package causes NetBSD's devpubd to be run as the plug-and-play device manager.
+
+Package: nosh-run-udev
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-busybox-mdev, nosh-run-suckless-mdev, nosh-run-vdev, nosh-run-systemd-udev, nosh-run-mdevd
 Description: Run udev as the device manager.
  This package causes udev to be run as the plug-and-play device manager.
  .
@@ -547,7 +651,7 @@ Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
 Provides: system-log-daemon
 Suggests: 
 Recommends: 
-Conflicts: systemd-sysv
+Conflicts: 
 Description: Run the local syslog service.
  This package causes the local-syslog-read service to run.
 
@@ -557,7 +661,7 @@ Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
 Provides: linux-kernel-log-daemon
 Suggests: 
 Recommends: 
-Conflicts: systemd-sysv
+Conflicts: 
 Description: Run the klog service.
  This package causes the klogd service to run.
 
@@ -570,4 +674,82 @@ Recommends:
 Conflicts: bcron-run
 Description: Run the bcron services.
  This package causes the bcron services to run.
+
+Package: nosh-run-publicfile
+Architecture: amd64
+Section: web
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, publicfile (>=10)
+Provides:
+Suggests: 
+Recommends: ucspi-ssl
+Conflicts:
+Description: Run the publicfile services.
+ This package causes the publicfile services to run:
+   * combined-stack HTTP
+   * combined-stack HTTPS
+   * FTP over IPv4
+   * combined-stack GOPHER
+   * combined-stack GEMINI
+   * combined-stack NICNAME
+   * combined-stack FINGER
+
+Package: nosh-run-djbdns
+Architecture: amd64
+Section: web
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, djbdns
+Provides:
+Suggests: 
+Recommends: 
+Conflicts:
+Description: Run the djbdns services.
+ This package causes the various djbdns services to run.
+ .
+ The old-style global services are disabled.
+ .
+ The new-style services are configured with the tinydns_network_addresses, walldns_network_addresses, dnscache_network_addresses, and taiclockd_network_addresses settings in /etc/rc.conf.local or /etc/rc.conf .
+
+Package: nosh-run-taiclock
+Architecture: amd64
+Section: web
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, taiclockd | clockspeed
+Provides:
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-sntpclock
+Description: Run the sntpclock service.
+ This package causes the sntpclock service to run.
+
+Package: nosh-run-sntpclock
+Architecture: amd64
+Section: web
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, clockspeed
+Provides:
+Suggests: 
+Recommends: 
+Conflicts: nosh-run-taiclock
+Description: Run the taiclock service.
+ This package causes the taiclock service to run.
+
+Package: nosh-run-fake-hwclock
+Architecture: amd64
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles
+Provides:
+Suggests: nosh-run-taiclock | nosh-run-sntpclock
+Recommends: 
+Conflicts:
+Description: Run the fake-hwclock service.
+ This package causes the fake-hwclock service to run.
+ .
+ On systems without an RTC, fake-hwclock provides a poor man's persistent clock using a file on disc.
+
+Package: nosh-run-taiclockd
+Architecture: amd64
+Section: web
+Depends: nosh-exec, nosh-service-management (>=1.33), nosh-bundles, taiclockd (>=10) | clockspeed (>=10)
+Provides:
+Suggests: 
+Recommends: 
+Conflicts:
+Description: Run the taiclockd service.
+ This package causes the taiclockd service to run.
 

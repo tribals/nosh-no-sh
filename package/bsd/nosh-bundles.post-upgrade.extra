@@ -1,4 +1,7 @@
 #!/bin/sh -
+# Extra post-upgrade for nosh-bundles
+# vim: set filetype=sh:
+
 # /run is now in the root.
 test -e /var/run || ln -s -f -- /run /var/
 
@@ -27,10 +30,10 @@ for I in \
 	kmod@vboxpci \
 	;
 do
-	if system-control find cyclog@"$I".service >/dev/null 2>&1
+	if svcdir="`system-control find cyclog@"$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/cyclog@"$I"/wanted-by/workstation/wants/cyclog@"$I"
-		rm -f -- /var/sv/cyclog@"$I"/wanted-by/workstation
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/cyclog@"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation
 	fi
 done
 for I in \
@@ -38,10 +41,10 @@ for I in \
 	dbus-daemon \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/workstation
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation
 	fi
 done
 for I in \
@@ -49,10 +52,10 @@ for I in \
 	cleanvar \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
 	fi
 done
 for I in \
@@ -61,22 +64,21 @@ for I in \
 	cleanuucp \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/sysinit/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/sysinit
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit
 	fi
 done
 for I in \
 	static-networking \
+	cyclog@static-networking \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/stopped-by/shutdown/conflicts/"$I"
-		rm -f -- /var/sv/cyclog@"$I"/wanted-by/workstation/wants/cyclog@"$I"
-		rm -f -- /var/sv/cyclog@"$I"/stopped-by/shutdown/conflicts/cyclog@"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/stopped-by/shutdown/conflicts/"$I"
 	fi
 done
 for I in \
@@ -86,10 +88,10 @@ for I in \
 	server \
 	;
 do
-	if system-control find "$I".target >/dev/null 2>&1
+	if svcdir="`system-control find "$I".target 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/"$I"/wants/basic
-		rm -f -- /etc/service-bundles/targets/"$I"/after/basic
+		rm -f -- "${svcdir}"/wants/basic
+		rm -f -- "${svcdir}"/after/basic
 	fi
 done
 for I in \
@@ -104,10 +106,10 @@ for I in \
 	remote-fs-pre \
 	;
 do
-	if system-control find "$I".target >/dev/null 2>&1
+	if svcdir="`system-control find "$I".target 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/"$I"/wanted-by/sysinit/wants/"$I"
-		rm -f -- /etc/service-bundles/targets/"$I"/wanted-by/sysinit
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit
 	fi
 done
 for I in \
@@ -117,9 +119,12 @@ for I in \
 	lircd \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/server/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/server
+		rm -f -- "${svcdir}"/wanted-by/server/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/server
 	fi
 done
+
+# Do not set up http and ftp access control defaults.
+# Do not set up head0.

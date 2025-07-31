@@ -24,13 +24,13 @@
 <refsynopsisdiv>
 <cmdsynopsis>
 <command>console-clear</command>
-<arg choice='opt'>--7bit</arg> 
-<arg choice='opt'>--8bit</arg> 
+<arg choice='opt'>--7bit</arg>
+<arg choice='opt'>--8bit</arg>
 </cmdsynopsis>
 <cmdsynopsis>
 <command>clear_console</command>
-<arg choice='opt'>--7bit</arg> 
-<arg choice='opt'>--8bit</arg> 
+<arg choice='opt'>--7bit</arg>
+<arg choice='opt'>--8bit</arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -62,9 +62,9 @@ For compatibility with the Bourne Again shell toolset, this command is also avai
 Unlike the Bourne Again shell toolset's <command>clear_console</command> command, this command is not specific to kernel virtual terminal character devices, does not involve switching kernel virtual terminals (<ulink url="https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=791342">a process that can go wrong if an X server happens to be using the "other" virtual terminal</ulink>), and respects redirection of its standard output.
 </para>
 
-<para>
-Note that the use case for <command>clear_console</command> is <ulink url="https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=331504">clearing the whole display buffer on user logoff</ulink>, which <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> does anyway, as standard.
-</para>
+<note>
+The use case for <command>clear_console</command> is <ulink url="https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=331504">clearing the whole display buffer on user logoff</ulink>, which <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> does anyway, as standard.
+</note>
 
 <para>
 This command makes no attempt to behave differently if its output is not to a terminal, since one might want to use it to generate the control sequences to send to a file, a pipe, or a non-terminal device.

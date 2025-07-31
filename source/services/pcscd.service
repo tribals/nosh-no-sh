@@ -8,6 +8,7 @@ Description=PC Smart Card daemon
 [Service]
 EnvironmentDirectory=env
 User=%p
+SessionLeader=yes
 RuntimeDirectory=%p
 RuntimeDirectoryMode=0755
 ExecStart=%p --foreground ${config:+--config "${config}"} ${flags}

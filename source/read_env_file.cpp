@@ -14,10 +14,12 @@ For copyright and licensing terms, see the file named COPYING.
 #include <unistd.h>
 #include "utils.h"
 #include "fdutils.h"
+#include "FileStar.h"
 
 std::string
 read_env_file (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * dir,
 	const char * basename,
 	int fd,
@@ -25,12 +27,10 @@ read_env_file (
 	bool chomp
 ) {
 	std::string r;
-	FILE * f(fdopen(fd, "r"));
+	FileStar f(fdopen(fd, "r"));
 	if (!f) {
 exit_error:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dir, basename, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dir, basename);
 	}
 	for (bool ltrim(chomp);;) {
 		int c(std::fgetc(f));
@@ -49,6 +49,5 @@ exit_error:
 		r += char(c);
 	}
 	if (std::ferror(f)) goto exit_error;
-	std::fclose(f);
 	return r;
 }

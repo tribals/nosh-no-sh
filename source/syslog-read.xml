@@ -22,16 +22,15 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>syslog-read</command> 
+<command>syslog-read</command>
 </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsection><title>Description</title>
 
 <para>
-<command>syslog-read</command> is an RFC 5426 server that feeds a log-writing
-service of some sort.
-It loops forever, reading syslog datagrams and writing them to its standard error.
+<command>syslog-read</command> is an RFC 5426 server that feeds a log-writing service of some sort.
+It loops forever, reading syslog datagrams and writing them to its standard output.
 </para>
 
 <para>
@@ -58,6 +57,7 @@ This can be useful for remote logging services, in the face of network latency o
 <para>
 This server does expect a datagram socket and senders speaking the RFC protocols, however.
 It is not suitable for use with operating system kernel log transports such as <filename>/dev/klog</filename>, <filename>/dev/kmsg</filename>, and <filename>/proc/kmsg</filename>, which have a non-RFC 5424 message format and which are not datagram-based.
+For those, see <citerefentry><refentrytitle>klog-read</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 </para>
 
 </refsection>

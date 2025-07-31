@@ -21,24 +21,24 @@ For copyright and licensing terms, see the file named COPYING.
 #include "TerminalCapabilities.h"
 #include "ProcessEnvironment.h"
 
-typedef std::set<unsigned long> sgr_params;
-
-static inline
-void
-add (
-	sgr_params & s,
-	bool v,
-	const popt::bool_string_definition & o,
-	unsigned long on,
-	unsigned long off
-) {
-	if (!o.is_set()) return;
-	s.insert(v ? on : off);
-	s.erase(v ? off : on);
-
-}
-
 namespace {
+
+	typedef std::set<unsigned long> sgr_params;
+
+	inline
+	void
+	add (
+		sgr_params & s,
+		bool v,
+		const popt::bool_string_definition & o,
+		unsigned long on,
+		unsigned long off
+	) {
+		if (!o.is_set()) return;
+		s.insert(v ? on : off);
+		s.erase(v ? off : on);
+	}
+
 	typedef std::set<unsigned long> tabstops;
 
 	struct colour_definition : public popt::integral_definition {
@@ -178,12 +178,12 @@ void colour_definition::action(popt::processor & /*proc*/, const char * text)
 	}
 	for (const struct colourname * b(colournames), * e(colournames + sizeof colournames/sizeof *colournames), * p(b); e != p; ++p) {
 		if (0 == std::strcmp(text, p->name)) {
-			v = Map256Colour(p->index);
+			v = Map16Colour(p->index);
 			set = true;
 			return;
 		}
 	}
-	throw popt::error(text, "colour specification is not {default|[bright] {red|green|blue|cyan|magenta|black|white|grey}|#<hexRGB>|<index>}");
+	throw popt::error(text, "colour specification is not {default|#<hexRGB>|<index>|[bright] {red|green|blue|cyan|magenta|black|white|grey}}");
 }
 
 const char dec_locator_definition::a[] = "mode";
@@ -260,7 +260,15 @@ void cursor_shape_definition::action(popt::processor & /*proc*/, const char * te
 		v = CursorSprite::BAR;
 		set = true;
 	} else
-		throw popt::error(text, "cursor shape specification is not {default|block|underline|star|box|bar}");
+	if (0 == std::strcmp(text, "underover")) {
+		v = CursorSprite::UNDEROVER;
+		set = true;
+	} else
+	if (0 == std::strcmp(text, "mirrorl")) {
+		v = CursorSprite::MIRRORL;
+		set = true;
+	} else
+		throw popt::error(text, "cursor shape specification is not {default|block|underline|star|box|bar|underover|mirrorl}");
 }
 
 const char underline_type_definition::a[] = "type";
@@ -287,7 +295,27 @@ void underline_type_definition::action(popt::processor & /*proc*/, const char * 
 		v = 5U;
 		set = true;
 	} else
-		throw popt::error(text, "underline type specification is not {single|double|curly|dotted|dashed}");
+	if (0 == std::strcmp(text, "ldashed")) {
+		v = 6U;
+		set = true;
+	} else
+	if (0 == std::strcmp(text, "lldashed")) {
+		v = 7U;
+		set = true;
+	} else
+	if (0 == std::strcmp(text, "ldotted")) {
+		v = 8U;
+		set = true;
+	} else
+	if (0 == std::strcmp(text, "lldotted")) {
+		v = 9U;
+		set = true;
+	} else
+	if (0 == std::strcmp(text, "lcurly")) {
+		v = 10U;
+		set = true;
+	} else
+		throw popt::error(text, "underline type specification is not {single|double|curly|dotted|dashed|ldashed|lldashed|ldotted|lcurly}");
 }
 
 const char erase_display_definition::a[] = "type";
@@ -338,16 +366,13 @@ void tabstop_definition::action(popt::processor & /*proc*/, const char * text)
 */
 
 void
-console_control_sequence [[gnu::noreturn]] ( 
+console_control_sequence [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	TerminalCapabilities caps(envs);
-	ECMA48Output o(caps, stdout, false /* C1 is not 7-bit aliased */);
-	sgr_params sgr;
-	bool bold, faint, italic, underline, blink, reverse, invisible, strikethrough;
+	bool bold, faint, italic, underline, blink, reverse, invisible, strikethrough, overline, frame, encircle;
 	popt::bool_string_definition bold_option('\0', "bold", "Switch boldface on/off.", bold);
 	popt::bool_string_definition faint_option('\0', "faint", "Switch faint on/off.", faint);
 	popt::bool_string_definition italic_option('\0', "italic", "Switch italic on/off.", italic);
@@ -356,19 +381,27 @@ console_control_sequence [[gnu::noreturn]] (
 	popt::bool_string_definition reverse_option('\0', "reverse", "Switch reverse on/off.", reverse);
 	popt::bool_string_definition invisible_option('\0', "invisible", "Switch invisible on/off.", invisible);
 	popt::bool_string_definition strikethrough_option('\0', "strikethrough", "Switch strikethrough on/off.", strikethrough);
-	bool cursor, cursorappkeys, calcappkeys, altbuffer, backspace_mode, delete_mode, bce, awm, scnm, irm, square, colm;
+	popt::bool_string_definition overline_option('\0', "overline", "Switch overline on/off.", overline);
+	popt::bool_string_definition frame_option('\0', "frame", "Switch framed characters on/off.", frame);
+	popt::bool_string_definition encircle_option('\0', "encircle", "Switch encircled characters on/off.", encircle);
+	bool cursor, cursorappkeys, calcappkeys, altbuffer, backspace_mode, delete_mode, escape_mode, bce, awm, scnm, irm, colm;
 	popt::bool_string_definition cursor_option('\0', "cursor", "Switch cursor on/off.", cursor);
 	popt::bool_string_definition cursorappkeys_option('\0', "appcursorkeys", "Switch cursor keypad application mode on/off.", cursorappkeys);
 	popt::bool_string_definition calcappkeys_option('\0', "appcalckeys", "Switch calculator keypad application mode on/off.", calcappkeys);
 	popt::bool_string_definition altbuffer_option('\0', "altbuffer", "Switch the XTerm alternate screen buffer on/off.", altbuffer);
 	popt::bool_string_definition backspace_mode_option('\0', "backspace-is-bs", "Switch Backspace key is BS on/off.", backspace_mode);
 	popt::bool_string_definition delete_mode_option('\0', "delete-is-del", "Switch Delete key is DEL on/off.", delete_mode);
+	popt::bool_string_definition escape_mode_option('\0', "escape-is-fs", "Switch Escape key is FS on/off.", escape_mode);
 	popt::bool_string_definition bce_option('\0', "bce", "Switch background colour erase on/off.", bce);
 	popt::bool_string_definition awm_option('\0', "linewrap", "Switch automatic right margin on/off.", awm);
 	popt::bool_string_definition scnm_option('\0', "inversescreen", "Switch inverse screen mode on/off.", scnm);
 	popt::bool_string_definition irm_option('\0', "insert", "Switch insert (not overstrike) on/off.", irm);
-	popt::bool_string_definition square_option('\0', "square", "Switch square (not obling) mode on/off.", square);
 	popt::bool_string_definition colm_option('\0', "132-columns", "Switch 132-columns mode on/off.", colm);
+	bool scofnk, decfnk, tekenfnk, square;
+	popt::bool_string_definition square_option('\0', "square", "Switch square (not oblong) mode on/off.", square);
+	popt::bool_string_definition scofnk_option('\0', "sco-function-keys", "Switch SCO function keys on/off.", scofnk);
+	popt::bool_string_definition decfnk_option('\0', "dec-function-keys", "Switch DEC VT function keys on/off.", decfnk);
+	popt::bool_string_definition tekenfnk_option('\0', "teken-function-keys", "Switch teken function keys on/off.", tekenfnk);
 	unsigned long regtabs, rows, columns;
 	popt::unsigned_number_definition regtabs_option('\0', "regtabs", "interval", "Set regular tabs at the given interval.", regtabs, 0);
 	popt::unsigned_number_definition rows_option('\0', "rows", "count", "Set the terminal height.", rows, 0);
@@ -383,9 +416,11 @@ console_control_sequence [[gnu::noreturn]] (
 	erase_display_definition erase_display_option('\0', "clear", "Erase the display.");
 	tabstop_definition settabs_option('\0', "settabs", "Set tabstops at these columns.");
 	tabstop_definition clrtabs_option('\0', "clrtabs", "Clear tabstops at these columns.");
+	bool c1_7bit(false);
+	bool c1_8bit(false);
 	try {
-		popt::bool_definition c1_7bit_option('7', "7bit", "Use 7-bit C1 characters.", o.c1_7bit);
-		popt::bool_definition c1_8bit_option('8', "8bit", "Use 8-bit C1 characters instead of UTF-8.", o.c1_8bit);
+		popt::bool_definition c1_7bit_option('7', "7bit", "Use 7-bit C1 characters.", c1_7bit);
+		popt::bool_definition c1_8bit_option('8', "8bit", "Use 8-bit C1 characters instead of UTF-8.", c1_8bit);
 		popt::bool_definition permit_fake_truecolour_option('\0', "permit-fake-truecolour", "Permit using 24-bit colour when the terminal is known to fake this ability.", TerminalCapabilities::permit_fake_truecolour);
 		popt::bool_definition reset_option('\0', "reset", "Issue reset sequence.", reset);
 		popt::bool_definition softreset_option('\0', "soft-reset", "Issue DEC soft reset sequence.", softreset);
@@ -402,6 +437,9 @@ console_control_sequence [[gnu::noreturn]] (
 			&reverse_option,
 			&invisible_option,
 			&strikethrough_option,
+			&overline_option,
+			&frame_option,
+			&encircle_option,
 			&foreground_option,
 			&background_option,
 			&showtabs_option,
@@ -412,9 +450,15 @@ console_control_sequence [[gnu::noreturn]] (
 			&underline_type_option,
 			&erase_display_option,
 			&irm_option,
-			&square_option,
 		};
-		popt::table_definition ECMA48_table_option(sizeof ECMA48_table/sizeof *ECMA48_table, ECMA48_table, "Standard ECMA-48 and ISO 8613-6 control sequences");
+		popt::table_definition ECMA48_table_option(sizeof ECMA48_table/sizeof *ECMA48_table, ECMA48_table, "Standard ECMA-48 and ISO 8613-6/ITU T.416 control sequences");
+		popt::definition * SCO_table[] = {
+			&square_option,
+			&scofnk_option,
+			&decfnk_option,
+			&tekenfnk_option,
+		};
+		popt::table_definition SCO_table_option(sizeof SCO_table/sizeof *SCO_table, SCO_table, "Pseudo-SCO control sequences");
 		popt::definition * DEC_table[] = {
 			&rows_option,
 			&columns_option,
@@ -423,6 +467,7 @@ console_control_sequence [[gnu::noreturn]] (
 			&calcappkeys_option,
 			&altbuffer_option,
 			&backspace_mode_option,
+			&escape_mode_option,
 			&delete_mode_option,
 			&bce_option,
 			&awm_option,
@@ -438,24 +483,22 @@ console_control_sequence [[gnu::noreturn]] (
 			&c1_8bit_option,
 			&permit_fake_truecolour_option,
 			&ECMA48_table_option,
-			&DEC_table_option
+			&SCO_table_option,
+			&DEC_table_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
+	sgr_params sgr;
 	add(sgr, bold, bold_option, 1, 22);
 	add(sgr, faint, faint_option, 2, 22);
 	add(sgr, italic, italic_option, 3, 23);
@@ -464,6 +507,12 @@ console_control_sequence [[gnu::noreturn]] (
 	add(sgr, reverse, reverse_option, 7, 27);
 	add(sgr, invisible, invisible_option, 8, 28);
 	add(sgr, strikethrough, strikethrough_option, 9, 29);
+	add(sgr, frame, frame_option, 51, 54);
+	add(sgr, encircle, encircle_option, 52, 54);
+	add(sgr, overline, overline_option, 53, 55);
+
+	TerminalCapabilities caps(envs);
+	ECMA48Output o(caps, stdout, c1_7bit, c1_8bit);
 
 	if (reset) {
 		o.print_control_character(ESC);
@@ -512,21 +561,35 @@ console_control_sequence [[gnu::noreturn]] (
 	}
 	if (irm_option.is_set())
 		o.IRM(irm);
-	if (caps.use_DECPrivateMode) {
+	if (caps.use_SCOPrivateMode) {
 		if (square_option.is_set())
 			o.SquareMode(square);
+		if (decfnk_option.is_set())
+			o.DECFunctionKeys(decfnk);
+		if (scofnk_option.is_set())
+			o.SCOFunctionKeys(scofnk);
+		if (tekenfnk_option.is_set())
+			o.TekenFunctionKeys(tekenfnk);
+	}
+	if (caps.use_DECPrivateMode) {
 		if (colm_option.is_set())
 			o.DECCOLM(colm);
 		if (cursor_option.is_set())
 			o.DECTCEM(cursor);
 		if (cursorappkeys_option.is_set())
 			o.DECCKM(cursorappkeys);
-		if (calcappkeys_option.is_set())
-			o.DECNKM(calcappkeys);
+		if (calcappkeys_option.is_set()) {
+			if (caps.use_DECNKM)
+				o.DECNKM(calcappkeys);
+			else
+				o.DECKPxM(calcappkeys);
+		}
 		if (backspace_mode_option.is_set())
 			o.DECBKM(backspace_mode);
 		if (delete_mode_option.is_set())
 			o.XTermDeleteIsDEL(delete_mode);
+		if (escape_mode_option.is_set())
+			o.TeraTermEscapeIsFS(escape_mode);
 		if (bce_option.is_set())
 			o.DECECM(!bce);
 		if (awm_option.is_set())
@@ -593,7 +656,7 @@ console_control_sequence [[gnu::noreturn]] (
 		if (caps.reset_sets_tabs && (reset || softreset) && regtabs_option.is_set() && 8U == regtabs)
 			/* This work is already done. */;
 		else
-		if (caps.use_CTC)
+		if (!caps.lacks_CTC)
 			o.CTC(5U);
 		else
 			o.TBC(3U);
@@ -607,8 +670,10 @@ console_control_sequence [[gnu::noreturn]] (
 			columns = std::strtoul(c, const_cast<char **>(&c), 0);
 		if (c == s || *c) {
 			winsize size;
-			if (0 <= tcgetwinsz_nointr(STDOUT_FILENO, size))
+			if (0 <= tcgetwinsz_nointr(STDOUT_FILENO, size)) {
+				sane(size);
 				columns = size.ws_col;
+			}
 		}
 		o.print_control_character(CR);
 		if (regtabs_option.is_set()) {
@@ -621,7 +686,7 @@ console_control_sequence [[gnu::noreturn]] (
 				// Each new tabstop is set AFTER n more columns.
 				for (unsigned long i(regtabs); i < columns; i += regtabs) {
 					o.print_control_characters(' ', regtabs);
-					if (caps.use_CTC)
+					if (!caps.lacks_CTC)
 						o.CTC(0U);
 					else
 						o.print_control_character(HTS);
@@ -634,11 +699,11 @@ console_control_sequence [[gnu::noreturn]] (
 			for (tabstops::const_iterator b(l.begin()), e(l.end()), p(b); e != p; ++p) {
 				unsigned long n(*p);
 				if (n > columns) continue;
-				if (caps.use_HPA)
+				if (!caps.lacks_HPA)
 					o.HPA(n);
 				else
 					o.CHA(n);
-				if (caps.use_CTC)
+				if (!caps.lacks_CTC)
 					o.CTC(0U);
 				else
 					o.print_control_character(HTS);
@@ -650,11 +715,11 @@ console_control_sequence [[gnu::noreturn]] (
 			for (tabstops::const_iterator b(l.begin()), e(l.end()), p(b); e != p; ++p) {
 				unsigned long n(*p);
 				if (n > columns) continue;
-				if (caps.use_HPA)
+				if (!caps.lacks_HPA)
 					o.HPA(n);
 				else
 					o.CHA(n);
-				if (caps.use_CTC)
+				if (!caps.lacks_CTC)
 					o.CTC(0U);
 				else
 					o.TBC(0U);

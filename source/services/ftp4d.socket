@@ -7,11 +7,12 @@ Description=Generic FTP socket for IP4
 
 [Socket]
 Backlog=2
-MaxConnections=2
-NoDelay=false
 ListenStream=0:ftp
-UCSPIRules=true
 Accept=true
+MaxConnections=2
+UCSPIRules=true
+LogUCSPIRules=yes
+NoDelay=false
 
 [Install]
 WantedBy=server.target

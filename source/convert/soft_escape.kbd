@@ -1,0 +1,7 @@
+# This is an overlay keymap that sets the escape key to be the TeraTerm soft-programmable escape.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  001   escape escape escape escape escape escape debug  panic O

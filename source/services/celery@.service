@@ -10,6 +10,7 @@ Description=Celery distributed task queue for node %I
 
 [Service]
 User=celery
+SessionLeader=yes
 ExecStart=celery worker ${app:+-A "${app}"} -n %I ${concurrency:+-c "${concurrency}"} ${options}
 
 [Install]

@@ -12,10 +12,10 @@ For copyright and licensing terms, see the file named COPYING.
 struct FileStar {
 	operator FILE * () const { return f ; }
 	FILE * operator -> () const { return f ; }
-	FileStar(FILE * fp = 0) : f(fp) {}
-	FILE * release() { FILE *fp(f); f = 0; return fp; }
+	FileStar(FILE * fp = nullptr) : f(fp) {}
+	FILE * release() { FILE *fp(f); f = nullptr; return fp; }
 	FileStar & operator= ( FILE * n ) { assign(n); return *this; }
-	~FileStar() { assign(0); }
+	~FileStar() { assign(nullptr); }
 protected:
 	FILE * f;
 	void assign(FILE * n) { if (f) std::fclose(f); f = n; }

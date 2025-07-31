@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+# The name of this service is shortened so that the user name fits in 32 characters.
+
+[Unit]
+Description=Combined logger for console-pcat-kbd-realizer@ services
+
+[Service]
+User=%p
+SessionLeader=yes
+WorkingDirectory=/var/log/sv
+ExecStart=cyclog console-pcat-kbd-realizer/
+RestartSec=1
+
+[Install]
+WantedBy=workstation.target

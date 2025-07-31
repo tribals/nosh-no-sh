@@ -19,9 +19,9 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>appendpath</command> 
-<arg choice='req'><replaceable>var</replaceable></arg> 
-<arg choice='req'><replaceable>dir</replaceable></arg> 
+<command>appendpath</command>
+<arg choice='req'><replaceable>var</replaceable></arg>
+<arg choice='req'><replaceable>dir</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -29,7 +29,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>appendpath</command> is a chain-loading utility that appends the value <replaceable>dir</replaceable> to the path environment variable <replaceable>var</replaceable>, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>appendpath</command> is a chain-loading utility that appends the value <replaceable>dir</replaceable> to the path environment variable <replaceable>var</replaceable>, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 If the environment variable is set and not empty, it inserts a colon (<code>:</code>) between the old value of <replaceable>var</replaceable> and the appended <replaceable>dir</replaceable>.
 </para>
 

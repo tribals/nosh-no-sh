@@ -40,13 +40,13 @@ q (
 */
 
 void
-local_stream_socket_connect ( 
+local_stream_socket_connect (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	const char * localpath(0);
+	const char * localpath(nullptr);
 	bool verbose(false);
 	try {
 		popt::bool_definition verbose_option('v', "verbose", "Print status information.", verbose);
@@ -58,29 +58,24 @@ local_stream_socket_connect (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{path} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing connect path name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "connect path name");
 	}
 	const char * connectpath(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 	next_prog = arg0_of(args);
 
-	addrinfo * remote_info_list(0), remote_hints = {0,0,0,0,0,0,0,0};
+	addrinfo * remote_info_list(nullptr), remote_hints = {};
 	remote_hints.ai_family = AF_UNIX;
 	remote_hints.ai_socktype = SOCK_STREAM;
 	remote_hints.ai_protocol = 0;
@@ -109,7 +104,7 @@ local_stream_socket_connect (
 		}
 
 		if (localpath) {
-			addrinfo * local_info(0), local_hints = {0,0,0,0,0,0,0,0};
+			addrinfo * local_info(nullptr), local_hints = {};
 			local_hints.ai_family = remote_info->ai_family;
 			local_hints.ai_socktype = remote_info->ai_socktype;
 			local_hints.ai_protocol = remote_info->ai_protocol;
@@ -138,16 +133,16 @@ local_stream_socket_connect (
 				if (localaddrsz > offsetof(sockaddr_un, sun_path) && localaddru.sun_path[0])
 					envs.set("UNIXLOCALPATH", localaddru.sun_path);
 				else
-					envs.set("UNIXLOCALPATH", 0);
+					envs.set("UNIXLOCALPATH", nullptr);
 				break;
 			}
 			default:
-				envs.set("UNIXLOCALPATH", 0);
+				envs.set("UNIXLOCALPATH", nullptr);
 				break;
 		}
-		envs.set("UNIXLOCALUID", 0);
-		envs.set("UNIXLOCALGID", 0);
-		envs.set("UNIXLOCALPID", 0);
+		envs.set("UNIXLOCALUID", nullptr);
+		envs.set("UNIXLOCALGID", nullptr);
+		envs.set("UNIXLOCALPID", nullptr);
 		switch (remote_info->ai_family) {
 			case AF_UNIX:
 			{
@@ -155,7 +150,7 @@ local_stream_socket_connect (
 				if (remote_info->ai_addrlen > offsetof(sockaddr_un, sun_path) && remoteaddr.sun_path[0])
 					envs.set("UNIXREMOTEPATH", remoteaddr.sun_path);
 				else
-					envs.set("UNIXREMOTEPATH", 0);
+					envs.set("UNIXREMOTEPATH", nullptr);
 #if defined(SO_PEERCRED)
 #if defined(__LINUX__) || defined(__linux__)
 				struct ucred u;
@@ -174,17 +169,17 @@ local_stream_socket_connect (
 				snprintf(buf, sizeof buf, "%u", u.uid);
 				envs.set("UNIXREMOTEEUID", buf);
 #else
-				envs.set("UNIXREMOTEPID", 0);
-				envs.set("UNIXREMOTEEGID", 0);
-				envs.set("UNIXREMOTEEUID", 0);
+				envs.set("UNIXREMOTEPID", nullptr);
+				envs.set("UNIXREMOTEEGID", nullptr);
+				envs.set("UNIXREMOTEEUID", nullptr);
 #endif
 				break;
 			}
 			default:
-				envs.set("UNIXREMOTEPATH", 0);
-				envs.set("UNIXREMOTEPID", 0);
-				envs.set("UNIXREMOTEEGID", 0);
-				envs.set("UNIXREMOTEEUID", 0);
+				envs.set("UNIXREMOTEPATH", nullptr);
+				envs.set("UNIXREMOTEPID", nullptr);
+				envs.set("UNIXREMOTEEGID", nullptr);
+				envs.set("UNIXREMOTEEUID", nullptr);
 				break;
 		}
 

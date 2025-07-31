@@ -25,7 +25,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-vc_reset_tty ( 
+vc_reset_tty (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -34,6 +34,9 @@ vc_reset_tty (
 	bool no_tostop(false);
 	bool hard_reset(false);
 	bool set_text_mode(false);
+
+	// A virtual terminal is always local.
+	const bool no_local(false);
 
 	const char * prog(basename_of(args[0]));
 	try {
@@ -50,23 +53,20 @@ vc_reset_tty (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (!isatty(STDOUT_FILENO)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "stdout", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "stdout");
 	}
 
-	tcsetattr_nointr(STDOUT_FILENO, TCSAFLUSH, sane(no_tostop, no_utf_8));
+	tcsetattr_nointr(STDOUT_FILENO, TCSAFLUSH, sane(no_tostop, no_local, no_utf_8));
 
 	if (set_text_mode) {
 #if defined(__LINUX__) || defined(__linux__)

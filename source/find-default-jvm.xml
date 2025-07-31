@@ -17,12 +17,12 @@
 
 <refnamediv>
 <refname>find-default-jvm</refname>
-<refpurpose>set the JAVA_HOME environmnent variable to denote the default JVM</refpurpose>
+<refpurpose>set the JAVA_HOME environment variable to denote the default JVM</refpurpose>
 </refnamediv>
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>find-default-jvm</command> 
+<command>find-default-jvm</command>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -30,7 +30,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>find-default-jvm</command> is a chain-loading utility that sets the <envar>JAVA_HOME</envar> environment variable to denote the root directory for the default JVM, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>find-default-jvm</command> is a chain-loading utility that sets the <envar>JAVA_HOME</envar> environment variable to denote the root directory for the default JVM, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 If the environment variable is already set, it simply chain loads and does not alter it.
 </para>
 
@@ -39,18 +39,19 @@ If the environment variable is already set, it simply chain loads and does not a
 </para>
 
 <para>
-If the <filename>/usr/local/etc/jvms</filename> file exists, it is expected to be a (potentially commented) list of JVM programs, in descending priority order.
+First the files <filename>/usr/local/etc/javavms</filename>, <filename>/etc/javavms</filename>, and <filename>/usr/pkg/etc/javavms</filename> are checked for in order.
+If such a file exists, it is expected to be a (potentially commented) list of JVM programs, in descending priority order.
 The default JVM is the first in the list.
 The <envar>JAVA_HOME</envar> variable is set to the root of the JVM subtree, which is presumed to be the directory above the directory containing the named JVM program.
 </para>
 
 <para>
-If that file does not exist, then if the <filename>/usr/lib/jvm</filename> directory exists it is presumed to contain all of the JVM subtree root directories, either directly or as symbolic links.
+If none of those files exist, then if the <filename>/usr/lib/jvm</filename> directory exists it is presumed to contain all of the JVM subtree root directories, either directly or as symbolic links.
 The <envar>JAVA_HOME</envar> variable is set to the one named <filename>default-java</filename> if that exists, or failing that the one named <filename>default-runtime</filename> if that exists.
 </para>
 
 <para>
-Failing either of those, the <filename>/usr/local/bin/java</filename> and <filename>/usr/bin/java</filename> files are checked in order, and if found the <envar>JAVA_HOME</envar> variable is set to the root of the JVM subtree, which is presumed from those filenames as aforementioned.
+Failing either of those, the <filename>/usr/local/bin/java</filename>, <filename>/usr/pkg/bin/java</filename>, <filename>/usr/bin/java</filename>, and <filename>/bin/java</filename> files are checked in order, and if found the <envar>JAVA_HOME</envar> variable is set to the root of the JVM subtree, which is presumed from those filenames as aforementioned.
 </para>
 
 <para>

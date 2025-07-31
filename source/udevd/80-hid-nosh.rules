@@ -1,0 +1,10 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+# Linkage from udevd to various services for HIDs.
+
+ACTION=="add", SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_KEYBOARD}=="?*", RUN+="/bin/sh -cv 'cd /run/service-bundles && /etc/service-bundles/generators/generate %k console-evdev-realizer && /etc/service-bundles/generators/spin-up %k console-evdev-realizer'"
+ACTION=="add", SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_MOUSE}=="?*", RUN+="/bin/sh -cv 'cd /run/service-bundles && /etc/service-bundles/generators/generate %k console-evdev-realizer && /etc/service-bundles/generators/spin-up %k console-evdev-realizer'"
+ACTION=="add", SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_TOUCHPAD}=="?*", RUN+="/bin/sh -cv 'cd /run/service-bundles && /etc/service-bundles/generators/generate %k console-evdev-realizer && /etc/service-bundles/generators/spin-up %k console-evdev-realizer'"
+ACTION=="add", SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_TABLET}=="?*", RUN+="/bin/sh -cv 'cd /run/service-bundles && /etc/service-bundles/generators/generate %k console-evdev-realizer && /etc/service-bundles/generators/spin-up %k console-evdev-realizer'"

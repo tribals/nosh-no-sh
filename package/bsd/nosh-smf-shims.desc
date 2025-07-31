@@ -1,0 +1,4 @@
+ This package provides shims for SunOS SMF service and system management commands.
+  * svcadm
+ .
+ The shims simply invoke native service management commands.

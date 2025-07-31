@@ -1,6 +1,7 @@
-<title>/etc/rc.conf conversion</title>
 <link rel="Up" href="external-formats.html" title="External formats" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>/etc/rc.conf conversion</title>
+<h1 class="Ruled">
 <code>/etc/rc.conf</code> conversion
 </h1>
 
@@ -15,7 +16,7 @@ Then it translates from that amalgamated form into the native mechanisms for thi
 There are three ways in which settings from it are then imported: service presets, d&aelig;mon environment variables, and the generation of nonce service bundles.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Service preset information
 </h2>
 
@@ -35,7 +36,7 @@ The Mewburn <code>rc</code> system has no notion of being able to manually start
 The enable flag actually behaves as an inverted inhibitor, simply blocking all attempts to start the service, bootstrap or otherwise, rather than as a positive selector to select which services to automatically start.
 </p>
 
-<h2>
+<h2 class="Ruled">
 D&aelig;mon environment information
 </h2>
 
@@ -51,12 +52,12 @@ The toolset comes with a replacement <a href="commands/rcctl.xml"><code>rcctl</c
 
 <p>
 As the manual page mentions, best practice <em>even with the original OpenBSD tool</em> is to <em>not</em> get into the bad habit of using <code>rcctl&nbsp;set&nbsp;</code><i>name</i><code>&nbsp;status</code> instead of <code>rcctl&nbsp;enable&nbsp;</code><i>name</i> and <code>rcctl&nbsp;disable&nbsp;</code><i>name</i>.
-The <code>set</code>/<code>get</code> way of doing things not only doesn't work with the <a href="commands/rcctl.xml"><code>rcctl</code></a> shim but doesn't even work for NetBSD, DragonFly BSD, FreeBSD, or TrueOS, none of which are compatible with OpenBSD's unique <code>rc.conf</code> variable naming scheme.
+The <code>set</code>/<code>get</code> way of doing things not only doesn't work with the <a href="commands/rcctl.xml"><code>rcctl</code></a> shim but doesn't even work for NetBSD, DragonFly BSD, FreeBSD, or other BSDs, none of which are compatible with OpenBSD's unique <code>rc.conf</code> variable naming scheme.
 In contrast, the <code>enable</code>/<code>disable</code> way of doing things works both with the original tool and the shim.
 (Ports of the original OpenBSD tool to other BSDs will also likely ensure that <code>enable</code>/<code>disable</code> do the right thing for the target platform.)
 </p>
 
-<h2>
+<h2 class="Ruled">
 Nonce service bundles
 </h2>
 
@@ -69,7 +70,7 @@ From the information in those files (as amalgamated, possibly including other so
 </p>
 
 <p>
-The meanings of the various <code>network_interfaces</code>, <code>dhclient_program</code>, <code>ifconfig_<i>name</i></code>, <code>ifconfig_<i>name</i>_ipv6</code>, and <code>ifconfig_<i>name</i>_aliases</code> settings that drive this are roughly as described in the <code>rc.conf</code> user manual page in FreeBSD, TrueOS, and DragonFly BSD.
+The meanings of the various <code>network_interfaces</code>, <code>dhclient_program</code>, <code>ifconfig_<i>name</i></code>, <code>ifconfig_<i>name</i>_ipv6</code>, and <code>ifconfig_<i>name</i>_aliases</code> settings that drive this are roughly as described in the <code>rc.conf</code> user manual page in FreeBSD and DragonFly BSD.
 There are some slight variations.
 For examples:
 </p>

@@ -1,1 +1,4 @@
-shim utilities to match stuff from the net-tools toolset
+ This package provides shims for commands with names from net-tools
+  * ifconfig
+ .
+ The shims simply invoke nosh built-in commands.

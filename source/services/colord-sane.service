@@ -9,7 +9,9 @@ After=local-syslog.target avahi-daemon.service
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.%p
 User=colord
+SessionLeader=yes
 ExecStart=/usr/lib/colord/%p
 
 [Install]

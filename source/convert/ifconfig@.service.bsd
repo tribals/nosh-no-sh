@@ -10,7 +10,7 @@ PartOf=netif@%i
 
 [Service]
 EnvironmentDirectory=env
-ExecStartPre=sh -c 'test -n "${create_opts}" && /bin/exec %p '"'%I'"' create ${create_opts}'
+ExecStartPre=sh -c 'test -n "${create_args}" && /bin/exec %p '"'%I'"' create ${create_args}'
 ExecStartPre=sh -c 'test -n "${link_opts}" && /bin/exec %p '"'%I'"' link ${link_opts}'
 ExecStartPre=sh -c 'test -n "${inet6_opts}" && /bin/exec %p '"'%I'"' inet6 ${inet6_opts}'
 ExecStartPre=sh -c 'test -n "${inet4_opts}" && /bin/exec %p '"'%I'"' inet ${inet4_opts}'
@@ -23,7 +23,7 @@ ExecStopPost=sh -c 'printenv inet6_aliases | while read -r a ; do /bin/exec %p '
 ExecStopPost=sh -c 'printenv link_aliases | while read -r a ; do /bin/exec %p '"'%I'"' link ${a} -alias ; done'
 ExecStopPost=%p '%I' inet down
 ExecStopPost=%p '%I' inet6 -accept_rtadv ifdisabled
-ExecStopPost=sh -c 'test -n "${create_opts}" && /bin/exec %p -n '"'%I'"' destroy'
+ExecStopPost=sh -c 'test -n "${create_args}" && /bin/exec %p -n '"'%I'"' destroy'
 RemainAfterExit=true
 
 [Install]

@@ -9,17 +9,17 @@ For copyright and licensing terms, see the file named COPYING.
 #include "kbdmap.h"
 
 extern
-void 
+void
 wipe (
 	KeyboardMap & map
 ) ;
 extern
-void 
+void
 set_default (
 	KeyboardMap & map
 ) ;
 extern
-void 
+void
 overlay_group2_latch (
 	KeyboardMap & map
 ) ;

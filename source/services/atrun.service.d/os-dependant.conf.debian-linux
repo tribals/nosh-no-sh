@@ -1,0 +1,9 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Deferred execution scheduler service on Debian and RedHat Linux
+
+[Service]
+ExecStart=%p -d

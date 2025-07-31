@@ -9,8 +9,7 @@
 # This is run by the per-user external configuration import subsystem.
 # It is used to compile all of the service bundles from source.
 
-eu="--etc-bundle --user"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+e="--no-systemd-quirks --escape-instance --user"
 
 redo_ifchange_follow() {
 	local i l
@@ -29,7 +28,7 @@ redo_ifchange_follow() {
 }
 
 make_raw_service_bundle() {
-	system-control convert-systemd-units $eu $e "$hs/" "./$1$2"
+	system-control convert-systemd-units $e --bundle-root "$hs/" "./$1$2"
 	install -d -m 0755 -- "$hs/$1/service/env"
 }
 
@@ -180,7 +179,7 @@ user_fan_in_logger() {
 
 user_target() {
 	redo_ifchange_follow "$1.target"
-	system-control convert-systemd-units $eu $e "$ht/" "./$1.target"
+	system-control convert-systemd-units $e --bundle-root "$ht/" "./$1.target"
 }
 
 relocate_user_service() {

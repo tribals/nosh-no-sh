@@ -15,8 +15,9 @@ get_var1() { read_rc autobridge_"$2" || true ; }
 
 redo-ifchange rc.conf general-services "autobridge@.service" autobridge.helper
 
-r="/var/local/sv"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+r="/var/local/service-bundles/services"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 find "$r/" -maxdepth 1 -type d -name 'autobridge@*' -print0 |
 xargs -0 system-control disable --
@@ -28,7 +29,7 @@ do
 	test -z "$i" && continue
 	service="autobridge@$i"
 	echo "${service}:" >> "$3"
-	system-control convert-systemd-units $e "$r/" "./${service}.service"
+	system-control convert-systemd-units $e --bundle-root "$r/" "./${service}.service"
 	mkdir -p -m 0755 -- "$r/${service}/service/env"
 	system-control preset "${service}"
 	system-control set-service-env "${service}" patterns "`get_var1 \"$i\"`"

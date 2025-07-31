@@ -30,12 +30,12 @@
 <command>service-is-enabled</command> checks to see whether a service is
 currently enabled.
 <replaceable>directory</replaceable> is either a service directory or a
-bundle directory with a service directory named <filename>service</filename> 
+bundle directory with a service directory named <filename>service</filename>
 within it.
 </para>
 
 <para>
-A service is considered enabled if its service directory does not contain a 
+A service is considered enabled if its service directory does not contain a
 <filename>down</filename> file.
 </para>
 

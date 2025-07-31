@@ -1,0 +1,68 @@
+<link rel="Up" href="terminals.html" title="Terminals" />
+<link rel="Prev" href="real-terminal-login.html" title="real terminal login" />
+<link rel="Next" href="login-conf.html" title="login.conf" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Real terminal call-out</title>
+<h1 class="Ruled">
+Real terminal call-out
+</h1>
+
+<p>
+Via a serial connection, and either a pair of modems or a "null modem" cable, one system can act as a terminal for another system.
+This is variously known as "call out" or "dial up".
+This package contains tools for emulating a real terminal on another system via a "call out" serial port when the "null modem" case applies.
+</p>
+
+<p>
+Call-out is done with <code>ttycallout@<i>device</i></code> services, configured to use those devices.
+Such a call-out service is a very simple service, which can be managed just like other ordinary services, started and stopped and enabled and disabled in the usual way.
+</p>
+
+<p>
+The service runs <a href="commands/console-terminal-emulator.xml"><code>console-terminal-emulator</code></a> to provide terminal emulation, attached to the "call out" serial device <code>/dev/<i>device</i></code> and presenting itself as the <code>/run/dev/<i>device</i></code> user-space virtual terminal.
+This is just another <a href="user-virtual-terminals.html">user-space virtual terminal that can be realized and multiplexed</a> like any others.
+So (for example) one could run a bank of such <code>ttycallout@cuau<i>N</i></code> services under a multiplexor and an input method; configure them with specific dedicated HIDs and framebuffers; and use individualized keyboard maps and fonts.
+</p>
+
+<p>
+These services are suitable for serial ports connected via "null modem" cables; they have no modem command functionality.
+It is assumed that the cable is always connected, and the speed/parity/bits are pre-configured by the machines at both ends of the connection.
+Since <a href="commands/console-terminal-emulator.xml"><code>console-terminal-emulator</code></a> provides a fixed known terminal emulation, the system at the other end of the connection must be told the appropriate <a href="commands/TERM.xml"><code>TERM</code></a> environment variable for the terminal type.
+</p>
+
+<h2 class="Ruled">
+What the service bundle <code>run</code> scripts look like
+</h2>
+
+<p>
+The <code>run</code> script for such services is basically this (using <code>ttycallout@cuau1</code> as an example):
+</p>
+<blockquote><pre>#!/bin/nosh
+setenv TTY /dev/cuau1
+setsid
+setlogin -- user-vt-emulator
+open-controlling-terminal
+setuidgid --primary-group user-vt-realizer -- user-vt-emulator
+foreground stty 115200 raw -crtscts -tostop ;
+console-terminal-emulator /run/dev/cuau1</pre></blockquote>
+
+<h3 class="Ruled">FreeBSD, DragonFly BSD, and similar</h3>
+
+<p>
+The services are <code>ttycallout@cuau0</code> through to <code>ttycallout@cuauf</code>, matching the operating system's real terminal devices <code>/dev/cuau0</code> to <code>/dev/cuauf</code>.
+These should not be run at the same time as the matching <code>getty@ttyu0</code> through to <code>getty@ttyuf</code> service(s).
+</p>
+
+<h3 class="Ruled">OpenBSD</h3>
+
+<p>
+The services are <code>ttycallout@tty00</code> through to <code>ttycallout@tty07</code> and <code>ttycallout@ttyU0</code> through to <code>ttycallout@ttyU3</code>, matching the operating system's real terminal devices <code>/dev/tty00</code> to <code>/dev/tty07</code> and <code>/dev/ttyU0</code> to <code>/dev/ttyU3</code>.
+These should not be run at the same time as the matching <code>getty@tty00</code> through to <code>getty@tty07</code> and <code>getty@ttyU0</code> through to <code>getty@ttyU3</code> service(s).
+</p>
+
+<h3 class="Ruled">Linux-based operating systems</h3>
+
+<p>
+The services are <code>ttycallout@ttyS0</code> through to <code>ttycallout@ttyS3</code>, matching the operating system's real terminal devices <code>/dev/ttyS0</code> to <code>/dev/ttyS3</code>.
+These should not be run at the same time as the matching <code>agetty@ttyS0</code>/<code>mgetty@ttyS0</code> through to <code>agetty@ttyS3</code>/<code>mgetty@ttyS3</code> service(s).
+</p>

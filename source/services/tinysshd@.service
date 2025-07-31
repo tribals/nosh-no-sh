@@ -11,7 +11,7 @@ LocalReaper=true
 EnvironmentDirectory=env
 RuntimeDirectory=%p
 RuntimeDirectoryMode=0755
-ExecStart=%p -v keys/
+ExecStart=setsid %p -v keys/
 
 [Install]
 WantedBy=server.target

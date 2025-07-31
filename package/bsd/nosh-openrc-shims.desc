@@ -1,1 +1,6 @@
-Shims for OpenRC utilities
+ This package provides shims for OpenRC service and system management commands.
+  * rc-update, rc-service
+ .
+ The shims simply invoke native service management commands.
+ .
+ It satisfies any packages that depend from openrc in order to obtain these commands.

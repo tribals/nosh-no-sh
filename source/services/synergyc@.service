@@ -9,6 +9,7 @@ Description=Synergy Client Daemon for user %i
 EnvironmentDirectory=env
 ExecStart=%p --no-daemon --debug ${DEBUGLEVEL:-INFO} ${SERVERALIAS}
 User=%i
+SessionLeader=yes
 
 [Install]
 WantedBy=workstation.target

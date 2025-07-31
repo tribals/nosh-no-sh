@@ -8,10 +8,10 @@ Description=Dovecot socket(s)
 [Socket]
 UCSPIRules=false
 # Dovecot cannot handle dual-stack sockets, so we have to have a separate socket per IP version.
-ListenStream=143
-ListenStream=[::]:143
-ListenStream=993
-ListenStream=[::]:993
+ListenStream=imap
+ListenStream=[::]:imap
+ListenStream=imaps
+ListenStream=[::]:imaps
 BindIPv6Only=ipv6-only
 KeepAlive=true
 Accept=false

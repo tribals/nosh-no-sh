@@ -9,6 +9,7 @@ Description=Requires version 17.3 erlang which understands the LISTEN_FDS protoc
 
 [Service]
 User=epmd
+SessionLeader=yes
 ExecStart=%p -systemd
 
 [Install]

@@ -25,9 +25,9 @@ For copyright and licensing terms, see the file named COPYING.
 #include "FileStar.h"
 #include "control_groups.h"
 
-static inline 
-int 
-d2c ( int c ) 
+static inline
+int
+d2c ( int c )
 {
 	if (std::isdigit(c)) return c - '0';
 	return EOF;
@@ -67,17 +67,17 @@ read_first_line_number (
 */
 
 void
-set_control_group_knob [[gnu::noreturn]] ( 
+set_control_group_knob [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	const char * percent_of(0);
+	const char * percent_of(nullptr);
 	bool infinity_is_max(false);
 	bool multiplier_suffixes(false);
 	bool device_name_key(false);
-	const char * nested_key(0);
+	const char * nested_key(nullptr);
 	try {
 		popt::bool_definition infinity_is_max_option('\0', "infinity-is-max", "Allow the use of \"infinity\" to mean \"max\".", infinity_is_max);
 		popt::bool_definition multiplier_suffixes_option('\0', "multiplier-suffixes", "Decode SI and IEEE/IEC multiplier suffixes.", multiplier_suffixes);
@@ -94,44 +94,36 @@ set_control_group_knob [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{knob} {value}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing knob name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "knob name");
 	}
 	const char * knob(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing value name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "value name");
 	}
 	const char * value(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	FileStar self_cgroup(open_my_control_group_info("/proc/self/cgroup"));
 	if (!self_cgroup) {
-		const int error(errno);
-		if (ENOENT == error) throw EXIT_SUCCESS;	// This is what we'll see on a BSD.
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "/proc/self/cgroup", std::strerror(error));
-		throw EXIT_FAILURE;
+		if (ENOENT == errno) throw EXIT_SUCCESS;	// This is what we'll see on a BSD.
+		die_errno(prog, envs, "/proc/self/cgroup");
 	}
 
 	std::string prefix("/sys/fs/cgroup"), current;
 	if (!read_my_control_group(self_cgroup, "", current)) {
-		if (!read_my_control_group(self_cgroup, "name=systemd", current)) 
+		if (!read_my_control_group(self_cgroup, "name=systemd", current))
 			throw EXIT_SUCCESS;
 		prefix += "/systemd";
 	}
@@ -144,14 +136,10 @@ set_control_group_knob [[gnu::noreturn]] (
 		if (const char * next = std::strtok(const_cast<char *>(value), " \t")) {
 			struct stat s;
 			if (0 > fstatat(AT_FDCWD, value, &s, AT_SYMLINK_NOFOLLOW)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, value, std::strerror(error));
-				throw EXIT_FAILURE;
+				die_errno(prog, envs, value);
 			}
-			if (!S_ISBLK(s.st_mode) && !S_ISCHR(s.st_mode)) {
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, value, "Not a device.");
-				throw EXIT_FAILURE;
-			}
+			if (!S_ISBLK(s.st_mode) && !S_ISCHR(s.st_mode))
+				die_invalid(prog, envs, value, "Not a device.");
 			char keybuf[256];
 			const int len(std::snprintf(keybuf, sizeof keybuf, "%u:%u", major(s.st_rdev), minor(s.st_rdev)));
 			value_key = std::string(keybuf, len) + " ";
@@ -174,10 +162,8 @@ set_control_group_knob [[gnu::noreturn]] (
 		if (end != value) {
 			if (percent_of && '%' == end[0] && '\0' == end[1]) {
 				uint_least64_t hundred;
-				if (!read_first_line_number (percent_of, hundred)) {
-					std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, percent_of, "File does not start with a decimal number");
-					throw EXIT_FAILURE;
-				}
+				if (!read_first_line_number (percent_of, hundred))
+					die_invalid(prog, envs, percent_of, "File does not start with a decimal number");
 				++end;
 				if (hundred > std::numeric_limits<uint_least64_t>::max() / 100U)
 					number = (hundred / 100U) * number;
@@ -186,19 +172,19 @@ set_control_group_knob [[gnu::noreturn]] (
 			}
 			if (multiplier_suffixes && end[0]) {
 				if ('\0' == end[1]) switch (end[0]) {
-					case 'h':	++end; number *= 100L; break;;
-					case 'k':	++end; number *= 1000L; break;;
-					case 'M':	++end; number *= 1000000L; break;;
-					case 'G':	++end; number *= 1000000000L; break;;
-					case 'T':	++end; number *= 1000000000000L; break;;
-					case 'E':	++end; number *= 1000000000000000L; break;;
+					case 'h':	++end; number *= 100L; break;
+					case 'k':	++end; number *= 1000L; break;
+					case 'M':	++end; number *= 1000000L; break;
+					case 'G':	++end; number *= 1000000000L; break;
+					case 'T':	++end; number *= 1000000000000L; break;
+					case 'E':	++end; number *= 1000000000000000L; break;
 				} else
 				if ('i' == end[1] && !end[2]) switch (end[0]) {
-					case 'K':	end += 2; number *= 0x400UL; break;;
-					case 'M':	end += 2; number *= 0x100000UL; break;;
-					case 'G':	end += 2; number *= 0x40000000UL; break;;
-					case 'T':	end += 2; number *= 0x10000000000UL; break;;
-					case 'E':	end += 2; number *= 0x4000000000000UL; break;;
+					case 'K':	end += 2; number *= 0x400UL; break;
+					case 'M':	end += 2; number *= 0x100000UL; break;
+					case 'G':	end += 2; number *= 0x40000000UL; break;
+					case 'T':	end += 2; number *= 0x10000000000UL; break;
+					case 'E':	end += 2; number *= 0x4000000000000UL; break;
 				}
 			}
 			if ('\0' == *end) {
@@ -212,9 +198,7 @@ set_control_group_knob [[gnu::noreturn]] (
 	const FileDescriptorOwner cgroup_knob_fd(open_writetruncexisting_at(AT_FDCWD, ((prefix + current + "/") + knob).c_str()));
 	if (0 > cgroup_knob_fd.get()) {
 procs_file_error:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s%s%s: %s\n", prog, current.c_str(), "/", knob, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, current.c_str(), "/", knob);
 	}
 	const std::string v(value_key + value_nested_key + value_suffix);
 	if (0 > write(cgroup_knob_fd.get(), v.data(), v.length())) goto procs_file_error;

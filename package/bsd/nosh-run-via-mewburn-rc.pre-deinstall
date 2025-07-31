@@ -4,6 +4,12 @@
 /usr/sbin/service system-control-normal onestop
 /usr/sbin/service service-manager-svscan onestop
 /usr/sbin/service service-manager onestop
-sysrc system_control_normal_enable=NO
-sysrc service_manager_enable=NO
-sysrc service_manager_svscan_enable=NO
+if sysrc="`command -v sysrc`"
+then
+	# FreeBSD style, with "_enable" suffixes.
+	sysrc system_control_normal_enable=NO
+	sysrc service_manager_enable=NO
+	sysrc service_manager_svscan_enable=NO
+else
+	echo 1>&2 "WARNING: No sysrc on this system; /etc/rc.conf has not been automatically updated."
+fi

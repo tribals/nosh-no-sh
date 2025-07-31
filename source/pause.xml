@@ -32,7 +32,7 @@
 <command>pause</command> is a utility that simply waits indefinitely until the
 process is sent a signal, using the
 <citerefentry><refentrytitle>sigpause</refentrytitle><manvolnum>3</manvolnum></citerefentry>
-function.  
+function.
 </para>
 
 </refsection><refsection><title>Author</title>

@@ -1,0 +1,43 @@
+# Important differences from PuTTY and XTerm:
+#
+# * K2 is in fact CNL, not CHA (PuTTY) nor SS3 'E' (XTerm).
+# * Terminal does not support DECCOLM, so it isn't in rs or is.
+# * Terminal does not support DECSCLM, so it isn't in rs or is.
+# * XTerm rs does not reset the status line.
+#
+# Choices made:
+#
+# * Use the shorter RI and IND for up and do instead of CUU and CUD.
+# * Use NEL for nw instead of CR+LF so that line discipline oflags are irrelevant.
+# * Use IND for sf instead of LF so that line discipline oflags are irrelevant.
+# * Include hs, ts, ds, fs; Terminal supports this, but as a window title not a status line.
+# * kb is DEL, the Backspace key only sending BS when Control is used.
+# * Include bs even though it is obsolete with le and LE.
+# * This is not a Concept, we don't state xn.
+# * Terminal implements italics, dim, and invisible, so include ZH, ZR, mh, mk.
+# * Do not use RIS for is; use DECSTR instead.
+# * Rely upon both RIS and DECSTR
+#    * turning off ECMA-48 mode 4 (overstrike),
+#    * turning off DEC private modes 1 (app cursor keys) 6 (origin) 66 (app calc keys),
+#    * turning on DEC private mode 7 (automatic right margin), and
+#    * doing SGR 0.
+#
+msterminal|ms-terminal|Microsoft's terminal emulator:\
+	:am:bs:bw:ut:\
+	:Co#256:pa#32767:AB=\E[48;5;%dm:AF=\E[38;5;%dm:op=\E[39;49m:\
+	:it#8:ct=\E[3g:\
+	:kn#12:km:kb=\177:ks=\E[?1l\E>:ke=\E[?1l\E>:\
+	:@7=\EOF:@8=\EOM:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:kP=\E[5~:kN=\E[6~:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
+	:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:K2=\E[E:Km=\E[M:kB=\E[Z:\
+	:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:LE=\E[%dD:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:\
+	:bl=^G:cr=^M:ta=^I:le=^H:\
+	:nd=\E[C:ho=\E[H:cm=\E[%i%d;%dH:cd=\E[J:ce=\E[K:al=\E[L:dl=\E[M:dc=\E[P:ec=\E[%dX:bt=\E[Z:cs=\E[%i%d;%dr:\
+	:cl=\E[H\E[2J:\
+	:mi:ms:me=\E[0m:md=\E[1m:mh=\E[2m:ZH=\E[3m:ZR=\E[23m:us=\E[4m:ue=\E[24m:mb=\E[5m:mr=\E[7m:so=\E[7m:se=\E[27m:mk=\E[8m:\
+	:sc=\E7:rc=\E8:do=\ED:sf=\ED:nw=\EE:st=\EH:up=\EM:sr=\EM:mu=\Em:ml=\El:\
+	:ei=\E[4l:im=\E[4h:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?12;25h:te=\E[?1049l:ti=\E[?1049h:ke=\E[?1l\E>:ks=\E[?1h\E=:\
+	:hs:ts=\E]0;:ds=\E]0;\007:fs=^G:\
+	:rs=\Ec\E]R^G:\
+	:is=\E[?1000;1049l\E[!p:
+

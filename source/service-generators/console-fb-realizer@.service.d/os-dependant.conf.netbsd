@@ -1,0 +1,11 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=ini:
+
+[Unit]
+Description=User-space virtual terminal realizer on NetBSD framebuffer device %I
+
+[Service]
+## NetBSD bodges for its overconstrained account names.
+User=uvkr-10jtz5t

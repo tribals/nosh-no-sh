@@ -1,0 +1,9 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Deferred execution scheduler service on the BSDs
+
+[Service]
+ExecStart=/usr/libexec/%p -d

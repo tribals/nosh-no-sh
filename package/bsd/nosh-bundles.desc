@@ -1,1 +1,4 @@
-Service bundles
+ This package provides pre-packaged bundle directories for
+  * the standard targets (normal, workstation, server, multi-user, and so on);
+  * the system initialization services; and
+  * regular services.

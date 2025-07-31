@@ -1,4 +1,7 @@
 #!/bin/sh -
+# Extra post-install for nosh-bundles
+# vim: set filetype=sh:
+
 # /run is now in the root.
 test -e /var/run || ln -s -f -- /run /var/
 
@@ -12,7 +15,7 @@ for i in \
 do
 	if test -d /var/log/sv/$i/
 	then
-                find /var/log/sv/$i/ \( -name '@*' -o -name lock -o -name current \) -print0|xargs -0 chown "$i"-log
+		find /var/log/sv/$i/ \( -name '@*' -o -name lock -o -name current \) -print0|xargs -0 chown "$i"-log
 	fi
 done
 # Adjust to new relationships.
@@ -27,10 +30,10 @@ for I in \
 	kmod@vboxpci \
 	;
 do
-	if system-control find cyclog@"$I".service >/dev/null 2>&1
+	if svcdir="`system-control find cyclog@"$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/cyclog@"$I"/wanted-by/workstation/wants/cyclog@"$I"
-		rm -f -- /var/sv/cyclog@"$I"/wanted-by/workstation
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/cyclog@"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation
 	fi
 done
 for I in \
@@ -47,10 +50,10 @@ for I in \
 	dbus-daemon \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/workstation
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation
 	fi
 done
 for I in \
@@ -58,10 +61,10 @@ for I in \
 	cleanvar \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
 	fi
 done
 for I in \
@@ -70,22 +73,21 @@ for I in \
 	cleanuucp \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/sysinit/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/sysinit
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit
 	fi
 done
 for I in \
 	static-networking \
+	cyclog@static-networking \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/workstation/wants/"$I"
-		rm -f -- /var/sv/"$I"/stopped-by/shutdown/conflicts/"$I"
-		rm -f -- /var/sv/cyclog@"$I"/wanted-by/workstation/wants/cyclog@"$I"
-		rm -f -- /var/sv/cyclog@"$I"/stopped-by/shutdown/conflicts/cyclog@"$I"
+		rm -f -- "${svcdir}"/wanted-by/workstation/wants/"$I"
+		rm -f -- "${svcdir}"/stopped-by/shutdown/conflicts/"$I"
 	fi
 done
 for I in \
@@ -95,10 +97,10 @@ for I in \
 	server \
 	;
 do
-	if system-control find "$I".target >/dev/null 2>&1
+	if svcdir="`system-control find "$I".target 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/"$I"/wants/basic
-		rm -f -- /etc/service-bundles/targets/"$I"/after/basic
+		rm -f -- "${svcdir}"/wants/basic
+		rm -f -- "${svcdir}"/after/basic
 	fi
 done
 for I in \
@@ -113,10 +115,10 @@ for I in \
 	remote-fs-pre \
 	;
 do
-	if system-control find "$I".target >/dev/null 2>&1
+	if svcdir="`system-control find "$I".target 2>/dev/null`"
 	then
-		rm -f -- /etc/service-bundles/targets/"$I"/wanted-by/sysinit/wants/"$I"
-		rm -f -- /etc/service-bundles/targets/"$I"/wanted-by/sysinit
+		rm -f -- "${svcdir}"/wanted-by/sysinit/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/sysinit
 	fi
 done
 for I in \
@@ -126,9 +128,121 @@ for I in \
 	lircd \
 	;
 do
-	if system-control find "$I".service >/dev/null 2>&1
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
 	then
-		rm -f -- /var/sv/"$I"/wanted-by/server/wants/"$I"
-		rm -f -- /var/sv/"$I"/wanted-by/server
+		rm -f -- "${svcdir}"/wanted-by/server/wants/"$I"
+		rm -f -- "${svcdir}"/wanted-by/server
+	fi
+done
+
+# Adjust to new account names.
+for I in \
+	tinydns \
+	walldns \
+	dnscache \
+	;
+do
+	rename_user "$I"-d "$I" ""
+	rename_group "$I"-d "$I" ""
+done
+for I in \
+	taiclock \
+	;
+do
+	rename_user "$I"-d "$I"d ""
+	rename_group "$I"-d "$I"d ""
+done
+
+# Set up gopher, http, and ftp access control defaults.
+for I in \
+	gopher6d \
+	http6d \
+	ftp6d \
+	ftp4d \
+	axfrdns \
+	gemini6d \
+	finger6d \
+	nicname6d \
+	;
+do
+	if svcdir="`system-control find "$I".service 2>/dev/null`"
+	then
+		if ! test -d "${svcdir}"/service/ip4/
+		then
+			install -d -m 0755 "${svcdir}"/service/ip4/10.0.0.0_8
+			install -d -m 0755 "${svcdir}"/service/ip4/127.0.0.0_8
+			install -d -m 0755 "${svcdir}"/service/ip4/192.168.0.0_16
+			install -m 0644 /dev/null "${svcdir}"/service/ip4/10.0.0.0_8/deny
+			install -m 0644 /dev/null "${svcdir}"/service/ip4/127.0.0.0_8/allow
+			install -m 0644 /dev/null "${svcdir}"/service/ip4/192.168.0.0_16/deny
+			if test "$I" = "axfrdns"
+			then
+				# Disallow "zone transfer" to whomever we allow access by default.
+				install -m 0644 /dev/null "${svcdir}"/service/ip4/127.0.0.0_8/settings
+				printf '%s=%s\n' AXFR '' >> "${svcdir}"/service/ip4/127.0.0.0_8/settings
+			fi
+		fi
+		if ! test -d "${svcdir}"/service/ip6/
+		then
+			install -d -m 0755 "${svcdir}"/service/ip6/::1_128
+			install -m 0644 /dev/null "${svcdir}"/service/ip6/::1_128/allow
+			ln -s -- ../ip4/10.0.0.0_8 "${svcdir}"/service/ip6/::ffff:10.0.0.0_104
+			ln -s -- ../ip4/127.0.0.0_8 "${svcdir}"/service/ip6/::ffff:127.0.0.0_104
+			ln -s -- ../ip4/192.168.0.0_16 "${svcdir}"/service/ip6/::ffff:192.168.0.0_112
+		fi
+	fi
+done
+
+# These accounts are now escaped.
+fixup_user_account_name "console-pcat-kbd-realizer-log"
+fixup_user_account_name "console-pcat-mouse-realizer-log"
+fixup_user_account_name "console-ugen-hid-realizer-log"
+
+# Set up head0.
+# We do not set up global mouse/keyboard aggregation and autoconnection for USB, PS/2, or PC/AT HIDs out of the box.
+# This is an unsafe practice in a world where malicious HIDs exist.
+# Only aggregate and autoconnect the already-aggregated devices that we cannot prevent, i.e. sysmouse, kbdmux, wsmux, and evdev input/mice.
+
+user_vt_group "realizer"
+
+user_vt_dir=/etc/system-control/convert/user-vt
+
+install -d -m 02055 -o root -g user-vt-realizer "${user_vt_dir}"/vcs "${user_vt_dir}"/mice-aggregate "${user_vt_dir}"/keyboards-aggregate
+
+test -e "${user_vt_dir}"/vcs/kvt || ln -f -s /run/dev/head0 "${user_vt_dir}"/vcs/kvt
+test -e "${user_vt_dir}"/mice-aggregate/kvt || install -m 0060 -o root -g user-vt-realizer /dev/null "${user_vt_dir}"/mice-aggregate/kvt
+test -e "${user_vt_dir}"/keyboards-aggregate/kvt || install -m 0060 -o root -g user-vt-realizer /dev/null "${user_vt_dir}"/keyboards-aggregate/kvt
+for dp in eisa.pnpFB00 eisa.pnp0F01.sysmouse eisa.pnp0301.kbdmux0 evdev.mice wscons.wsmux0 wscons.wsmux1
+do
+	test -e "${user_vt_dir}"/vcs/"${dp}" || ln -f -s /run/dev/head0 "${user_vt_dir}"/vcs/"${dp}"
+done
+for dp in eisa.pnp0F01.sysmouse eisa.pnp0301.kbdmux0 evdev.mice wscons.wsmux0 wscons.wsmux1
+do
+	test -e "${user_vt_dir}"/mice-aggregate/"${dp}" || ln -f "${user_vt_dir}"/mice-aggregate/kvt "${user_vt_dir}"/mice-aggregate/"${dp}"
+	test -e "${user_vt_dir}"/keyboards-aggregate/"${dp}" || ln -f "${user_vt_dir}"/keyboards-aggregate/kvt "${user_vt_dir}"/keyboards-aggregate/"${dp}"
+done
+
+set_if_unset() {
+	if test -z "`system-control print-service-env \"$1\" \"$2\"`"
+	then
+		system-control set-service-env "$1" "$2" "$3"
+		echo "$1: Defaulted $2 to $3."
+	fi
+}
+
+jot 1 0 |
+while read -r n
+do
+	set_if_unset console-input-method@head"$n" lower /run/dev/head"$n"mux
+	set_if_unset console-input-method@head"$n" upper /run/dev/head"$n"
+
+	if svcdir="`system-control find console-multiplexor@head\"$n\" 2>/dev/null`"
+	then
+		jot 3 1 |
+		while read -r i
+		do
+			vc="vc$(( i + n * 3 ))"
+			ln -f -s "/run/dev/${vc}" "${svcdir}/service/"
+		done
 	fi
 done

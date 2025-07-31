@@ -4,16 +4,39 @@
 ## **************************************************************************
 
 # PROVIDE: service-scanner
-# REQUIRE: FILESYSTEMS service-manager
+# REQUIRE: CRITLOCALMOUNTED service-manager
 # BEFORE: DAEMON
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="service_manager_svscan"
-rcvar="service_manager_svscan_enable"
-command="/usr/local/bin/service-dt-scanner"
-command_args="/service/ &"
+rcvar="service_manager_svscan_enable"		# FreeBSD style, with "_enable" suffix.
+pidfile='/run/system-manager/service-dt-scanner.pid'
+procname='service-dt-scanner'
+#start_precmd='service_manager_svscan_start_precmd'
+start_cmd='service_manager_svscan_start_cmd'
+
+service_manager_svscan_start_cmd()
+{
+	# We have to log to a different log than the normal one, because we cannot funnel into a single logger under Mewburn rc.
+	/package/admin/nosh/command/prependpath PATH /package/admin/nosh/command:/package/admin/djbwares/command \
+	fdredir --non-blocking --write 2 /dev/console \
+	setsid \
+	pipe \
+		fdmove -c 2 1 \
+		hardlimit -o 16384 \
+		softlimit -o hard \
+		service-dt-scanner /service/ \
+	\| \
+		pipe \
+			fdmove -c 2 1 \
+			cyclog --max-total-size 4Mi --max-file-size 1Mi /run/system-manager/log \
+		\| \
+			logger -c -t service-dt-scanner \
+	&
+	command printf '%s\n' $! > "${pidfile}"
+}
 
 load_rc_config $name
 run_rc_command "$1"

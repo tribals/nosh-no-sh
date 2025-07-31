@@ -1,0 +1,13 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Run %p 15 minutes after startup and then twice daily
+
+[Timer]
+OnActiveSec=15m
+OnUnitInactiveSec=12h
+
+[Install]
+WantedBy=workstation.target

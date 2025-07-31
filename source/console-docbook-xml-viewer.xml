@@ -10,7 +10,7 @@
 <refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
 <refentrytitle>console-docbook-xml-viewer</refentrytitle>
 <manvolnum>1</manvolnum>
-<refmiscinfo class="manual">administrator commands</refmiscinfo>
+<refmiscinfo class="manual">user commands</refmiscinfo>
 <refmiscinfo class="source">nosh</refmiscinfo>
 <xi:include href="version.xml" />
 </refmeta>
@@ -26,6 +26,8 @@
 <arg choice='opt'>--cursor-keypad-application-mode</arg>
 <arg choice='opt'>--calculator-keypad-application-mode</arg>
 <arg choice='opt'>--no-alternate-screen-buffer</arg>
+<arg choice='opt'>--inversescreen <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--tui-level <replaceable>level</replaceable></arg>
 <arg choice='opt' repeat='rep'><replaceable>filename(s)</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -37,7 +39,7 @@
 </para>
 
 <para>
-The manual data are read from the command's standard input and parsed at startup, before its initializes its display.
+The manual data are read from the command's standard input, or the list of files denoted by <arg choice='plain'><replaceable>filename(s)</replaceable></arg>, and parsed at startup; before its initializes its display.
 </para>
 
 <refsection><title>Documents</title>
@@ -63,23 +65,29 @@ The primary target is a reference manual document with <code>&lt;refentry&gt;</c
 
 <para>
 <command>console-docbook-xml-viewer</command> opens its controlling terminal via <filename>/dev/tty</filename> and uses that for its user interface, both input and output.
-If its standard input is also its controlling terminal, odd behaviour may result, determined by how the operating system kernel decides to route input.
-(This is not a sensible usage of the program; so simply do not do this.)
 </para>
+<caution>
+If its standard input is also its controlling terminal, odd behaviour may result, determined by how the operating system kernel decides to route input.
+This is not a sensible usage of the program; so simply do not do this.
+</caution>
 
 <para>
 Although its behaviour is controlled by the <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry> environment variable, it does not use <citerefentry><refentrytitle>terminfo</refentrytitle><manvolnum>3</manvolnum></citerefentry> or <citerefentry><refentrytitle>termcap</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
 It instead uses <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
-The terminal type determines a few terminal capabilities (such as whether the terminal can actually handle DEC private mode control sequences at all, and its degree of ISO 8613-6 support), but most processing adheres to the ECMA-48 and ISO 8613-6 de jure standard control sequences and the DEC VT, DTTerm, and AIXTerm de facto standard ones.
+The terminal type determines a few terminal capabilities (such as whether the terminal can actually handle DEC private mode control sequences at all, and its degree of ISO 8613-6/ITU T.416 support), but most processing adheres to the ECMA-48 and ISO 8613-6 de jure standard control sequences and the DEC VT, DTTerm, and AIXTerm de facto standard ones.
 </para>
 
 <para>
 The user interface responds to actual arrow keys, HJKL navigation in the style of <citerefentry><refentrytitle>vi</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and WASD navigation.
 (The command only knows about characters and escape/control sequences coming from the terminal.
 Thus the latter two are not particularly ergonomic on several countries' standard keyboard layouts.)
-Note that the cursor is initially positioned on the first line, so the screen will not begin to scroll until the cursor is moved to the bottom.
-Also note that SPC and LF characters as input do not do anything; this not being a pagination tool.
 </para>
+<note>
+The cursor is initially positioned on the first line, so the screen will not begin to scroll until the cursor is moved to the bottom.
+</note>
+<note>
+SPC and LF characters as input do not do anything; this not being a pagination tool.
+</note>
 
 <para>
 Various common control characters with conventional special meanings may be used to quit, although the simplest way of quitting is simply <userinput>q</userinput>.
@@ -90,7 +98,11 @@ The <arg choice='plain'>--cursor-keypad-application-mode</arg> and <arg choice='
 Otherwise it switches them into their "normal" modes.
 "application" mode is generally not useful to <command>console-docbook-xml-viewer</command>, since it makes cursor and calculator keys indistinguishable from accelerator keys.
 The <arg choice='plain'>--no-alternate-screen-buffer</arg> command-line option instructs <command>console-docbook-xml-viewer</command> to not switch to the alternative screen buffer.
-This works around problems with some (yet more!) broken terminal emulators that attempt to be and fail at being like XTerm, which forcibly change cursor and editing keys into application mode when the alternative screen buffer is active.
+This has two uses.
+First, it allows one to retain visibility of displayed information after the program has exited (although <citerefentry><refentrytitle>setterm</refentrytitle><manvolnum>1</manvolnum></citerefentry> provides access to the alternative screen buffer).
+Second, it works around problems with some (yet more!) broken terminal emulators that attempt to be and fail at being like XTerm, which forcibly change cursor and editing keys into application mode when the alternative screen buffer is active.
+The <arg choice='plain'>--inversescreen</arg> command-line option instructs <command>console-docbook-xml-viewer</command> to switch the DECSCNM ("light"/"dark" screen mode) private mode on or off.
+The <arg choice='plain'>--tui-level</arg> command-line option constrains the use of MouseText or Unicode block graphics and line drawing characters in TUI widgets; currently none.
 </para>
 
 </refsection>
@@ -102,13 +114,13 @@ This works around problems with some (yet more!) broken terminal emulators that 
 Moreover, its internal document model is a simple one, that does not handle tables well.
 To view documents with images and tables, use a GUI viewer.
 Many GUI HTML viewers can be persuaded to view DocBook XML with the simple addition of a stylesheet.
-(One such stylesheet can be found in the <ulink url="docbook-xml.css"><citetitle>nosh Guide</citetitle></ulink>.)
+(<ulink url="docbook-xml.css"><citetitle>One such stylesheet</citetitle></ulink> can be found in the nosh Guide.)
 </para>
 
-<para>
+<caution>
 Real XML processors are less forgiving than <command>console-docbook-xml-viewer</command>, which allows some constructs that are not actually well-formed XML.
 Do not rely upon this; future versions are free to be more strict.
-</para>
+</caution>
 
 <para>
 The internal document model will not cope well with some valid, but unusual, ways of writing reference manuals.

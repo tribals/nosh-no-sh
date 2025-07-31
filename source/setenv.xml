@@ -32,7 +32,7 @@
 <refsection><title>Note</title>
 
 <para>
-C-shells have a built-in <command>setenv</command> command that does not chain.  
+C-shells have a built-in <command>setenv</command> command that does not chain.
 See the manual for each individual shell for its built-in command.
 </para>
 
@@ -41,7 +41,7 @@ See the manual for each individual shell for its built-in command.
 <para>
 <command>setenv</command> is a chain-loading utility that sets the environment variable <replaceable>var</replaceable>
 to the value <replaceable>val</replaceable>
-and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>

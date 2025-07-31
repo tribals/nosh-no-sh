@@ -6,14 +6,52 @@
 # It is used by the nosh-run-user-vt package in order to enable the user-space virtual terminals themselves.
 #
 
+# The innards of user-space virtual terminals are enabled, of course.
 enable	terminal-emulator@*.service
 enable	cyclog@terminal-emulator@*.service
-enable	console-fb-realizer@*.service
-enable	cyclog@console-fb-realizer@*.service
 enable	console-input-method@*.service
 enable	cyclog@console-input-method@*.service
 enable	console-multiplexor@*.service
 enable	cyclog@console-multiplexor@*.service
 
-enable	kernel-vt-*.service
-enable	cyclog@kernel-vt-*.service
+# All statically made realizers are enabled, except those where the administrator has to choose a device.
+disable	console-kvt-realizer@*.service
+disable	cyclog@console-kvt-realizer@*.service
+disable	console-fb-realizer@*.service
+disable	console-fb-realizer-log.service
+enable	console-fb-realizer.target
+enable	console-evdev-realizer@*.service
+enable	console-evdev-realizer-log.service
+enable	console-evdev-realizer.target
+enable	console-ps2-mouse-realizer@*.service
+enable	console-ps2-mouse-realizer-log.service
+enable	console-ps2-mouse-realizer.target
+enable	console-wscons-realizer@*.service
+enable	console-wscons-realizer-log.service
+enable	console-wscons-realizer.target
+
+# KVT settings services are disabled.
+disable	kernel-vt-*.service
+disable	cyclog@kernel-vt-*.service
+
+# Dynamically generated HID realizers are enabled.
+enable	console-pcat-mouse-realizer@*.service
+enable	console-pcat-mouse-realizer-log.service
+enable	console-pcat-mouse-realizer.target
+enable	console-pcat-kbd-realizer@*.service
+enable	console-pcat-kbd-realizer-log.service
+enable	console-pcat-kbd-realizer.target
+enable	console-ugen-hid-realizer@*.service
+enable	console-ugen-hid-realizer-log.service
+enable	console-ugen-hid-realizer.target
+enable	console-uhid-realizer@*.service
+enable	console-uhid-realizer-log.service
+enable	console-uhid-realizer.target
+
+# Conflicting non-nosh toolkit aggregation services are disabled.
+disable	uhidd@*.service
+disable	uhidd-log.service
+disable	uhidd.target
+disable	moused@*.service
+disable	moused-log.service
+disable	moused.target

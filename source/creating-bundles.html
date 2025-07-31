@@ -1,8 +1,9 @@
-<title>Creating bundles</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
 <link rel="Next" href="external-formats.html" title="External formats" />
 <link rel="Prev" href="anatomy-of-sysinit-service.html" title="Anatomy of a sysinit service" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Creating bundles</title>
+<h1 class="Ruled">
 Creating bundles
 </h1>
 
@@ -10,7 +11,7 @@ Creating bundles
 If you are unlucky enough to have a package that does not supply service bundle directories for its services, you have some options.
 </p>
 
-<h2 id="collections">
+<h2 class="Ruled" id="collections">
 You can build a bundle using parts from some public <code>run</code> script collections.
 </h2>
 
@@ -29,7 +30,9 @@ Minimal <code>start</code>, <code>stop</code>, and <code>restart</code> scripts 
 true</pre></blockquote>
 
 <p>
-Note that Gerrit Pape's and Wayne Marshall's collections use shells as the script interpreters.
+<p class="note">
+Note:
+Gerrit Pape's and Wayne Marshall's collections use shells as the script interpreters.
 Several of the scripts can be simplified <em>yet further</em> with use of <code>nosh</code> and its built-in toolset.
 One can replace uses of tools such as <code>chpst</code> and <code>tcpsvd</code> with the equivalent daemontools-alike tool(s) and some combination of <a href="commands/tcp-socket-listen.xml"><code>tcp-socket-listen</code></a>, <a href="commands/tcp-socket-accept.xml"><code>tcp-socket-accept</code></a>, and <a href="commands/ucspi-socket-rules-check.xml"><code>ucspi-socket-rules-check</code></a>.
 </p>
@@ -40,7 +43,7 @@ Service management places no restrictions upon how a <code>run</code> program is
 <code>run</code> programs just need to be executable, and can after all be written in many ways: in Perl, as shell scripts, as <a href="commands/nosh.xml"><code>nosh</code></a> scripts, as <code>execlineb</code> scripts, in Python, or even in compiled languages.
 </p>
 
-<h2 id="convert-systemd-units">
+<h2 class="Ruled" id="convert-systemd-units">
 You can import a systemd <em>service unit</em> file.
 </h2>
 
@@ -55,7 +58,7 @@ This can cope with many systemd service units, as long as they aren't Linux-spec
 The import utility will display warnings about anything that it didn't understand or ignored.
 </p>
 
-<h2 id="writing">
+<h2 class="Ruled" id="writing">
 You can simply write a bundle.
 </h2>
 

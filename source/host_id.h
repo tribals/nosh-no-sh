@@ -16,6 +16,8 @@ For copyright and licensing terms, see the file named COPYING.
 #include "uuid/uuid.h"
 #endif
 
+struct ProcessEnvironment;
+
 uint32_t
 calculate_host_id (
 	const uuid_t & machine_id
@@ -23,11 +25,13 @@ calculate_host_id (
 void
 write_non_volatile_hostid (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	uint32_t hostid
 ) ;
 void
 write_volatile_hostid (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	uint32_t hostid
 ) ;
 

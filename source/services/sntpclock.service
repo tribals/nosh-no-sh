@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Synchronize with a SNTP server using %p fed to clockadd
+Conflicts=chrony.service ntpd.service openntpd.service systemd-timesyncd.service taiclock.service VBoxService.service vmtoolsd.service
+Before=system-time-synchronized.target
+After=persistent-clock-loaded.target
+
+[Service]
+# This would be a one-shot service in quirks mode; in ideal mode it is a simple.
+EnvironmentDirectory=env
+# 0 is not a useful default for this, as there's no point in synchronizing with onesself.
+ExecStart=pipe --inwards sh -c '%p "${IPADDR:-224.0.1.1}"' | clockadd
+
+[Install]

@@ -1,0 +1,8 @@
+ This package causes the publicfile services to run:
+   * combined-stack HTTP
+   * combined-stack HTTPS
+   * FTP over IPv4
+   * combined-stack GOPHER
+   * combined-stack GEMINI
+   * combined-stack NICNAME
+   * combined-stack FINGER

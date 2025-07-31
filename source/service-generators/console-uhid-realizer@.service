@@ -1,0 +1,21 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=User-space virtual terminal realizer on BSD USB HID (uhid) device %I
+#After=console-input-method@.service
+
+[Service]
+PermissionsStartOnly=yes
+EnvironmentDirectory=env/
+Group=user-vt-realizer
+ExecStart=%p ${flags} '/dev/%I'
+# When the device is not a HID, the daemon exits failure.
+# When a device detaches, the daemon exits success.
+# There is a window of opportunity of several seconds where devd/devpubd has not yet stopped the service during which re-opening the device and restarting the daemon will continually fail.
+# We don't want the daemon auto-restarting in either case.
+# But we do want a SIGTERM to auto-restart it.
+Restart=on-signal
+
+[Install]

@@ -10,7 +10,7 @@ For copyright and licensing terms, see the file named COPYING.
 class FileDescriptorOwner
 {
 public:
-	FileDescriptorOwner(int f) : fd(f) {}
+	explicit FileDescriptorOwner(int f) : fd(f) {}
 	~FileDescriptorOwner();
 	FileDescriptorOwner(FileDescriptorOwner && o);
 	void reset(int);

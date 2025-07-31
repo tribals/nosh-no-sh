@@ -1,6 +1,4 @@
-# This is an overlay keymap that just contains 
-# the differences between the default built-in keyboard map
-# and DIN keyboards.
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and DIN keyboards.
 #
 #                                                        option
 # scan                       cntrl         option option cntrl lock

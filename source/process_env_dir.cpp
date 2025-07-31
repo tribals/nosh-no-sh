@@ -23,17 +23,16 @@ process_env_dir (
 	const char * prog,
 	ProcessEnvironment & envs,
 	const char * dir,
-	int scan_dir_fd,
+	int scan_dir_fd,	///< closes this descriptor
 	bool ignore_errors,
 	bool full,
 	bool chomp
 ) {
-	const DirStar scan_dir(fdopendir(scan_dir_fd));
+	FileDescriptorOwner fdowner(scan_dir_fd);
+	const DirStar scan_dir(fdowner);
 	if (!scan_dir) {
 exit_scan:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, dir, std::strerror(error));
-		if (!scan_dir) close(scan_dir_fd);
+		message_fatal_errno(prog, envs, dir);
 		return false;
 	}
 	for (;;) {
@@ -73,16 +72,14 @@ bad_file:
 		}
 		if (0 == s.st_size) {
 			if (!envs.unset(entry->d_name)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, entry->d_name, std::strerror(error));
+				message_fatal_errno(prog, envs, entry->d_name);
 				if (!ignore_errors)
 					return false;
 			}
 		} else {
-			const std::string val(read_env_file(prog, dir, entry->d_name, var_file_fd.get(), full, chomp));
+			const std::string val(read_env_file(prog, envs, dir, entry->d_name, var_file_fd.get(), full, chomp));
 			if (!envs.set(entry->d_name, val)) {
-				const int error(errno);
-				std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dir, entry->d_name, std::strerror(error));
+				message_fatal_errno(prog, envs, dir, entry->d_name);
 				if (!ignore_errors)
 					return false;
 			}

@@ -1,0 +1,42 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Norwegian keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
+  004   '3'    '#'    nop    nop    0x9e   '#'    nop    nop     O
+  005   '4'    0xa4   nop    nop    '$'    0xa4   nop    nop     O
+  007   '6'    '&'    nop    nop    '6'    '&'    nop    nop     O
+  008   '7'    '/'    nop    nop    '{'    '/'    nop    nop     O
+  009   '8'    '('    esc    esc    '['    '('    esc    esc     O
+  010   '9'    ')'    gs     gs     ']'    ')'    gs     gs      O
+  011   '0'    '='    nop    nop    '}'    '='    nop    nop     O
+  012   '+'    '?'    nop    nop    '+'    '?'    nop    nop     O
+  013   '\'    '`'    fs     fs     '''    nop    nop    nop     O
+  018   'e'    'E'    enq    enq    0xe9   0xc9   enq    enq     C
+  019   'r'    'R'    dc2    dc2    0xae   0xae   dc2    dc2     C
+  020   't'    'T'    dc4    dc4    0xfe   0xde   dc4    dc4     C
+  021   'y'    'Y'    em     em     0xff   0xa5   em     em      C
+  022   'u'    'U'    nak    nak    0xfc   0xdc   nak    nak     C
+  023   'i'    'I'    ht     ht     0xef   0xcf   ht     ht      C
+  024   'o'    'O'    si     si     0xf2   0xd2   si     si      C
+  025   'p'    'P'    dle    dle    0xb6   0xb6   dle    dle     C
+  026   0xe5   0xc5   nop    nop    '}'    ']'    nop    nop     C
+  027   0xa8   '^'    rs     rs     '~'    '^'    rs     rs      O
+  030   'a'    'A'    soh    soh    0xe1   0xc1   soh    soh     C
+  031   's'    'S'    dc3    dc3    0xdf   0xdf   dc3    dc3     C
+  032   'd'    'D'    eot    eot    0xf0   0xd0   eot    eot     C
+  033   'f'    'F'    ack    ack    0xaa   0xaa   ack    ack     C
+  039   0xf8   0xd8   nop    nop    '|'    '\'    nop    nop     C
+  040   0xe6   0xc6   nop    nop    '{'    '['    nop    nop     C
+  041   '|'    0xa7   nop    nop    0xa6   0xb6   nop    nop     O
+  043   '''    '*'    nop    nop    '''    0xd7   nop    nop     O
+  045   'x'    'X'    can    can    0xd7   0xd7   can    can     C
+  046   'c'    'C'    etx    etx    0xe7   0xc7   etx    etx     C
+  049   'n'    'N'    so     so     0xf1   0xd1   so     so      C
+  050   'm'    'M'    cr     cr     0xb5   0xba   cr     cr      C
+  051   ','    ';'    nop    nop    0xb8   0xab   nop    nop     O
+  052   '.'    ':'    nop    nop    0xb7   0xbb   nop    nop     O
+  053   '-'    '_'    us     us     0xad   0xad   us     us      O
+  086   '<'    '>'    fs     fs     0xab   0xbb   fs     fs      O

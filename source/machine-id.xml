@@ -10,7 +10,7 @@
 <refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
 <refentrytitle>machine-id</refentrytitle>
 <manvolnum>7</manvolnum>
-<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="manual">miscellany</refmiscinfo>
 <refmiscinfo class="source">nosh</refmiscinfo>
 <xi:include href="version.xml" />
 </refmeta>
@@ -33,7 +33,7 @@ Replacing hardware is not intended to affect a machine ID; although replacing th
 </para>
 
 <para>
-It identifies the whole machine, not individual pieces.  
+It identifies the whole machine, not individual pieces.
 It is not suitable for use (in whole or in part) in IPv6 addresses (which identify individual interfaces) or anywhere else at the network layer, but it is suitable for identifying entire hosts on a network at the application layer.
 It is important to blank machine IDs when cloning systems from images, so that multiple clones do not have the same machine ID.
 </para>
@@ -87,11 +87,11 @@ Machine IDs are stored in the file as 32 lowercase hexadecimal characters (the m
 
 <para>
 On Linux operating systems, both systemd and recent versions of <citerefentry><refentrytitle>dbus-daemon</refentrytitle><manvolnum>1</manvolnum></citerefentry> read this file.
-On FreeBSD/TrueOS systems, ports of <citerefentry><refentrytitle>dbus-daemon</refentrytitle><manvolnum>1</manvolnum></citerefentry> read <filename>/usr/local/etc/machine-id</filename> instead.
+On FreeBSD systems, ports of <citerefentry><refentrytitle>dbus-daemon</refentrytitle><manvolnum>1</manvolnum></citerefentry> read <filename>/usr/local/etc/machine-id</filename> instead.
 </para>
 
 <para>
-Older versions of <citerefentry><refentrytitle>dbus-daemon</refentrytitle><manvolnum>1</manvolnum></citerefentry> read <filename>/var/lib/dbus/machine-id</filename> or <filename>/var/db/dbus/machine-id</filename>, according to platform.
+Older versions of <citerefentry><refentrytitle>dbus-daemon</refentrytitle><manvolnum>1</manvolnum></citerefentry> (from before 2013) read <filename>/var/lib/dbus/machine-id</filename> or <filename>/var/db/dbus/machine-id</filename>, according to platform.
 To prevent inconsistency, these can just be symbolic links to <filename>/etc/machine-id</filename>.
 (Symbolic links the other way around would break if <filename>/var</filename> or one of its subdirectories is not mounted, as can be the case at the point that a machine ID is generated during system bootstrap.)
 </para>
@@ -130,7 +130,7 @@ It really shouldn't be used at all on systems with machine UUIDs available.
 
 <para>
 One way of generating a host ID is to hash the machine ID.
-Ironically, this provides a more stable host ID than some of the original schemes for determining a host ID did.  
+Ironically, this provides a more stable host ID than some of the original schemes for determining a host ID did.
 (They were only as stable as the host's IPv4 address assignment, for example.)
 As long as the machine ID does not change, the host ID will not change; and the host ID can be set up before network interfaces, and domain name to address mapping facilities, are even available.
 </para>
@@ -187,7 +187,7 @@ Furthermore, it includes the machine ID in every individual journal entry.
 <varlistentry>
 <term><citerefentry><refentrytitle>journalctl</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
 <listitem><para>
-This distinguishes log streams by the embeded machine IDs in every entry.
+This distinguishes log streams by the embedded machine IDs in every entry.
 Changing machine IDs across reboots will make it split log output into different log streams.
 </para><para>
 Machine IDs are not stripped by <command>journalctl</command> or in general by other tools that export or print systemd journal entries.
@@ -200,22 +200,44 @@ Clients can make a <function>org.freedesktop.DBus.Peer.GetMachineId</function> r
 </para></listitem>
 </varlistentry>
 <varlistentry>
-Most applications that use the Desktop Bus (D-Bus)
+<term>Most applications that use the Desktop Bus (D-Bus)</term>
 <listitem><para>
 <ulink url="https://bugs.freedesktop.org/show_bug.cgi?id=13194">The complaint was raised in 2007</ulink> that all applications softwares that used the libdbus library read the machine ID even though they made no use of it (outwith a mechanism known as "X11 autolaunching").
 Ten years later, the D-Bus developers came around to the idea that X11 autolaunching was not preferable and that applications softwares should not have such a drastic coupling to the machine ID, and this is no longer the case with softwares built with newer libraries.
 </para></listitem>
 </varlistentry>
 <varlistentry>
+<term><citerefentry><refentrytitle>systemd-networkd</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<listitem><para>
+This broadcasts the machine ID (hashed with a known fixed salt) over the LAN as the unique client identifier part of the DHCP protocol.
+(Other DHCP clients tend to use MAC addresses for this.)
+It also broadcasts the machine ID locally on each link as part of Ethernet LLDP, if enabled.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>systemd's <citerefentry><refentrytitle>kernel-install</refentrytitle><manvolnum>8</manvolnum></citerefentry></term>
+<listitem><para>
+This uses the machine ID for directory names on the EFI System Partition.
+</para></listitem>
+</varlistentry>
+<varlistentry>
 <term><citerefentry><refentrytitle>chromium</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
 <listitem><para>
 Google Chrome uses the machine ID to lock user profiles to the machines that they were generated on.
+</para><para>
+ungoogled-chromium has a <arg choice="plain">--disable-machine-id</arg> command-line option that switches this off, however as of 2019 this option is still problematic in practice and there are open bugs about it causing profile data loss.
 </para></listitem>
 </varlistentry>
 <varlistentry>
 <term><citerefentry><refentrytitle>pulseaudio</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
 <listitem><para>
 PulseAudio uses the machine ID in the names of its settings files under <filename>~/.config/pulse/</filename>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><citerefentry><refentrytitle>systemd-random-seed</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<listitem><para>
+This writes the machine ID (in binary) to <filename>/dev/random</filename> before writing the seed to it, every time.
 </para></listitem>
 </varlistentry>
 </variablelist>

@@ -1,0 +1,14 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Invoke %p once per week
+
+[Timer]
+OnBootSec=1w
+OnActiveSec=1w
+OnUnitActiveSec=1w
+
+[Install]
+WantedBy=workstation.target

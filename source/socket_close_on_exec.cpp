@@ -11,7 +11,7 @@ extern
 int
 socket_close_on_exec (
 	int domain,
-	int type, 
+	int type,
 	int protocol
 ) {
 #if defined(SOCK_CLOEXEC)

@@ -8,13 +8,14 @@
 # This is invoked by all.do .
 #
 
-redo-ifchange /dev "mixer@.service" 
+redo-ifchange "mixer@.service" 
 
-lr="/var/local/sv/"
-e="--no-systemd-quirks --escape-instance --local-bundle --bundle-root"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+lr="/var/local/service-bundles/services/"
+e="--no-systemd-quirks --escape-instance --local-bundle"
 
 list_mixer_devices() {
-	seq 0 9 | 
+	jot 9 0 | 
 	while read -r i
 	do 
                 echo /dev/mixer"$i"
@@ -42,18 +43,23 @@ list_mixer_devices |
 while read -r i
 do
 	n="`basename \"$i\"`"
-	system-control convert-systemd-units $e "$lr/" "./mixer@$n.service"
+	system-control convert-systemd-units $e --bundle-root "$lr/" "./mixer@$n.service"
 	rm -f -- "$lr/mixer@$n/wants/cyclog@mixer"
 	rm -f -- "$lr/mixer@$n/log"
-	ln -s -- "../../../sv/mixer-log" "$lr/mixer@$n/log"
+	ln -s -- "../../../service-bundles/services/mixer-log" "$lr/mixer@$n/log"
 	install -d -m 0755 -- "$lr/mixer@$n/service/env"
-	if ! test -e "$i"
+	if ! test -c "$i"
 	then
 		if s="`system-control find \"mixer@$n\" 2>/dev/null`"
 		then
-			system-control disable "$s"
+			system-control disable -- "$s"
 		fi
-		redo-ifcreate "$i"
+		if test -e "$i"
+		then
+			redo-ifchange "$i"
+		else
+			redo-ifcreate "$i"
+		fi
 		echo >> "$3" no "$n"
 	else
 		system-control preset mixer-log

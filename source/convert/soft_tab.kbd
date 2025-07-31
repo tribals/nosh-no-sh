@@ -1,0 +1,7 @@
+# This is an overlay keymap that sets the tab key to not be hardwired.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  015   tab    btab   tab    btab   tab    btab   tab    btab   O

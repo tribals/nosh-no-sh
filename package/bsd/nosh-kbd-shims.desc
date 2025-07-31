@@ -1,1 +1,5 @@
-shim utilities to match stuff from the old kbd toolset
+ This package provides shims for commands from the old kbd toolset.
+  * resizecons, chvt
+  * clear_console
+ .
+ The shims simply invoke native virtual console management commands.

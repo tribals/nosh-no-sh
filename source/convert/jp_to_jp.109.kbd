@@ -8,4 +8,7 @@
 # scan                       cntrl         option option cntrl lock
 # code  base   shift  cntrl  shift  option shift  cntrl  shift state
 # ------------------------------------------------------------------
-  041   imsw   imsw   imsw   imsw   imsw   imsw   imsw   imsw    O
+# E00 is the input method switch key; and its normal functions move to E13.
+  041   imsw   imsw   imsw   imsw   hanja  hanja  hanja  hanja   O
+# E13 is (sort-of) what E00 normally is.
+  125   0xa5   '|'    fs     us     0xac   0xac   nop    nop     O

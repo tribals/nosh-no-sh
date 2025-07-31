@@ -4,21 +4,52 @@
 ## **************************************************************************
 
 # PROVIDE: system-control-normal
-# REQUIRE: FILESYSTEMS service-manager
+# REQUIRE: CRITLOCALMOUNTED service-manager
 # BEFORE: DAEMON
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
-name="system_control_normal"
-rcvar="system_control_normal_enable"
-command="/usr/local/bin/system-control"
-start_precmd="system_control_normal_precmd"
-command_args="start --verbose normal &"
+name='system_control_normal'
+rcvar='system_control_normal_enable'		# FreeBSD style, with "_enable" suffix.
+pidfile='/run/system-manager/system-control-normal.pid'
+procname='system-control'
+start_precmd='system_control_normal_start_precmd'
+start_cmd='system_control_normal_start_cmd'
+case "`uname`" in
+NetBSD)	pnpmanager=devpubd;;
+*BSD)	pnpmanager=devd;;
+*)	pnpmanager=udev;;
+esac
 
-system_control_normal_precmd()
+system_control_normal_start_precmd()
 {
-	mkdir -p /run/system-manager/log /run/service-bundles/early-supervise
+	# The system manager normally mounts and populates /run, and more besides.
+	install -d -m 0755 /run/system-manager/log /run/service-bundles/early-supervise
+}
+
+system_control_normal_start_cmd()
+{
+	# We have to log to a different log than the normal one, because we cannot funnel into a single logger under Mewburn rc.
+	/package/admin/nosh/command/prependpath PATH /package/admin/nosh/command:/package/admin/djbwares/command \
+	fdredir --non-blocking --write 2 /dev/console \
+	setsid \
+	pipe \
+		fdmove -c 2 1 \
+		hardlimit -o 16384 \
+		softlimit -o hard \
+		foreground system-control start --verbose basic \; \
+		foreground system-control reset --verbose "${pnpmanager}" "${pnpmanager}"-log \; \
+		foreground system-control start --verbose workstation server \; \
+		system-control start --verbose normal \
+	\| \
+		pipe \
+			fdmove -c 2 1 \
+			cyclog /run/system-manager/log \
+		\| \
+			logger -c -t system-control \
+	&
+	command printf '%s\n' $! > "${pidfile}"
 }
 
 load_rc_config $name

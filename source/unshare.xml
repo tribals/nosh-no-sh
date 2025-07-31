@@ -44,12 +44,7 @@ Be careful, therefore, of the effect that this will have on <citerefentry><refen
 <refsection><title>Description</title>
 
 <para>
-<command>unshare</command> is a chain-loading utility that calls
-<citerefentry><refentrytitle>unshare</refentrytitle><manvolnum>2</manvolnum></citerefentry>
-to "unshare" various "namespaces" from its parent process and then
-chain loads to <replaceable>next-prog</replaceable> with the
-<citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry>
-function.  
+<command>unshare</command> is a chain-loading utility that calls <citerefentry><refentrytitle>unshare</refentrytitle><manvolnum>2</manvolnum></citerefentry> to "unshare" various "namespaces" from its parent process and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -94,8 +89,10 @@ The namespaces un-shared are controlled by command-line options as follows:
 
 </variablelist>
 
+</refsection><refsection><title>Security</title>
+
 <para>
-The command will fail if the process is not running under the aegis of the superuser. 
+The command will fail if the process is not running under the aegis of the superuser and the <citerefentry><refentrytitle>unshare</refentrytitle><manvolnum>2</manvolnum></citerefentry> function call thus fails.
 Non-superusers are not permitted to unshare these things.
 </para>
 

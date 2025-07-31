@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="login-shell">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>login-shell</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>login-shell</refname>
+<refpurpose>invoke a shell as a login shell</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>login-shell</command>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Description</title>
+
+<para>
+<command>login-shell</command> takes the value of the <envar>SHELL</envar> environment variable, defaulting to the operating system's default shell name if it is not present or blank, and chain-loads to it.
+It prepends a minus sign to the 0th argument that it passes to the shell, the Unix convention for telling a shell that it is a login shell.
+The <envar>SHELL</envar> environment variable can be set up with the <citerefentry><refentrytitle>userenv-fromenv</refentrytitle><manvolnum>1</manvolnum></citerefentry> utility, amongst others.
+</para>
+
+<para>
+This is effectively identical to using <citerefentry><refentrytitle>exec</refentrytitle><manvolnum>1</manvolnum></citerefentry> with its <arg choice="plain">-a</arg> command-line option:
+</para>
+<literallayout><computeroutput>$ </computeroutput><userinput>command exec -a -"${SHELL}" "${SHELL}"</userinput><computeroutput>
+</computeroutput></literallayout>
+
+<para>
+Because <command>login-shell</command> is a built-in command, it saves a round-trip executing an entire external <citerefentry><refentrytitle>sh</refentrytitle><manvolnum>1</manvolnum></citerefentry> utility in service bundle run scripts, simply to do some trivial argument processing.
+</para>
+
+</refsection>
+
+<refsection><title>History</title>
+
+<para>
+Paul Jarc created a <ulink url="https://code.dogmap.org./idtools/loginshell/">loginshell</ulink> utility for <ulink url="https://code.dogmap.org./idtools/">idtools</ulink> in 2001.
+It also permitted passing arguments to the shell, which of course usually tells a shell that it is non-interactive, which is inappropriate for <command>login-shell</command>'s limited and specific purpose of starting a login shell.
+</para>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

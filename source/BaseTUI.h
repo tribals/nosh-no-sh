@@ -17,8 +17,13 @@ struct BaseTUI {
 	void handle_update_event ();
 	void set_refresh_needed() { refresh_needed = true; }
 	bool resize_needed() const { return pending_resize_event; }
+	bool has_update_pending() const { return update_needed; }
 protected:
+#if defined(__NetBSD__)
+	struct __window * window;
+#else
 	struct _win_st * window;
+#endif
 	virtual void redraw() = 0;
 	virtual void unicode_keypress(wint_t) = 0;
 	virtual void ncurses_keypress(wint_t) = 0;

@@ -7,6 +7,7 @@ Description=Combined logger for dhclient@ services
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog dhclient/
 RestartSec=1

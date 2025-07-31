@@ -16,7 +16,8 @@ For copyright and licensing terms, see the file named COPYING.
 #include "service-manager-client.h"
 #include "service-manager.h"
 
-static
+namespace {
+
 void
 do_rpc_call (
 	const char * prog,
@@ -29,7 +30,7 @@ do_rpc_call (
 	struct iovec v[1] = { { const_cast<void*>(base), len } };
 	std::vector<char> buf(CMSG_SPACE(count_fds * sizeof *fds));
 	struct msghdr msg = {
-		0, 0,
+		nullptr, 0,
 		v, sizeof v/sizeof *v,
 		buf.data(), static_cast<socklen_t>(buf.size()),
 		0
@@ -42,13 +43,15 @@ do_rpc_call (
 	for (unsigned retries(0U); retries < 5U; ++retries) {
 		const int rc(sendmsg(socket_fd, &msg, 0));
 		if (0 <= rc) break;
-		const int error(errno);
-		if (ENOBUFS != error) {
+		if (ENOBUFS != errno) {
+			const int error(errno);
 			std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
 			break;
 		}
 		sleep(1);
 	}
+}
+
 }
 
 /* Service Manager control API RPC wrappers *********************************
@@ -119,21 +122,8 @@ make_run_on_empty (
 	do_rpc_call(prog, socket_fd, &m, sizeof m, fds, sizeof fds/sizeof *fds);
 }
 
-#if 1	/// \todo TODO: Eventually we can switch off this mechanism.
-void
-unload (
-	const char * prog,
-	int socket_fd,
-	int supervise_dir_fd
-) {
-	service_manager_rpc_message m;
-	m.command = m.UNLOAD;
-	int fds[1] = { supervise_dir_fd };
-	do_rpc_call(prog, socket_fd, &m, sizeof m, fds, sizeof fds/sizeof *fds);
-}
-#endif
+namespace {
 
-static
 int
 send_control_command (
 	int supervise_dir_fd,
@@ -151,6 +141,8 @@ send_control_command (
 		break;
 	}
 	return 0;
+}
+
 }
 
 int
@@ -240,8 +232,12 @@ is_ok (
 	return r;
 }
 
+namespace {
+
 // A way to set SIG_IGN that is reset by execve().
-static void sig_ignore ( int ) {}
+void sig_ignore ( int ) {}
+
+}
 
 bool
 wait_ok (
@@ -278,7 +274,7 @@ wait_ok (
 		const int ok_fd(open_writeexisting_or_wait_at(supervise_dir_fd, "ok"));
 		if (0 <= ok_fd) close(ok_fd);
 		alarm(old);
-		sigaction(SIGALRM,&o,NULL);
+		sigaction(SIGALRM,&o,nullptr);
 		return 0 <= ok_fd;
 #endif
 	}
@@ -316,7 +312,7 @@ after_run_status_file (
 		case encore_status_running:	return !has_main_pid(status);
 		case encore_status_failed:	return 1;
 		case encore_status_stopping:	return include_stopped ? 1 : 0;
-		case encore_status_stopped:	
+		case encore_status_stopped:
 		{
 			if (!include_stopped) return 0;
 			if (STATUS_BLOCK_SIZE > n) return -1;
@@ -425,7 +421,9 @@ open_supervise_dir (
 	return supervise_dir_fd;
 }
 
-static inline
+namespace {
+
+inline
 bool
 no_flag_file (
 	const int service_dir_fd,
@@ -433,6 +431,8 @@ no_flag_file (
 ) {
 	struct stat s;
 	return 0 > fstatat(service_dir_fd, name, &s, 0) && ENOENT == errno;
+}
+
 }
 
 bool

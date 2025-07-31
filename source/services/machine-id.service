@@ -6,6 +6,7 @@
 Description=Set up and tear down the machine ID
 DefaultDependencies=false
 After=local-fs.target
+Before=machine-id.target
 
 [Service]
 Type=oneshot

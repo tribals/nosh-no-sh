@@ -42,15 +42,15 @@ q (
 */
 
 void
-tcp_socket_connect ( 
+tcp_socket_connect (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	const char * localhost(0);
-	const char * localaddress(0);
-	const char * localport(0);
+	const char * localhost(nullptr);
+	const char * localaddress(nullptr);
+	const char * localport(nullptr);
 	bool verbose(false);
 	bool keepalives(false);
 	bool numeric_host(false);
@@ -90,35 +90,29 @@ tcp_socket_connect (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{host} {port} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing connect host name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "connect host name");
 	}
 	const char * connecthost(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing connect port number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "connect port number");
 	}
 	const char * connectport(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 	next_prog = arg0_of(args);
 
-	addrinfo * remote_info_list(0), remote_hints = {0,0,0,0,0,0,0,0};
+	addrinfo * remote_info_list(nullptr), remote_hints = {};
 	remote_hints.ai_family = AF_UNSPEC;
 	remote_hints.ai_socktype = SOCK_STREAM;
 	remote_hints.ai_protocol = 0;
@@ -150,7 +144,7 @@ tcp_socket_connect (
 		}
 
 		if (localaddress || localport) {
-			addrinfo * local_info(0), local_hints = {0,0,0,0,0,0,0,0};
+			addrinfo * local_info(nullptr), local_hints = {};
 			local_hints.ai_family = remote_info->ai_family;
 			local_hints.ai_socktype = remote_info->ai_socktype;
 			local_hints.ai_protocol = remote_info->ai_protocol;
@@ -176,7 +170,7 @@ tcp_socket_connect (
 		if (!no_kill_IP_options) {
 			switch (remote_info->ai_family) {
 				case AF_INET:
-					if (0 > setsockopt(s.get(), IPPROTO_IP, IP_OPTIONS, 0, 0)) goto exit_error ;
+					if (0 > setsockopt(s.get(), IPPROTO_IP, IP_OPTIONS, nullptr, 0)) goto exit_error ;
 					break;
 				default:
 					break;
@@ -201,7 +195,7 @@ tcp_socket_connect (
 			{
 				const struct sockaddr_in & localaddr4(*reinterpret_cast<const struct sockaddr_in *>(&localaddr));
 				char port[64], ip[INET_ADDRSTRLEN];
-				if (0 == inet_ntop(localaddr4.sin_family, &localaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(localaddr4.sin_family, &localaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(localaddr4.sin_port));
 				envs.set("TCPLOCALIP", ip);
 				envs.set("TCPLOCALPORT", port);
@@ -211,15 +205,15 @@ tcp_socket_connect (
 			{
 				const struct sockaddr_in6 & localaddr6(*reinterpret_cast<const struct sockaddr_in6 *>(&localaddr));
 				char port[64], ip[INET6_ADDRSTRLEN];
-				if (0 == inet_ntop(localaddr6.sin6_family, &localaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(localaddr6.sin6_family, &localaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(localaddr6.sin6_port));
 				envs.set("TCPLOCALIP", ip);
 				envs.set("TCPLOCALPORT", port);
 				break;
 			}
 			default:
-				envs.set("TCPLOCALIP", 0);
-				envs.set("TCPLOCALPORT", 0);
+				envs.set("TCPLOCALIP", nullptr);
+				envs.set("TCPLOCALPORT", nullptr);
 				break;
 		}
 		switch (remote_info->ai_family) {
@@ -227,7 +221,7 @@ tcp_socket_connect (
 			{
 				const struct sockaddr_in & remoteaddr4(*reinterpret_cast<const struct sockaddr_in *>(remote_info->ai_addr));
 				char port[64], ip[INET_ADDRSTRLEN];
-				if (0 == inet_ntop(remoteaddr4.sin_family, &remoteaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(remoteaddr4.sin_family, &remoteaddr4.sin_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(remoteaddr4.sin_port));
 				envs.set("TCPREMOTEIP", ip);
 				envs.set("TCPREMOTEPORT", port);
@@ -237,21 +231,21 @@ tcp_socket_connect (
 			{
 				const struct sockaddr_in6 & remoteaddr6(*reinterpret_cast<const struct sockaddr_in6 *>(remote_info->ai_addr));
 				char port[64], ip[INET6_ADDRSTRLEN];
-				if (0 == inet_ntop(remoteaddr6.sin6_family, &remoteaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
+				if (nullptr == inet_ntop(remoteaddr6.sin6_family, &remoteaddr6.sin6_addr, ip, sizeof ip)) goto exit_error;
 				snprintf(port, sizeof port, "%u", ntohs(remoteaddr6.sin6_port));
 				envs.set("TCPREMOTEIP", ip);
 				envs.set("TCPREMOTEPORT", port);
 				break;
 			}
 			default:
-				envs.set("TCPREMOTEIP", 0);
-				envs.set("TCPREMOTEPORT", 0);
+				envs.set("TCPREMOTEIP", nullptr);
+				envs.set("TCPREMOTEPORT", nullptr);
 				break;
 		}
 		envs.set("TCPLOCALHOST", localhost);
-		envs.set("TCPLOCALINFO", 0);
-		envs.set("TCPREMOTEHOST", 0);
-		envs.set("TCPREMOTEINFO", 0);
+		envs.set("TCPLOCALINFO", nullptr);
+		envs.set("TCPREMOTEHOST", nullptr);
+		envs.set("TCPREMOTEINFO", nullptr);
 
 		if (verbose)
 			std::fprintf(stderr, "%s: %u %s %s %s %s\n", prog, getpid(), q(envs, "TCPLOCALIP"), q(envs, "TCPLOCALPORT"), q(envs, "TCPREMOTEIP"), q(envs, "TCPREMOTEPORT"));

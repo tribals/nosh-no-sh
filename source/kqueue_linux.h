@@ -3,6 +3,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
+#if !defined(INCLUDE_KQUEUE_LINUX_H)
+#define INCLUDE_KQUEUE_LINUX_H
+
 #include <stdint.h>
 
 struct timespec;
@@ -61,9 +64,11 @@ enum { // Notes for VNODE filters
 	NOTE_RENAME	= 0x0020,
 	NOTE_REVOKE	= 0x0040
 };
-	
+
 extern "C" int kqueue_linux();
 extern "C" int kevent_linux(int, const struct kevent *, int, struct kevent *, int, const struct timespec*);
 
 #define kqueue() kqueue_linux()
 #define kevent(f,c,nc,e,ne,t) kevent_linux((f),(c),(nc),(e),(ne),(t))
+
+#endif

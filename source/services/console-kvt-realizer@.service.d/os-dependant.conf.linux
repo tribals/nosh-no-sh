@@ -1,0 +1,8 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=conf:
+
+[Service]
+# On Linux-based operating systems the terminal device does not speak the FBIO protocol.
+StandardOutput=update:out

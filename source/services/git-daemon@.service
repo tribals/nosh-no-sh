@@ -8,6 +8,7 @@ Description=per-connection git service
 [Service]
 EnvironmentDirectory=env
 User=git-daemon
+SessionLeader=yes
 ExecStart=/usr/local/libexec/git-core/%p --inetd --base-path "${directory:-/usr/local/git}"
 
 [Install]

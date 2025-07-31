@@ -9,11 +9,14 @@
 # 2018-05-29: This line forces a rebuild because of the new setlogin functionality.
 #
 
-lr="/var/local/sv/"
+test -h /var/local/service-bundles/targets || { install -d -m 0755 /var/local/service-bundles && ln -s /etc/service-bundles/targets /var/local/service-bundles/ ; }
+lr="/var/local/service-bundles/services/"
 sr="/etc/service-bundles/services/"
 tr="/etc/service-bundles/targets/"
-eu="--etc-bundle --user"
-e="--no-systemd-quirks --escape-instance --bundle-root"
+eu="--user"
+es="--etc-bundle --supervise-in-run"
+ev="--local-bundle"
+e="--no-systemd-quirks --escape-instance"
 
 case "`uname`" in
 FreeBSD)	
@@ -30,8 +33,8 @@ esac
 redo-ifchange "user-dbus-daemon@.socket" "user-dbus-daemon.service" "user-dbus-broker@.socket" "user-dbus-broker.service" "user-dbus-log@.service" "user-services.service" "user-services@.socket" "user-runtime@.service" "run-user-directory@.service" "user@.target" "per-user/exit.target" "per-user/per-user.conf" "per-user/all.do" "per-user/default.do" "per-user/home.do" "per-user/user.do" "per-user/config-path.do" "per-user/services.do"
 
 getent passwd |
-awk -F : '{ if (!match($7,"/nologin$") && !match($7,"/false$")) print $1; }' |
-while read -r i
+awk -F : '{ if (!match($7,"/nologin$") && !match($7,"/false$")) print $1,$3,$6; }' |
+while read -r i n h
 do
 	# On systems that don't set nologin/false as the shell, there is nothing distinguishing "system" accounts from accounts that temporarily have their password disabled.
 	# As the manual page says, an account with a temporarily disabled password could still be used via SSH, and obviously one might want user Desktop Bus service for such a login.
@@ -42,8 +45,6 @@ do
 	rtkit|*\\*) continue ;;
 	*-log) continue ;;
 	esac
-
-	h="`getent passwd \"$i\" | awk -F : '{print $6;}'`"
 
 	for j in '' -dbus -dbus-log -services -runtime
 	do
@@ -71,7 +72,7 @@ do
 		;;
 	# Most of these will be caught by the preceding well-known account names test; but better safe than sorry.
 	# Allow subdirectories of /run, but not /run itself.
-	/run|/dev|/dev/*|/proc|/proc/*|/sys|/sys/*|/bin|/sbin|/usr/bin|/usr/sbin|/usr/local/bin|/usr/local/sbin|/rescue|/rescue/*|/boot|/boot/*|/root|/root/*)
+	/run|/dev|/dev/*|/proc|/proc/*|/sys|/sys/*|/bin|/sbin|/usr/bin|/usr/sbin|/usr/pkg/bin|/usr/pkg/sbin|/usr/local/bin|/usr/local/sbin|/rescue|/rescue/*|/boot|/boot/*|/root|/root/*)
 		printf "WARNING: Dangerous home directory %s for account %s\n" "$h" "$i" 1>&2
 		printf "WARNING: Dangerous home directory %s for account %s\n" "$h" "$i" >> "$3"
 		continue
@@ -80,63 +81,60 @@ do
 
 	test -d "$h/" || continue
 
-	echo "per-user@$i: $h" >> "$3"
+	echo "Home for user $i (ID $n): $h" >> "$3"
 
 	install -d -m 1755 "/var/log/user"
 	install -d -m 0750 -o "$i" "/var/log/user/$i"
 	setfacl -m "u:$i:rwx" "/var/log/user/$i" || setfacl -m "user:$i:rwxpD::allow" "/var/log/user/$i" || :
 
-	system-control convert-systemd-units --etc-bundle $e "$tr/" "./user@$i.target"
-	echo "user@$i" >> "$3"
+	system-control convert-systemd-units $es $e --bundle-root "$tr/" "./user@$i.target"
+	if ! test -d "$tr/user@$n/"
+	then
+		ln -s -- "user@$i" "$tr/user@$n"
+	fi
+	printf "user@%s\n" >> "$3" "$i".target "$n".service
 
 	# This is a system-level service that is disabled in favour of the user-level cyclog@dbus service.
-	system-control convert-systemd-units $e "$lr/" "./user-dbus-log@$i.service"
-	system-control disable "$lr/user-dbus-log@$i"
-	echo "user-dbus-log@$i" >> "$3"
-	rm -f -- "$lr/user-dbus-log@$i/main"
-	ln -s -- "/var/log/user/$i/dbus" "$lr/user-dbus-log@$i/main"
-#	setfacl -m "u:$i:rwx" "/var/log/user/$i/dbus" || setfacl -m "user:$i:rwxpD::allow" "/var/log/user/$i/dbus" || :
+	if test -d "$lr/user-dbus-log@$i/"
+	then
+		system-control disable "$lr/user-dbus-log@$i"
+	fi
 
 	# This is a system-level service that is disabled in favour of the user-level dbus service.
-	system-control convert-systemd-units $e "$lr/" "./user-dbus-daemon@$i.socket"
-	system-control disable "$lr/user-dbus-daemon@$i"
-	echo "user-dbus-daemon@$i" >> "$3"
-	rm -f -- "$lr/user-dbus-daemon@$i/log"
-	ln -s -- "../user-dbus-log@$i" "$lr/user-dbus-daemon@$i/log"
-	install -m 0644 -- "per-user/per-user.conf" "$lr/user-dbus-daemon@$i/service/per-user.conf"
-	redo-ifchange "user-dbus-broker.service" "user-dbus-broker@.socket"
-	system-control convert-systemd-units $e "$lr/" "./user-dbus-broker@$i.socket"
-	system-control disable "$lr/user-dbus-broker@$i"
-	echo "user-dbus-broker@$i" >> "$3"
-	rm -f -- "$lr/user-dbus-broker@$i/log"
-	ln -s -- "../user-dbus-log@$i" "$lr/user-dbus-broker@$i/log"
-	install -m 0644 -- "per-user/per-user.conf" "$lr/user-dbus-broker@$i/service/per-user.conf"
+	if test -d "$lr/user-dbus-daemon@$i/"
+	then
+		system-control disable "$lr/user-dbus-daemon@$i"
+	fi
+	if test -d "$lr/user-dbus-broker@$i/"
+	then
+		system-control disable "$lr/user-dbus-broker@$i"
+	fi
 
-	system-control convert-systemd-units $e "$lr/" "./user-services@$i.socket"
+	system-control convert-systemd-units $ev $e --bundle-root "$lr/" "./user-services@$i.socket"
 	system-control enable "$lr/user-services@$i"
-	echo "user-services@$i" >> "$3"
+	echo "user-services@$i.socket" >> "$3"
 #	rm -f -- "$lr/user-services@$i/log"
 #	ln -s -- "../user-log@$i" "$lr/user-services@$i/log"
 
-	system-control convert-systemd-units $e "$lr/" "./user-runtime@$i.service"
+	system-control convert-systemd-units $ev $e --bundle-root "$lr/" "./user-runtime@$i.service"
 	system-control enable "$lr/user-runtime@$i"
-	echo "user-runtime@$i" >> "$3"
+	echo "user-runtime@$i.service" >> "$3"
 	rm -f -- "$lr/user-runtime@$i/after/mount@-run-user-$i"
-	ln -s -- "/etc/service-bundles/services/mount@-run-user-$i" "$lr/user-runtime@$i/after/"
+	ln -s -- "$sr/mount@-run-user-$i" "$lr/user-runtime@$i/after/"
 #	rm -f -- "$lr/user-runtime@$i/log"
 #	ln -s -- "../user-log@$i" "$lr/user-runtime@$i/log"
 
-	system-control convert-systemd-units $e "$lr/" "./run-user-directory@$i.service"
+	system-control convert-systemd-units $ev $e --bundle-root "$lr/" "./run-user-directory@$i.service"
 	system-control enable "$lr/run-user-directory@$i"
-	echo "run-user-directory@$i" >> "$3"
+	echo "run-user-directory@$i.service" >> "$3"
 	rm -f -- "$lr/run-user-directory@$i/after/mount@-run-user"
 	rm -f -- "$lr/run-user-directory@$i/wants/mount@-run-user"
-	ln -s -- "/etc/service-bundles/services/mount@-run-user" "$lr/run-user-directory@$i/after/"
-	ln -s -- "/etc/service-bundles/services/mount@-run-user" "$lr/run-user-directory@$i/wants/"
+	ln -s -- "$sr/mount@-run-user" "$lr/run-user-directory@$i/after/"
+	ln -s -- "$sr/mount@-run-user" "$lr/run-user-directory@$i/wants/"
 	rm -f -- "$lr/run-user-directory@$i/before/mount@-run-user-$i"
 	rm -f -- "$lr/run-user-directory@$i/wants/mount@-run-user-$i"
-	ln -s -- "/etc/service-bundles/services/mount@-run-user-$i" "$lr/run-user-directory@$i/before/"
-	ln -s -- "/etc/service-bundles/services/mount@-run-user-$i" "$lr/run-user-directory@$i/wants/"
+	ln -s -- "$sr/mount@-run-user-$i" "$lr/run-user-directory@$i/before/"
+	ln -s -- "$sr/mount@-run-user-$i" "$lr/run-user-directory@$i/wants/"
 #	rm -f -- "$lr/run-user-directory@$i/log"
 #	ln -s -- "../user-log@$i" "$lr/run-user-directory@$i/log"
 
@@ -144,9 +142,9 @@ do
 	setuidgid "$i" install -d -o "$i" -m 0755 -- "$ht"
 
 	# Yes, this service bundle is root-owned; we don't want users messing it up.
-	system-control convert-systemd-units $eu $e "$ht/" "./per-user/exit.target"
+	system-control convert-systemd-units $eu $e --bundle-root "$ht/" "./per-user/exit.target"
 	install -d -o "$i" -m 0755 "$ht/exit/supervise"
-	echo "per-user@$i/exit" >> "$3"
+	echo "per-user@$i/exit.target" >> "$3"
 
 	setuidgid "$i" install -d -o "$i" -m 0755 -- "$h/.config/system-control"
 

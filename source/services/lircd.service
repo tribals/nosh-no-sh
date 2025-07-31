@@ -7,6 +7,7 @@ Description=LIRC Infrared Signal Decoder
 
 [Service]
 User=lirc
+SessionLeader=yes
 RuntimeDirectory=lirc
 EnvironmentDirectory=env
 ExecStart=%p --nodaemon ${device:+-d "${device}"} ${config}

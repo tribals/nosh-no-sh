@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>monitor-fsck-progress</command> 
+<command>monitor-fsck-progress</command>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -36,7 +36,7 @@ It loops forever, accepting socket connections and (for each such connection) li
 <para>
 It displays, on the terminal connected to its standard output, progress bars for all client instances of <command>fsck</command>.
 There is one progress bar per currently connected client.
-It uses <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry> and an <code>ECMA48Output</code> class to create the progress bars, switching to cursor-addressing mode (and the alternate screen buffer, if there is one).
+It uses <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry> and an <code>ECMA48Output</code> class to create the progress bars, switching to the alternate screen buffer (if there is one).
 </para>
 
 <para>

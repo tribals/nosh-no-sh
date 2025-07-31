@@ -32,7 +32,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static unsigned long min_seconds(2);
+namespace {
+
+unsigned long min_seconds(2);
 
 enum {
 	EXIT_NAGIOS_OK = 0,
@@ -41,7 +43,6 @@ enum {
 	EXIT_NAGIOS_UNKNOWN = 3
 };
 
-static
 void
 set (
 	int & status,
@@ -66,9 +67,9 @@ set (
 	}
 }
 
-static inline
+inline
 void
-check ( 
+check (
 	const ProcessEnvironment & envs,
 	const int bundle_dir_fd,
 	const std::string & name,
@@ -197,9 +198,8 @@ check (
 	}
 }
 
-static
 void
-print ( 
+print (
 	const char * label,
 	const std::vector<std::string> & names,
 	int & rc,
@@ -215,8 +215,10 @@ print (
 	set(rc, code);
 }
 
+}
+
 void
-nagios_check [[gnu::noreturn]] ( 
+nagios_check [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -233,14 +235,13 @@ nagios_check [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{service(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw static_cast<int>(EXIT_NAGIOS_OK);
 	} catch (const popt::error & e) {
-		std::fprintf(stdout, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_NAGIOS_UNKNOWN);
+		die(prog, envs, e);
 	}
 
 	int rc(EXIT_NAGIOS_OK);

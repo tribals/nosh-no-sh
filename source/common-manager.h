@@ -124,9 +124,8 @@ extern bool per_user_mode;	// Shared with the service manager client API.
 // On Linux, we go with systemd since upstart and System 5 init do not have a defined convention.
 #define POWERCYCLE_SIGNAL	(SIGRTMIN + 7)
 #elif defined(SIGRTMIN)
-// On the BSDs that have real-time signals, it is SIGWINCH.
+// On the BSDs that have real-time signals, we also go with systemd, rather than SIGWINCH.
 #define POWERCYCLE_SIGNAL	(SIGRTMIN + 7)
-//#define POWERCYCLE_SIGNAL	SIGWINCH
 #else
 // On OpenBSD we do the best of a bad job.
 #define POWERCYCLE_SIGNAL	SIGWINCH
@@ -156,6 +155,16 @@ extern bool per_user_mode;	// Shared with the service manager client API.
 #else
 // On OpenBSD we do the best of a bad job.
 #define FORCE_POWEROFF_SIGNAL	SIGTERM
+#endif
+
+// This signal tells process #1 to restart its logger.
+#if defined(SIGRTMIN)
+// This is a re-use of the systemd signals that retarget its logging (to the journal/console/kmsg).
+#define RETARGET_LOGGING_SIGNAL0	(SIGRTMIN + 26)
+#define RETARGET_LOGGING_SIGNAL1	(SIGRTMIN + 27)
+#define RETARGET_LOGGING_SIGNAL2	(SIGRTMIN + 28)
+#else
+// And we cannot define this at all on OpenBSD!
 #endif
 
 #endif

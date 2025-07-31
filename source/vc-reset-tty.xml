@@ -8,7 +8,7 @@
 <refentry id="vc-reset-tty">
 
 <refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
-<refentrytitle>vc-reset-tty</refentrytitle>
+<refentrytitle>vc-reset-terminal</refentrytitle>
 <manvolnum>1</manvolnum>
 <refmiscinfo class="manual">user commands</refmiscinfo>
 <refmiscinfo class="source">nosh</refmiscinfo>
@@ -22,7 +22,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>vc-reset-tty</command>
+<command>vc-reset-terminal</command>
 <arg choice='opt'>--hard-reset</arg>
 <arg choice='opt'>--no-utf8</arg>
 <arg choice='opt'>--no-tostop</arg>
@@ -34,16 +34,16 @@
 <refsection><title>Description</title>
 
 <para>
-<command>vc-reset-tty</command> is a chain-loading utility that attempts to initialize the terminal and line discipline state of the terminal that is on its standard output, and then (if successful) chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>vc-reset-terminal</command> is a chain-loading utility that attempts to initialize the terminal and line discipline state of the terminal that is on its standard output, and then (if successful) chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 If its standard output is not a terminal, it aborts without attempting to initialize anything.
 </para>
 
 <para>
-<replaceable>next-prog</replaceable> may contain its own command line options, which <command>vc-reset-tty</command> will ignore.
+<replaceable>next-prog</replaceable> may contain its own command line options, which <command>vc-reset-terminal</command> will ignore.
 </para>
 
 <para>
-<command>vc-reset-tty</command> makes no alteration to process state.
+<command>vc-reset-terminal</command> makes no alteration to process state.
 </para>
 
 <para>
@@ -53,7 +53,7 @@ It initializes the terminal by resetting the kernel virtual terminal mode, reset
 <refsection><title>Kernel virtual terminal mode reset</title>
 
 <para>
-If the <arg choice='plain'>--text-mode</arg> command line option is used, <command>vc-reset-tty</command> will use operating-system-specific <citerefentry><refentrytitle>ioctl</refentrytitle><manvolnum>2</manvolnum></citerefentry> calls to attempt to switch a kernel virtual terminal to text mode.
+If the <arg choice='plain'>--text-mode</arg> command line option is used, <command>vc-reset-terminal</command> will use operating-system-specific <citerefentry><refentrytitle>ioctl</refentrytitle><manvolnum>2</manvolnum></citerefentry> calls to attempt to switch a kernel virtual terminal to text mode.
 </para>
 
 </refsection>
@@ -92,7 +92,7 @@ UTF-8 is the norm nowadays, and <citerefentry><refentrytitle>console-terminal-em
 <refsection><title>Terminal reset</title>
 
 <para>
-<command>vc-reset-tty</command> writes terminal escape and control sequences to soft (re-)initialize the terminal state, including tabstops, margins, windows, scrolling mode, and overstrike mode.
+<command>vc-reset-terminal</command> writes terminal escape and control sequences to soft (re-)initialize the terminal state, including tabstops, margins, windows, scrolling mode, and overstrike mode.
 If the <arg choice='plain'>--hard-reset</arg> command line option is used, different escape sequences are written to hard reset the terminal.
 </para>
 
@@ -109,12 +109,12 @@ For compatibility of the actual control sequences emitted with various terminals
 </refsection><refsection><title>Use</title>
 
 <para>
-The major use case for <command>vc-reset-tty</command> is to reset the terminal and line discipline to some known states before printing the login banner (see <citerefentry><refentrytitle>login-banner</refentrytitle><manvolnum>1</manvolnum></citerefentry>) and running the <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry> program.
+The major use case for <command>vc-reset-terminal</command> is to reset the terminal and line discipline to some known states before printing the login banner (see <citerefentry><refentrytitle>login-banner</refentrytitle><manvolnum>1</manvolnum></citerefentry>) and running the <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry> program.
 The use case covers terminals that are "always on" and retain state from one terminal log-on session to the next, as is the case with real terminals (remote and local) and kernel virtual terminals.
 </para>
 
 <para>
-<command>vc-reset-tty</command> is, on the other hand, not particularly useful with <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry>, which initializes the line discipline and terminal state itself to much the same state, and exits at hangup; making each log-on session start with an <emphasis>already</emphasis> freshly initialized terminal and line discipline.
+<command>vc-reset-terminal</command> is, on the other hand, not particularly useful with <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry>, which initializes the line discipline and terminal state itself to much the same state, and exits at hangup; making each log-on session start with an <emphasis>already</emphasis> freshly initialized terminal and line discipline.
 </para>
 
 <para>

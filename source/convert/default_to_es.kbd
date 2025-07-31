@@ -1,0 +1,32 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Spanish keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  002   '1'    '!'    nop    nop    '|'    '|'    nop    nop     O
+  003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
+  004   '3'    0xb7   nop    nop    '#'    '#'    nop    nop     O
+  005   '4'    '$'    nop    nop    '~'    '~'    nop    nop     O
+  007   '6'    '&'    nop    nop    0xac   0xac   nop    nop     O
+  008   '7'    '/'    nop    nop    '7'    '/'    nop    nop     O
+  009   '8'    '('    nop    nop    '8'    '('    nop    nop     O
+  010   '9'    ')'    nop    nop    '9'    ')'    nop    nop     O
+  011   '0'    '='    nop    nop    '0'    '='    nop    nop     O
+  012   '''    '?'    nop    nop    '''    '?'    nop    nop     O
+  013   0xa1   0xbf   nop    nop    0xa1   0xbf   nop    nop     O
+  018   'e'    'E'    enq    enq    0x20ac 0x20ac enq    enq     C
+  022   'u'    'U'    nak    nak    0xfa   0xda   nak    nak     C
+  023   'i'    'I'    ht     ht     0xed   0xcd   ht     ht      C
+  024   'o'    'O'    si     si     0xf3   0xd3   si     si      C
+  026   dgra   dcir   esc    esc    '['    '['    esc    esc     O
+  027   '+'    '*'    gs     gs     ']'    ']'    gs     gs      O
+  030   'a'    'A'    soh    soh    0xe1   0xc1   soh    soh     C
+  039   0xf1   0xd1   nop    nop    '~'    '~'    nop    nop     C
+  040   dacu   duml   nop    nop    '{'    '{'    nop    nop     O
+  041   0xba   0xaa   fs     fs     '\'    '\'    fs     fs      O
+  043   0xe7   0xc7   rs     rs     '}'    '}'    rs     rs      C
+  051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
+  052   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
+  053   '-'    '_'    us     us     '-'    '_'    us     us      O
+  086   '<'    '>'    nop    nop    '<'    '>'    nop    nop     O

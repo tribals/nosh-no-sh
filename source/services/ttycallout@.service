@@ -1,0 +1,38 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Terminal callout service for "null-modem" setups on %I
+After=multi-user-pre.target
+
+[Service]
+EnvironmentDirectory=env
+Umask=0002
+User=user-vt-emulator
+# The user-vt-emulator user is not a member of this group.
+# Running the emulator as this group grants the group's members realizer access to its I/O files.
+Group=user-vt-realizer
+SessionLeader=yes
+StandardInput=tty
+StandardError=log
+RestartSec=0.1
+Restart=On-Success
+TTYPath=%I
+# Open file descriptors from related terminal login sessions need to be revoked.
+#TTYVHangup=yes
+PermissionsStartOnly=yes
+# This mechanism now permits subdirectories.
+RuntimeDirectory=dev/%I
+RuntimeDirectoryMode=02755
+# Files in /run/dev/%I have group user-vt-emulator by default, not group user-vt-realizer.
+RuntimeDirectoryGroup=user-vt-emulator
+# Not until we find out how to have ACLs in /run on FreeBSD.
+#ExecStartPre=install -d -m 02775 -o root -g user-vt-emulator %t/dev/%I
+#ExecStartPre=setfacl -m u:user-vt-emulator:rwx %t/dev/%I
+# 115200 is the maximum possible (divisor register = 1) bit rate for a vanilla 16550 UART.
+ExecStart=stty ${speed:- 115200} ${sttyflags:- raw -crtscts -tostop}
+ExecStart=fdmove -c 4 0 console-terminal-emulator ${flags} %t/dev/%I
+
+[Install]
+WantedBy=multi-user.target

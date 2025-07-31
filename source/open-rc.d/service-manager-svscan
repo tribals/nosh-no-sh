@@ -8,6 +8,7 @@ rcvar="service_manager_svscan_enable"
 command="/usr/local/bin/service-dt-scanner"
 command_args="/service/"
 command_background=yes
+pidfile="/run/service-manager/svscan.pid"
 
 depend()
 {

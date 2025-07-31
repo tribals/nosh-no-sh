@@ -1,0 +1,29 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Canadian French keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  002   '1'    '!'    nop    nop    0xb1   '!'    nop    nop     O
+  003   '2'    '"'    nul    nul    '@'    '"'    nul    nul     O
+  004   '3'    '/'    nop    nop    0xa3   '/'    nop    nop     O
+  005   '4'    '$'    nop    nop    0xa2   '$'    nop    nop     O
+  006   '5'    '%'    nop    nop    0xa4   '%'    nop    nop     O
+  007   '6'    '?'    nop    nop    0xac   '?'    nop    nop     O
+  008   '7'    '&'    nop    nop    '|'    '&'    nop    nop     O
+  009   '8'    '*'    nop    nop    0xb2   '*'    nop    nop     O
+  010   '9'    '('    nop    nop    0xb3   '('    nop    nop     O
+  011   '0'    ')'    nop    nop    0xbc   ')'    nop    nop     O
+  012   '-'    '_'    us     us     0xbd   '_'    us     us      O
+  013   '='    '+'    nop    nop    0xbe   '+'    nop    nop     O
+  018   'e'    'E'    enq    enq    0x20ac 'E'    enq    enq     C
+  026   dcir   dcir   esc    esc    '['    dcir   esc    esc     O
+  027   dced   duml   gs     gs     ']'    duml   gs     gs      O
+  039   ';'    ':'    nop    nop    '~'    ':'    nop    nop     O
+  040   dgra   dgra   nop    nop    '{'    dgra   nop    nop     O
+  041   '#'    '|'    nop    nop    '\'    '|'    nop    nop     O
+  043   '<'    '>'    fs     fs     '}'    '>'    fs     fs      O
+  051   ','    '''    nop    nop    '_'    '''    nop    nop     O
+  052   '.'    '.'    nop    nop    '.'    '.'    nop    nop     O
+  053   0xe9   0xc9   nop    nop    dacu   0xc9   nop    nop     C
+  086   0xab   0xbb   nop    nop    0xb0   0xbb   nop    nop     O

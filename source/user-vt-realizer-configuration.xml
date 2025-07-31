@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="user-vt-realizer-configuration">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>user-vt-realizer-configuration</refentrytitle>
+<manvolnum>5</manvolnum>
+<refmiscinfo class="manual">file formats</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>user-vt-realizer-configuration</refname>
+<refpurpose>configuration of user virtual terminal realizers</refpurpose>
+</refnamediv>
+
+<refsection><title>Description</title>
+
+<para>
+The various realizers for user-space virtual terminals &#x2014; <citerefentry><refentrytitle>console-fb-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-evdev-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-ugen-hid-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-uhid-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-wscons-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-pcat-mouse-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-pcat-keyboard-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-ps2-mouse-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>console-kvt-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry> &#x2014; automatically use resources located in subdirectories of their working directories.
+The filenames of these resources are determined by the category of I/O device being realized upon, and by the identity of that I/O device.
+The realizers employ a search path mechanism attempting to find the files to use.
+</para>
+<note>
+All of these realizers generally run as services, and their working directories are the service directories.
+<citerefentry><refentrytitle>console-termio-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry> is an ad-hoc tool that generally does not run as a service, and so does not employ this configuration system.
+All of its various resources are supplied as command-line arguments.
+</note>
+
+</refsection>
+
+<refsection><title>Resource subdirectories</title>
+
+<para>
+The various subdirectories, not all of which are needed by all realizers, are:
+</para>
+<variablelist>
+<varlistentry>
+<term><filename>./vcs/</filename></term>
+<listitem><para>
+contains the user-space virtual terminal back end to connect to (a subdirectory whose contents are detailed in <citerefentry><refentrytitle>user-vt</refentrytitle><manvolnum>5</manvolnum></citerefentry>)
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><filename>./kbdmaps/</filename></term>
+<listitem><para>
+contains the keyboard map (read-only) data file (a file whose format is detailed in <citerefentry><refentrytitle>console-keyboard-map</refentrytitle><manvolnum>5</manvolnum></citerefentry>)
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><filename>./mice-aggregate/</filename></term>
+<listitem><para>
+contains the aggregate mouse state (read-write) file
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><filename>./keyboards-aggregate/</filename></term>
+<listitem><para>
+contains the aggregate keyboard state (read-write) file
+</para></listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection><title>Shared and private resources</title>
+
+<para>
+With this mechanism different configurations can be specified locally for individual realized devices, or global configurations can be shared amongst multiple realized devices.
+</para>
+<itemizedlist>
+<listitem><para>
+Local resources are private to each individual realizer.
+They are directly stored in the realizer's working directory subdirectories.
+</para></listitem>
+<listitem><para>
+Global resources are shared by multiple realizers in order to combine I/O devices.
+By convention they are to be found in subdirectories of the <filename>/etc/system-control/convert/user-vt/</filename> directory.
+Symbolic links in the realizer's working directory point to those subdirectories.
+</para>
+</listitem>
+</itemizedlist>
+
+<refsection><title>Examples</title>
+
+<informalexample>
+<para>
+Keyboard map configuration is almost always globally shared, and is by convention a collection of symbolic links in a <filename>/etc/system-control/convert/user-vt/kbdmaps/</filename> directory.
+So this symbolic link is usually in place:
+</para>
+<para>
+<filename>./kbdmaps</filename> &#x2192;
+<filename>/etc/system-control/convert/user-vt/kbdmaps</filename>
+</para>
+</informalexample>
+
+<informalexample>
+<para>
+Virtual terminal back end configuration is almost always globally shared, and is by convention a collection of symbolic links in a <filename>/etc/system-control/convert/user-vt/vcs/</filename> directory.
+So this symbolic link is usually in place:
+</para>
+<para>
+<filename>./vcs</filename> &#x2192;
+<filename>/etc/system-control/convert/user-vt/vcs</filename>
+</para>
+</informalexample>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Searching</title>
+
+<para>
+To determine which file/directory to use <emphasis>within</emphasis> each of those subdirectories, realizers employ the identity of the I/O device being realized to construct progressively shorter file/directory names, finally falling back to the file/directory name <filename>default</filename>.
+Usually the identity is read from the device or is determined by the device's bus location, but for some devices it is also taken from the basename of the <arg choice='plain'>devicename</arg> argument given on the realizer's command lines,
+</para>
+
+<para>
+The specific search path is determined by the category of device:
+</para>
+<itemizedlist>
+<listitem><para>
+Generic USB (usb-ugen) realizers use a sequence of device paths that are combinations of the device class, device subclass, vendor ID, product ID, bus number, and address of the device:
+<filename>usb.ugen.B<replaceable>bus</replaceable>.A<replaceable>address</replaceable>.V<replaceable>vendorID</replaceable>.P<replaceable>productID</replaceable></filename>,
+<filename>usb.ugen.B<replaceable>bus</replaceable>.A<replaceable>address</replaceable>.V<replaceable>vendorID</replaceable></filename>,
+<filename>usb.ugen.V<replaceable>vendorID</replaceable>.P<replaceable>productID</replaceable></filename>,
+<filename>usb.ugen.V<replaceable>vendorID</replaceable></filename>,
+<filename>usb.ugen.C<replaceable>class.</replaceable>S<replaceable>subclass.</replaceable>V<replaceable>vendorID</replaceable></filename>,
+<filename>usb.ugen.C<replaceable>class.</replaceable>S<replaceable>subclass</replaceable></filename>,
+<filename>usb.ugen.C<replaceable>class</replaceable></filename>,
+<filename>usb.ugen.B<replaceable>bus</replaceable>.A<replaceable>address</replaceable></filename>,
+<filename>usb.ugen</filename>.
+The <replaceable>class</replaceable>, <replaceable>subclass</replaceable>, <replaceable>vendorID</replaceable>, and <replaceable>productID</replaceable> are 4-digit lowercase hexdecimal numbers.
+</para></listitem>
+<listitem><para>
+PC/AT keyboard realizers use a name that is a combination of the EISA PaP ID for a PC/AT keyboard and the device basename, shortened to one that omits the device basename; e.g. <filename>eisa.pnp0301.atkbd0</filename> shortened to <filename>eisa.pnp0301</filename>.
+</para></listitem>
+<listitem><para>
+PC/AT mouse realizers use a name that is a combination of the EISA PaP ID for a PC/AT mouse and the device basename, shortened to one that omits the device basename; e.g. <filename>eisa.pnp0F01.bpsm0</filename> shortened to <filename>eisa.pnp0F01</filename>.
+</para></listitem>
+<listitem><para>
+PS/2 mouse realizers use a name that is a combination of the EISA PaP ID for a PS/2 mouse and the device basename, shortened to one that omits the device basename; e.g. <filename>eisa.pnp0F03.mice</filename> shortened to <filename>eisa.pnp0F03</filename>.
+</para></listitem>
+<listitem><para>
+evdev realizers use a name that is a combination of a prefix and the device basename, shortened to one that omits the device basename; e.g. <filename>evdev.event0</filename> shortened to <filename>evdev</filename>.
+</para></listitem>
+<listitem><para>
+framebuffer realizers use a name that is a combination of an unassigned EISA PaP ID and the device basename, shortened to one that omits the device basename:
+<filename>eisa.pnpFB00.<replaceable>basename</replaceable></filename>, and
+<filename>eisa.pnpFB00</filename>.
+</para></listitem>
+<listitem><para>
+USB-HID (uhid) realizers use a sequence of device paths that include the device basename:
+<filename>usb.<replaceable>basename</replaceable></filename>, and
+<filename>usb.uhid</filename>.
+No class or ID information is available from the device driver.
+</para></listitem>
+<listitem><para>
+KVT realizers use a name that is a combination of a prefix and the device basename, shortened to one that omits the device basename:
+<filename>kvt.<replaceable>basename</replaceable></filename>, and
+<filename>kvt</filename>.
+</para></listitem>
+</itemizedlist>
+
+<refsection><title>Examples</title>
+
+<informalexample>
+<para>
+Global keyboard map configuration is by convention a collection of symbolic links in a <filename>/etc/system-control/convert/user-vt/kbdmaps/</filename> directory, which in turn (in order to keep the configuration separate from the actual compiled map files) point to the actual map files in a <filename>/etc/system-control/convert/kbdmaps/</filename> directory.
+So these symbolic links would have the following consequences:
+</para>
+<variablelist>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/kbdmaps/default</filename> &#x2192;
+<filename>/etc/system-control/convert/kbdmaps/jp.109</filename>
+</term>
+<listitem><para>
+This sets the default keyboard map file as the Japanese 109-key Windows keyboard map file.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/kbdmaps/eisa.pnp0301</filename> &#x2192;
+<filename>/etc/system-control/convert/kbdmaps/us.104</filename>
+</term>
+<listitem><para>
+This sets the keyboard map file for all PC/AT keyboards as the U.S.A. 104-key Windows keyboard map file.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/kbdmaps/kvt</filename> &#x2192;
+<filename>/etc/system-control/convert/kbdmaps/br.106</filename>
+</term>
+<listitem><para>
+This sets the keyboard map file for all KVT keyboards as the Brazilian ABNT2 106-key Windows keyboard map file.
+</para></listitem>
+</varlistentry>
+</variablelist>
+</informalexample>
+
+<informalexample>
+<para>
+Global virtual terminal back end configuraton is by convention a collection of symbolic links in a <filename>/etc/system-control/convert/user-vt/vcs/</filename> directory, which in turn point to the actual virtual terminal directories in (conventionally) <filename>/run/dev/</filename>.
+So these symbolic links would have the following consequences:
+</para>
+<variablelist>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/vcs/kvt</filename> &#x2192;
+<filename>/run/dev/head0</filename>
+</term>
+<listitem><para>
+This sets all KVT realizers to use the <filename>head0</filename> user-space virtual terminal.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/vcs/eisa.pnp0301.atkbd0</filename> &#x2192;
+<filename>/run/dev/head0</filename>
+</term>
+<listitem><para>
+This sets the realizer of the first PC/AT keyboard to use the <filename>head0</filename> user-space virtual terminal.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/vcs/eisa.pnpFB00.fb0</filename> &#x2192;
+<filename>/run/dev/head0</filename>
+</term>
+<listitem><para>
+This sets the realizer of the second framebuffer to use the <filename>head0</filename> user-space virtual terminal.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<filename>/etc/system-control/convert/user-vt/vcs/eisa.pnpFB00.fb1</filename> &#x2192;
+<filename>/run/dev/head1</filename>
+</term>
+<listitem><para>
+This sets the realizer of the second framebuffer to use the <filename>head1</filename> user-space virtual terminal.
+</para></listitem>
+</varlistentry>
+</variablelist>
+</informalexample>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

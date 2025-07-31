@@ -4,6 +4,8 @@
 
 [Unit]
 Description=BSD volume manager daemon
+Wants=plug-and-play-manager.target
+After=plug-and-play-manager.target
 
 [Service]
 ProcessGroupLeader=true

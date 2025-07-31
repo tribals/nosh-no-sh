@@ -10,10 +10,12 @@ For copyright and licensing terms, see the file named COPYING.
 #include "fdutils.h"
 #include "ProcessEnvironment.h"
 
-static inline
-bool 
+namespace {
+
+inline
+bool
 query_listen_fds_internal(
-	const ProcessEnvironment & envs, 
+	const ProcessEnvironment & envs,
 	unsigned & n
 ) {
 	const char * old;
@@ -35,7 +37,9 @@ query_listen_fds_internal(
 	return true;
 }
 
-unsigned 
+}
+
+unsigned
 query_listen_fds(ProcessEnvironment & envs)
 {
 	unsigned n;
@@ -49,7 +53,7 @@ query_listen_fds(ProcessEnvironment & envs)
 	return n;
 }
 
-unsigned 
+unsigned
 query_listen_fds_or_daemontools(ProcessEnvironment & envs)
 {
 	unsigned n;
@@ -63,7 +67,7 @@ query_listen_fds_or_daemontools(ProcessEnvironment & envs)
 	return n;
 }
 
-int 
+int
 query_listen_fds_passthrough(ProcessEnvironment & envs)
 {
 	unsigned n;

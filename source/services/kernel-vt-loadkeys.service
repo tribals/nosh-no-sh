@@ -4,6 +4,7 @@
 
 [Unit]
 Description=Set up kernel virtual terminals keyboard map
+Description=The loadkeys and kbd_mode programs are part of the kbd package.
 # The point of this service is to set up the kernel VTs really early, so that one can interact with fsck.
 # Unfortunately, the keys and font utilities on Linux require that /usr/share already be checked and mounted.
 # And on the gripping hand, fsck is run non-interactively anyway.
@@ -12,14 +13,12 @@ Wants=local-fs.target
 [Service]
 Type=oneshot
 TTYPath=tty0
-TTYReset=true
 StandardInput=tty
 StandardError=log
 EnvironmentDirectory=env
 ExecStart=kbd_mode -u
 ExecStart=loadkeys --unicode ${keymap:+"${keymap}"} ${flags}
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

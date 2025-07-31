@@ -45,14 +45,14 @@ is_dynamic_hostname_set ()
 }
 
 static inline
-const char * 
+const char *
 get_static_hostname_env(const ProcessEnvironment & envs)
 {
-	if (const char * h = envs.query("hostname")) 
+	if (const char * h = envs.query("hostname"))
 		return h;
-	if (const char * h = envs.query("HOSTNAME")) 
+	if (const char * h = envs.query("HOSTNAME"))
 		return h;
-	return 0;
+	return nullptr;
 }
 
 /* Main function ************************************************************
@@ -60,7 +60,7 @@ get_static_hostname_env(const ProcessEnvironment & envs)
 */
 
 void
-set_dynamic_hostname [[gnu::noreturn]] ( 
+set_dynamic_hostname [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -77,20 +77,16 @@ set_dynamic_hostname [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Unexpected argument(s).");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	if (am_in_jail(envs) && !set_dynamic_hostname_is_allowed()) {
 		if (verbose)
@@ -112,18 +108,17 @@ set_dynamic_hostname [[gnu::noreturn]] (
 		const int n(kenv(KENV_GET, "dhcp.host-name", val, sizeof val - 1));
 		if (0 < n) {
 			val[n] = '\0';
+			// Go around the houses here because val[] goes out of scope.
 			envs.set("hostname", val);
 			h = get_static_hostname_env(envs);
 		}
 	}
 #endif
-	if (!h) 
-		h = "localhost";
+	if (!h)
+		h = "localhost.";
 
 	if (0 > sethostname(h, std::strlen(h))) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "sethostname", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "sethostname");
 	}
 
 	if (verbose)

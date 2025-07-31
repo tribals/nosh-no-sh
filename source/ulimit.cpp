@@ -63,7 +63,7 @@ void resource_limit_definition::action(popt::processor &, const char * text)
 	||  0 == std::strcmp(text, "unlimited")
 	) {
 		val = RLIM_INFINITY;
-	} else 
+	} else
 	if (0 == std::strcmp(text, "hard")
 	||  0 == std::strcmp(text, "=")
 	) {
@@ -77,7 +77,7 @@ void resource_limit_definition::action(popt::processor &, const char * text)
 		val = std::strtoul(text, const_cast<char **>(&text), 0);
 		if (text == o)
 			throw popt::error(o, "not a number");
-		if (1U == scale && *text) 
+		if (1U == scale && *text)
 			rescale(text);
 		if (*text)
 			throw popt::error(o, "trailing rubbish after number");
@@ -96,7 +96,7 @@ void resource_limit_definition::enact(bool hard, bool soft)
 {
 	if (!set) return;
 	const rlim_t max(hard ? val : old.rlim_max);
-	const rlim_t cur(soft ? val : 
+	const rlim_t cur(soft ? val :
 			RLIM_INFINITY != max && (RLIM_INFINITY == old.rlim_cur || old.rlim_cur > max) ? max :
 			old.rlim_cur);
 	const rlimit now = { cur, max };
@@ -221,13 +221,13 @@ void memory_resource_limit_definition::action(popt::processor &, const char * te
 	||  0 == std::strcmp(text, "unlimited")
 	) {
 		val = RLIM_INFINITY;
-	} else 
+	} else
 	{
 		const char * o(text);
 		val = std::strtoul(text, const_cast<char **>(&text), 0);
 		if (text == o)
 			throw popt::error(o, "not a number");
-		if (1U == scale && *text) 
+		if (1U == scale && *text)
 			rescale(text);
 		if (*text)
 			throw popt::error(o, "trailing rubbish after number");
@@ -240,11 +240,11 @@ void memory_resource_limit_definition::action(popt::processor &, const char * te
 void memory_resource_limit_definition::enact(bool hard, bool soft)
 {
 	if (!set) return;
-	static const int resources[] = { 
+	static const int resources[] = {
 #if defined(RLIMIT_AS)
-		RLIMIT_AS, 
+		RLIMIT_AS,
 #endif
-		RLIMIT_DATA, RLIMIT_MEMLOCK, RLIMIT_STACK 
+		RLIMIT_DATA, RLIMIT_MEMLOCK, RLIMIT_STACK
 	};
 	for (size_t i(0); i < sizeof resources/sizeof *resources; ++i) {
 		const int resource(resources[i]);
@@ -289,10 +289,10 @@ memory_resource_limit_definition::rescale (
 */
 
 void
-ulimit ( 
+ulimit (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -378,7 +378,7 @@ ulimit (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
@@ -413,16 +413,16 @@ ulimit (
 		locks_option.enact(hard, soft);
 #endif
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 }
 
 static
 void
-limit ( 
+limit (
 	const char * & next_prog,
 	std::vector<const char *> & args,
+	const ProcessEnvironment & envs,
 	const bool hard,
 	const bool soft
 ) {
@@ -475,7 +475,7 @@ limit (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
@@ -494,25 +494,24 @@ limit (
 		stacksize_option.enact(hard, soft);
 		CPU_option.enact(hard, soft);
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 }
 
 void
-softlimit ( 
+softlimit (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
-	limit(next_prog, args, false, true);
+	limit(next_prog, args, envs, false, true);
 }
 
 void
-hardlimit ( 
+hardlimit (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
-	limit(next_prog, args, true, false);
+	limit(next_prog, args, envs, true, false);
 }

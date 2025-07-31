@@ -22,8 +22,8 @@ For copyright and licensing terms, see the file named COPYING.
 
 static bool non_standard(false);
 
-static 
-void 
+static
+void
 finish (
 	std::size_t at,
 	const char * s,
@@ -36,9 +36,9 @@ finish (
 	std::fwrite(n, n_len, 1, stdout);
 }
 
-static inline 
-int 
-x2d ( int c ) 
+static inline
+int
+x2d ( int c )
 {
 	if (std::isdigit(c)) return c - '0';
 	if (std::isalpha(c)) {
@@ -63,8 +63,8 @@ convert (
 	return r;
 }
 
-static 
-bool 
+static
+bool
 process (
 	const char * prog,
 	const ProcessEnvironment & envs,
@@ -80,8 +80,7 @@ process (
 			std::fflush(stdout);
 		const int rd(read(fd, buf, sizeof buf));
 		if (0 > rd) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
+			message_fatal_errno(prog, envs, name);
 			return false;
 		} else if (0 == rd)
 			break;
@@ -93,7 +92,7 @@ process (
 				case BODY:
 					std::fputc(c, stdout);
 					if ('\n' == c) state = BOL;
-					break;;
+					break;
 				case BOL:
 					if ('@' == c) {
 						state = STAMP;
@@ -173,13 +172,12 @@ tai64nlocal [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "[file(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
 		if (!process(prog, envs, "<stdin>", STDIN_FILENO))

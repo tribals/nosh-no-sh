@@ -39,7 +39,7 @@ On operating systems where bind mounting is available, if <command>setup-machine
 This will be the case where the root filesystem is mounted read-only at the point in the operating system bootstrap where <command>setup-machine-id</command> is run.
 </para>
 
-<refsection><title>Fallbacks</title>
+<refsection id="FALLBACKS" xreflabel="FALLBACKS"><title>Fallbacks</title>
 
 <para>
 <command>setup-machine-id</command> falls back to creating or restoring machine IDs as follows:

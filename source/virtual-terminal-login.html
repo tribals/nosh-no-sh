@@ -1,7 +1,9 @@
-<title>Virtual terminal login</title>
 <link rel="Up" href="terminals.html" title="Terminals" />
-<link rel="Next" href="kernel-virtual-terminals.html" title="kernel virtual terminals" />
-<h1>
+<link rel="Prev" href="user-virtual-terminal-enhancements.html" title="user virtual terminal enhancements" />
+<link rel="Next" href="real-terminal-login.html" title="real terminal login" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Virtual terminal login</title>
+<h1 class="Ruled">
 Virtual terminal login
 </h1>
 
@@ -10,7 +12,7 @@ This package contains tools for running and managing TUI login services on both 
 It also contains pre-written service bundles for such TUI login services.
 </p>
 
-<h2>
+<h2 class="Ruled">
 What the service bundle <code>run</code> scripts look like
 </h2>
 
@@ -21,95 +23,154 @@ The <code>run</code> scripts are interpreted by <a href="commands/nosh.xml"><cod
 <p>
 A <code>run</code> script to provide TUI login on kernel virtual terminal <code>/dev/ttyv4</code> would be something like this:
 </p>
-<blockquote><pre>#!/bin/nosh
+<blockquote><pre><strong>#!/bin/nosh</strong>
+clearenv
+<strong># what ttymon(1M) did</strong>
+vc-get-terminal ttyv4
 setsid
-vc-get-tty ttyv4
-open-controlling-tty
-vc-reset-tty
-login-banner /etc/issue.vc
-login</pre></blockquote>
+open-controlling-terminal --revoke
+vc-reset-terminal
+<strong># what login(1M) did</strong>
+login-envuidgid --tui-level ascii
+local-reaper yes
+login-giveown-controlling-terminal
+setuidgid-fromenv
+userenv-fromenv --default-path --default-tools --default-term --default-timezone --default-locale --set-dbus --set-xdg --set-other
+chdir-home
+login-shell</pre></blockquote>
 
 <p>
 A <code>run</code> script for a service to provide TUI login on user-space virtual terminal <code>/run/dev/vc1</code> would be something like:
 </p>
-<blockquote><pre>#!/bin/nosh
+<blockquote><pre><strong>#!/bin/nosh</strong>
+clearenv
+<strong># what ttymon(1M) did</strong>
+vc-get-terminal vc1/tty
 setsid
-vc-get-tty vc1/tty
-open-controlling-tty
-vc-reset-tty
-login-banner /etc/issue.vc
-login</pre></blockquote>
+open-controlling-terminal
+<strong># what login(1M) did</strong>
+login-envuidgid
+local-reaper yes
+login-giveown-controlling-terminal
+setuidgid-fromenv
+userenv-fromenv --default-path --default-tools --default-term --default-timezone --default-locale --set-dbus --set-xdg --set-other
+chdir-home
+login-shell</pre></blockquote>
 
-<h2>
+<h2 class="Ruled">
 Script composition and the toolset
 </h2>
 
 <p>
-The <code>run</code> scripts for these services use the chain loading tools to do what one would otherwise do with <code>fgetty</code> or <code>mingetty</code>.
-They are even more minimal than "minimal <code>getty</code>" is, and cut out much of the functionality of a full <code>getty</code> that is either invariant or non-existent on virtual terminals.
+<code>run</code> scripts are recomposable and these chains are an example of that.
+One can adjust the behaviour of the service to suit particular needs by altering the tool chain or particular tool options.
+</p>
+
+<h3 class="Ruled">
+<code>getty</code> is history, once again.
+</h3>
+
+<p>
+<a href="https://jdebp.uk/FGA/inittab-getty-is-history.html">The use of <code>getty</code> in terminal login has been obsolete since 1988</a>, when one of the earliest service management systems for Unix superseded it with its own mechanisms.
+That is likewise the case here.
+Login services for virtual terminals do not need <code>getty</code> programs, of any flavour; everything remaining that they need being provided by the service management system itself.
 </p>
 
 <p>
-Several parts of this are specialized, hardwiring things that are variable in general, but that are in fact invariant for virtual terminals.
+What the 1980s <a href="https://jdebp.uk/FGA/unix-service-access-facility.html">Service Access Facility</a>'s <code>sac</code> and <code>ttymon</code> provided by their service management system, are similarly provided by this service management system and chain-loading toolkit as follows:
+</p>
+<ul>
+<li><p><a href="commands/service-manager.xml"><code>service-manager</code></a> handles restarting the service after logout.</p></li>
+<li><p><a href="commands/vc-get-terminal.xml"><code>vc-get-terminal</code></a> sets the <a href="commands/TERM.xml"><code>TERM</code></a> environment variable.</p></li>
+<li><p><a href="commands/open-controlling-terminal.xml"><code>open-controlling-terminal</code></a> opens the terminal device file and makes it the session's controlling terminal.</p></li>
+<li><p><a href="commands/vc-reset-terminal.xml"><code>vc-reset-terminal</code></a> re-initializes the terminal device line discipline to sane states and the connected terminal to text mode with the initial character attributes, colours, and character repertoire.</p></li>
+</ul>
+
+<h3 class="Ruled">
+Virtual terminals are simpler than real terminals
+</h3>
+
+<p>
+Login services for virtual terminals have to do a lot less than <a href="real-terminal-login.html">the login services of real terminals</a>, however implemented.
+Weitse Venema's <code>agetty</code> was itself overkill for virtual terminals, and superseded at the turn of the 21st century by the likes of <a href="https://jdebp.uk/FGA/getty-flavours.html">Florian La Roche's <code>fgetty</code> or Felix von Leitner's <code>mingetty</code></a>.
+</p>
+
+<p>
+Several parts of virtual terminal login services are specialized, hardwiring things that are variable for real terminals, but that are in fact invariant for virtual terminals.
 </p>
 <ul>
 <li><p>
-Serial-line getty programs like <code>mgetty</code> and <code>agetty</code> deal in things like modem connect strings, serial line speeds, modem flow control, parity, dial-out interlocks, and suchlike.
+Serial-line getty programs like Gert Doering's <code>mgetty</code> and Weitse Venema's <code>agetty</code> deal in things like modem connect strings, serial line speeds, auto-detection by sending BREAK or by pressing the carriage return key multiple times, modem flow control, parity, dial-out interlocks, and suchlike.
 None of those things apply to virtual terminals; and the tools are simpler for having no dealings with them.
 </p></li>
 <li><p>
-As their names suggest, <a href="commands/vc-get-tty.xml"><code>vc-get-tty</code></a> and <a href="commands/vc-reset-tty.xml"><code>vc-reset-tty</code></a> are specialized tools for virtual terminals; those are what they are designed for and what they primarily target.
+As their names suggest, <a href="commands/vc-get-terminal.xml"><code>vc-get-terminal</code></a> and <a href="commands/vc-reset-terminal.xml"><code>vc-reset-terminal</code></a> are specialized tools for virtual terminals; those are what they are designed for and what they primarily target.
 Both the terminal types set by the former and the control sequences emitted by the latter are fixed and determined by the user-space terminal emulator or the terminal emulator in the operating system kernel, and won't change in the way that real terminals attached to serial lines can.
 </p></li>
 </ul>
 
-<p>
-The chain <code>login-banner /etc/issue login</code> is a common sequence for login services.
-<code>run</code> scripts are recomposable and this chain is an example of that.
-One can adjust the behaviour of the service to suit particular needs by altering the tool chain or particular tool options.
-For examples:
-</p>
-<ul>
-<li><p>
-Some <code>login</code> programs employ an idle timeout feature, whereby they exit if login has not completed within a set period of time, such as 60 seconds.
-Terminal login as a proper service, managed by a service manager, operates suboptimally if the service is continually exiting, because <code>login</code> has timed out, every 60 seconds.
-At the very least, it is annoying chaff in the service logs.
-One way to fix this is to remove the timeout from <code>login</code>'s configuration file, whatever that may be, of course.
-Another is to put <a href="commands/login-prompt.xml"><code>login-prompt</code></a> into the chain:
-</p>
-<blockquote><pre>login-prompt login-banner /etc/issue login</pre></blockquote>
-<p>
-Having <code>login-prompt</code> run first ensures that the service does not keep timing out and exiting.
-The prompt that it displays is of course familiar Unix behaviour, that mimics the behaviour of serial line <code>getty</code> services on variable-speed lines.
-They can require that one press Return several times as the program attempts to guess the correct terminal line speed to set.
-</p></li>
-<li><p>
-<code>login</code> programs handle the creation, and nowadays also the cleanup, of <code>utmpx</code> database entries for successful logins.
-On BSDs the notion of <code>utmpx</code> records for anything other than the logged-in state of a terminal never existed in the first place.
-Linux still retains the System 5 notion of terminals that are in the "init" and "login" states, even though they no longer apply.
-(The "init" state has no meaning for systems where the terminal login service isn't managed by process #1 any more; and as can be seen here there is no real "getty" state for kernel virtual terminals as most of the serial line functions of <code>getty</code> don't apply.)
-To maintain such obsolete records nonetheless, one simply inserts <a href="commands/login-process.xml"><code>login-process</code></a> into the chain:
-</p>
-<blockquote><pre>login-process login-prompt login-banner /etc/issue login</pre></blockquote>
-</li>
-<li><p>
-On Linux and BSDs, kernel virtual terminals may retain terminal state from previous logins that affects the viewability of subsequent logins.
-Existing processes can also end up retaining open file descriptors for the terminal device.
-To forcibly reset a virtual console, using mechanisms that are specific to kernel virtual consoles, one can employ the <code>--hard-reset</code>, <code>--text-mode</code> and other options to <code>vc-reset-tty</code>; and to forcibly remove access to open file descriptors one can employ the <code>--vhangup</code> or <code>--revoke</code> options to <a href="commands/open-controlling-tty.xml"><code>open-controlling-tty</code></a>.
-</p></li>
-</ul>
+<h3 class="Ruled">
+User space virtual terminals are simpler to handle than kernel virtual terminals.
+</h3>
 
 <p>
+For <em>user-space</em> virtual terminals especially, login services are even more minimal than "minimal <code>getty</code>" was.
 There are some differences between user-space and kernel virtual terminals that simplify such scripts yet further:
 </p>
 <ul>
 <li><p>
-User-space virtual terminals are created afresh (a new pseudo-terminal master and slave pair) at service start, so there is no need for the <code>--revoke</code> or <code>--vhangup</code> option to <code>open-controlling-tty</code>,
+User-space virtual terminals are created afresh (a new pseudo-terminal back end and front end pair) at service start, so there is no need for the <code>--revoke</code> or <code>--vhangup</code> option to <code>open-controlling-terminal</code>,
 </p></li>
 <li><p>
-User-space virtual terminals are initialized into a sane state (both the line discipline and the terminal emulator's attributes, colours, and character repertoire) at start, so there is no need for the <code>--hard-reset</code> option to <code>vc-reset-tty</code>,
-</p></li>
-<li><p>
-User-space virtual terminals do not have a graphics mode, so there is no need for the <code>--text-mode</code> option to <code>vc-reset-tty</code>.
+On Linux and BSDs, kernel virtual terminals may retain terminal state from previous logins that affects the viewability of subsequent logins.
+Existing processes can also end up retaining open file descriptors for the terminal device.
+To forcibly reset a kernel virtual terminal, using mechanisms that are specific to kernel virtual terminals, one can employ the <code>--hard-reset</code>, <code>--text-mode</code> and other options to <code>vc-reset-terminal</code>; and to forcibly remove access to open file descriptors one can employ the <code>--vhangup</code> or <code>--revoke</code> options to <a href="commands/open-controlling-terminal.xml"><code>open-controlling-terminal</code></a>.
+</p><p>
+User-space virtual terminals are initialized into a sane state (both the line discipline and the terminal emulator's attributes, colours, and character repertoire) at start and do not have a graphics mode, so there is no need for <code>vc-reset-terminal</code> at all.
 </p></li>
 </ul>
+
+<h3 class="Ruled">
+<code>login</code> is history, too.
+</h3>
+
+<p>
+Previous versions of this toolkit relied upon the an external <code>login</code> program, usually supplied by the operating system, employed in conjunction with chain-loading tools such as <a href="commands/login-banner.xml"><code>login-banner</code></a> and <a href="commands/login-prompt.xml"><code>login-prompt</code></a>.
+With <a href="commands/login-envuidgid.xml"><code>login-envuidgid</code></a> in the chain, none of those are necessary any more.
+</p>
+
+<p>
+Some <code>login</code> programs employ an idle timeout feature, whereby they exit if login has not completed within a set period of time, such as 60 seconds.
+Terminal login as a proper service, managed by a service manager, operates suboptimally if the service is continually exiting, because <code>login</code> has timed out, every 60 seconds.
+(At the very least, it is annoying chaff in the service logs.)
+Thus previous versions of this toolkit used <a href="commands/login-prompt.xml"><code>login-prompt</code></a> in the chain, ensuring that the service did not keep timing out and exiting.
+</p>
+
+<p>
+<code>login</code> presented a dumb "glass TTY" login dialogue, with just the editing functionality provided by the line discipline in the kernel; because it could be potentially be invoked against real terminals of minimal functionality, down to terminals that printed on paper (and so had to use printable characters for line kill and character erase).
+Logging in on a line printer is still the UI of <code>login</code> to this day.
+But virtual terminals have known minimal capabilities greater than that.
+They always support cursor addressing; aren't paper; and always support ECMA-48 control sequences for colours and character attributes.
+</p>
+
+<p>
+<a href="commands/login-envuidgid.xml"><code>login-envuidgid</code></a> can thus present a full-screen TUI login dialogue.
+Kernel virtual terminals' support of Unicode is spotty, but on user-space virtual terminals this TUI can moreover employ Unicode box drawing, block, and MouseText characters to provide a pseudo-windowing user interface at least as good as the Apple IIc.
+(Yes, it <em>is</em> saying something that <code>login</code>'s UI can be improved upon by boldly marching forward to the time of the Apple IIc.
+It's also saying something to observe that virtual terminals have been around since MultiScreen in the days of SCO Unix, but it wasn't until almost a quarter of the way into the 21st century that any terminal login user interface took them up on their capabilities.)
+</p>
+
+<h3 class="Ruled">
+Setting up user login shell state
+</h3>
+
+<p>
+The tail end of the chain behaves somewhat akin to <a href="http://cr.yp.to/checkpwd/interface.html">Bernstein checkpassword</a>, as this is the conventional way in which login processes are set up:
+</p>
+<ul>
+<li><p><a href="commands/setuidgid-fromenv.xml"><code>setuidgid-fromenv</code></a> drops superuser privileges irrevocably and makes the process run as the account chosen with <a href="commands/login-envuidgid.xml"><code>login-envuidgid</code></a>.</p></li>
+<li><p><a href="commands/userenv-fromenv.xml"><code>userenv-fromenv</code></a> sets up the environment variables for that account, including <code>USER</code>, <code>HOME</code>, and <code>SHELL</code>, deliberately doing so with only the privileges of the chosen account, so that it doesn't bypass security restrictions on <code>login.conf</code> that might apply to that user.</p></li>
+<li><p><a href="commands/chdir-home.xml"><code>chdir-home</code></a> changes to the home directory just set in an environment variable, again deliberately doing so with only the privileges of the chosen account.</p></li>
+<li><p><a href="commands/login-shell.xml"><code>login-shell</code></a> chain-loads the login shell just set in an environment variable.</p></li>
+</ul>
+

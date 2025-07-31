@@ -1,5 +1,4 @@
-# This is an overlay keymap that sets the backspace key to be 
-# the DEC VT soft-programmable delete.
+# This is an overlay keymap that sets the delete key to be the DEC VT soft-programmable delete.
 #
 #                                                        option
 # scan                       cntrl         option option cntrl lock

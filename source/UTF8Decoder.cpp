@@ -15,7 +15,7 @@ UTF8Decoder::UTF8Decoder(UCS32CharacterSink & s) :
 }
 
 inline
-void 
+void
 UTF8Decoder::SendGood()
 {
 	sink.ProcessDecodedUTF8(assemblage, false, assemblage < minimum);
@@ -24,7 +24,7 @@ UTF8Decoder::SendGood()
 }
 
 inline
-void 
+void
 UTF8Decoder::SendBad()
 {
 	assemblage = assemblage << (6U * expected_continuation_bytes);
@@ -33,27 +33,28 @@ UTF8Decoder::SendBad()
 	expected_continuation_bytes = 0U;
 }
 
-void 
+void
 UTF8Decoder::Process(uint_fast8_t c)
 {
 	if ((0x80 & c) == 0x00) {
 		// 0x2x_0nnn_nnnn
 		if (0 < expected_continuation_bytes)
 			SendBad();
-		assemblage = c;
+		// Quick version of SendGood();
+		sink.ProcessDecodedUTF8(c, false, false);
 		minimum = 0U;
-		SendGood();
+		expected_continuation_bytes = 0U;
 	} else
 	if ((0xC0 & c) == 0x80) {
 		// ... 0x2x_10nn_nnnn ...
 		if (0 == expected_continuation_bytes) {
-			assemblage = c;
+			assemblage = c & 0xFF;
 			minimum = 0U;
 			SendBad();
 		} else {
 			--expected_continuation_bytes;
 			assemblage = (assemblage << 6U) | (c & 0x3F);
-			if (0 == expected_continuation_bytes) 
+			if (0 == expected_continuation_bytes)
 				SendGood();
 		}
 	} else
@@ -100,7 +101,7 @@ UTF8Decoder::Process(uint_fast8_t c)
 		// 0x2x_1111_111n
 		if (0 < expected_continuation_bytes)
 			SendBad();
-		assemblage = c;
+		assemblage = c & 0xFF;
 		minimum = 0U;
 		SendBad();
 	}

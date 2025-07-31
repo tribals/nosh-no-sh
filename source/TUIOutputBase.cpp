@@ -9,133 +9,187 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <sys/ioctl.h>
-#include <termios.h>
-#if defined(__LINUX__) || defined(__linux__)
-#include "ttyutils.h"
-#elif defined(__OpenBSD__)
-#include "ttyutils.h"
-#else
-#include "ttyutils.h"
-#endif
 #include <unistd.h>
+#include <termios.h>
+#if defined(__linux__) || defined(__LINUX__)
+#include <sys/ioctl.h>	// For struct winsize on Linux
+#endif
 #include "utils.h"
+#include "ttyutils.h"
 #include "UnicodeClassification.h"
 #include "CharacterCell.h"
 #include "ECMA48Output.h"
 #include "TerminalCapabilities.h"
 #include "TUIDisplayCompositor.h"
 #include "TUIOutputBase.h"
-
-/* Colour manipulation ******************************************************
-// **************************************************************************
-*/
-
-namespace {
-
-inline
-void
-invert (
-	CharacterCell::colour_type & c
-) {
-	c.red = ~c.red;
-	c.green = ~c.green;
-	c.blue = ~c.blue;
-}
-
-inline
-void
-dim (
-	uint8_t & c
-) {
-	c = c > 0x40 ? c - 0x40 : 0x00;
-}
-
-inline
-void
-dim (
-	CharacterCell::colour_type & c
-) {
-	dim(c.red);
-	dim(c.green);
-	dim(c.blue);
-}
-
-inline
-void
-bright (
-	uint8_t & c
-) {
-	c = c < 0xC0 ? c + 0x40 : 0xff;
-}
-
-inline
-void
-bright (
-	CharacterCell::colour_type & c
-) {
-	bright(c.red);
-	bright(c.green);
-	bright(c.blue);
-}
-
-static const CharacterCell::colour_type overscan_fg(ALPHA_FOR_ERASED,255,255,255), overscan_bg(ALPHA_FOR_ERASED,0,0,0);
-static const CharacterCell overscan_blank(' ', 0U, overscan_fg, overscan_bg);
-
-}
+#include "SignalManagement.h"
 
 /* The base class ***********************************************************
 // **************************************************************************
 */
 
+// This has to match the way that most realizing terminals will advance the cursor.
 inline
-bool
-TUIOutputBase::is_cheap_to_print(
-	unsigned short row,
-	unsigned short col, 
-	unsigned cols
+unsigned
+TUIOutputBase::width (
+	char32_t ch
 ) const {
-	for (unsigned i(0U); i < cols; ++i) {
-		const TUIDisplayCompositor::DirtiableCell & cell(c.cur_at(row, col + i));
-		if (cell.attributes != current_attr
-		||  cell.foreground != current_fg
-		||  cell.background != current_bg
-		||  UnicodeCategorization::IsWideOrFull(cell.character)
-		||  c.is_marked(false, row, col + i)
-		||  c.is_pointer(row, col + i)
-		)
-			return false;
+
+	if (0x000000AD == ch) return 1U;
+	if ((0x00001160 <= ch && ch <= 0x000011FF)
+	||  UnicodeCategorization::IsMarkEnclosing(ch)
+	||  UnicodeCategorization::IsMarkNonSpacing(ch)
+	||  UnicodeCategorization::IsOtherFormat(ch)
+	||  UnicodeCategorization::IsOtherSurrogate(ch)
+	||  UnicodeCategorization::IsOtherControl(ch)
+	)
+		return 0U;
+	if (!out.caps.has_square_mode) {
+		if (UnicodeCategorization::IsWideOrFull(ch))
+			return 2U;
 	}
-	return true;
+	return 1U;
+}
+
+void
+TUIOutputBase::fixup(
+	CharacterCell & cell,
+	bool marked,
+	bool is_pointer
+) const {
+	if (invert_screen)
+		cell.attributes ^= CharacterCell::INVERSE;
+	if (options.faint_as_colour || options.bold_as_colour || out.caps.faulty_reverse_video) {
+		// If we are adjusting the colours, we need to do reverse video first so that we adjust the right colours.
+		// If the terminal's reverse video is faulty, we need to do it ourselves without the ECMA-48 SGR sequences.
+		if (CharacterCell::INVERSE & cell.attributes) {
+			std::swap(cell.foreground,cell.background);
+			cell.attributes &= ~CharacterCell::INVERSE;
+		}
+		if (options.faint_as_colour) {
+			if (CharacterCell::FAINT & cell.attributes) {
+				if (cell.foreground.is_black())
+					cell.background.dim();
+				else
+					cell.foreground.dim();
+				cell.attributes &= ~CharacterCell::FAINT;
+			}
+		}
+		if (options.bold_as_colour) {
+			if (CharacterCell::BOLD & cell.attributes) {
+				if (cell.foreground.is_black())
+					cell.background.bright();
+				else
+					cell.foreground.bright();
+				cell.attributes &= ~CharacterCell::BOLD;
+			}
+		}
+	}
+	if (is_pointer) {
+		if (options.tui_level > 0U)
+			marked = !marked;
+		else
+			cell.character = 0x01FBB0;
+	}
+	if (marked) {
+		cell.foreground.complement();
+		cell.background.complement();
+		cell.foreground.alpha = cell.background.alpha = ALPHA_FOR_MOUSE_SPRITE;
+	}
+	if (options.no_default_colour) {
+		if (cell.foreground.is_default_or_erased())
+			cell.foreground.alpha = ALPHA_FOR_256_COLOURED;
+		if (cell.background.is_default_or_erased())
+			cell.background.alpha = ALPHA_FOR_256_COLOURED;
+	}
+	if (out.caps.lacks_invisible && (CharacterCell::INVISIBLE & cell.attributes)) {
+		cell.attributes &= ~CharacterCell::INVISIBLE;
+		cell.foreground = cell.background;
+	}
 }
 
 inline
-bool
-TUIOutputBase::is_blank(
+unsigned
+TUIOutputBase::count_cheap_narrow(
+	unsigned short row,
+	unsigned short col,
+	unsigned cols
+) const {
+	for (unsigned i(0U); i < cols; ++i) {
+		if (false
+		||  c.is_marked(false /* does not include cursor */, row, col + i)
+		||  c.is_pointer(row, col + i)
+		)
+			return i;
+		CharacterCell cell(c.cur_at(row, col + i));
+		fixup(cell, false, false /* We checked for no pointer or mark. */);
+		if (cell.attributes != current_attr
+		||  cell.foreground != current.foreground
+		||  cell.background != current.background
+		||  (1U != width(cell.character))
+		)
+			return i;
+	}
+	return cols;
+}
+
+inline
+unsigned
+TUIOutputBase::count_cheap(
+	unsigned short row,
+	unsigned short col,
+	unsigned cols,
+	CharacterCell::attribute_type attr,
 	uint32_t ch
 ) const {
-	return ch <= SPC || (DEL <= ch && ch <= 0x0000009F);
+	for (unsigned i(0U); i < cols; ++i) {
+		if (false
+		||  c.is_marked(false /* does not include cursor */, row, col + i)
+		||  c.is_pointer(row, col + i)
+		)
+			return i;
+		CharacterCell cell(c.cur_at(row, col + i));
+		fixup(cell, false, false /* We checked for no pointer or mark. */);
+		if (cell.attributes != attr
+		||  cell.foreground != current.foreground
+		||  cell.background != current.background
+		||  cell.character != ch
+		)
+			return i;
+	}
+	return cols;
 }
 
 inline
-bool
-TUIOutputBase::is_all_blank(
+unsigned
+TUIOutputBase::count_cheap_eraseable(
 	unsigned short row,
-	unsigned short col, 
+	unsigned short col,
+	unsigned cols,
+	CharacterCell::attribute_type attr
+) const {
+	return count_cheap(row, col, cols, attr, SPC);
+}
+
+inline
+unsigned
+TUIOutputBase::count_cheap_spaces(
+	unsigned short row,
+	unsigned short col,
 	unsigned cols
 ) const {
-	for (unsigned i(0U); i < cols; ++i) {
-		const TUIDisplayCompositor::DirtiableCell & cell(c.cur_at(row, col + i));
-		if (cell.attributes != current_attr
-		||  cell.foreground != current_fg
-		||  cell.background != current_bg
-		||  !is_blank(cell.character)
-		||  c.is_marked(false, row, col + i)
-		||  c.is_pointer(row, col + i)
-		)
-			return false;
-	}
-	return true;
+	return count_cheap(row, col, cols, current_attr, SPC);
+}
+
+inline
+unsigned
+TUIOutputBase::count_cheap_repeatable(
+	unsigned short row,
+	unsigned short col,
+	unsigned cols,
+	uint32_t ch
+) const {
+	return count_cheap(row, col, cols, current_attr, ch);
 }
 
 inline
@@ -144,13 +198,15 @@ TUIOutputBase::GotoYX(
 	const unsigned short row,
 	const unsigned short col
 ) {
-	if (row == cursor_y && col == cursor_x) 
+	if (row == cursor_y && col == cursor_x)
 		return;
+	// Going to the home position is easy.
 	if (0 == col && 0 == row) {
 		out.CUP();
 		cursor_y = cursor_x = 0;
 		return;
 	}
+	// If we are going to the first 3 columns in a row, use newlines and carriage returns to get roughly there.
 	if (0 == col ? col != cursor_x :
 	    1 == col ? 2 < cursor_x :
 	    2 == col ? 5 < cursor_x :
@@ -161,7 +217,7 @@ TUIOutputBase::GotoYX(
 			++cursor_y;
 			if (row > cursor_y) {
 				const unsigned short n(row - cursor_y);
-				if (out.caps.use_IND && n <= 3U)
+				if (!out.caps.lacks_IND && n <= 3U)
 					out.print_control_characters(IND, n);
 				else
 				if (n <= 6U)
@@ -174,10 +230,11 @@ TUIOutputBase::GotoYX(
 			out.print_control_character(CR);
 		cursor_x = 0;
 	}
+	// If we are (now) in the right column, use index and reverse index to get to the right row.
 	if (col == cursor_x) {
 		if (row < cursor_y) {
 			const unsigned short n(cursor_y - row);
-			if (out.caps.use_RI && n <= 3U)
+			if (!out.caps.lacks_RI && n <= 3U)
 				out.print_control_characters(RI, n);
 			else
 				out.CUU(n);
@@ -185,7 +242,7 @@ TUIOutputBase::GotoYX(
 		} else
 		if (row > cursor_y) {
 			const unsigned short n(row - cursor_y);
-			if (out.caps.use_IND && n <= 3U)
+			if (!out.caps.lacks_IND && n <= 3U)
 				out.print_control_characters(IND, n);
 			else
 			if (n <= 6U)
@@ -195,9 +252,11 @@ TUIOutputBase::GotoYX(
 			cursor_y = row;
 		}
 	} else
+	// If we are (now) in the right row, use left and right to get to the right row.
 	if (row == cursor_y && cursor_x < c.query_w()) {
 		if (col < cursor_x) {
 			const unsigned short n(cursor_x - col);
+			// Optimize going left if the control sequence is longer than just printing enough BS characters.
 			if (n <= 6U)
 				out.print_control_characters(BS, n);
 			else
@@ -206,10 +265,11 @@ TUIOutputBase::GotoYX(
 		} else
 		if (col > cursor_x) {
 			const unsigned short n(col - cursor_x);
-			if (n <= 6U && is_cheap_to_print(cursor_y, cursor_x, n))
+			// Optimize going right if the control sequence is longer than just re-printing the actual characters.
+			if (n <= 6U && n == count_cheap_narrow(cursor_y, cursor_x, n))
 				for (unsigned i(cursor_x); i < col; ++i) {
 					TUIDisplayCompositor::DirtiableCell & cell(c.cur_at(cursor_y, i));
-					print(cell, false /* We checked for no pointer or mark. */);
+					print(cell, false, false /* We checked for no pointer or mark. */);
 					cell.untouch();
 				}
 			else
@@ -217,6 +277,7 @@ TUIOutputBase::GotoYX(
 			cursor_x = col;
 		}
 	} else
+	// Non-optimized positioning with the ordinary control sequence.
 	{
 		out.CUP(row + 1U, col + 1U);
 		cursor_y = row;
@@ -254,8 +315,7 @@ TUIOutputBase::SGRAttr1(
 		if (semi) out.print_graphic_character(semi);
 		if (!bits) out.print_graphic_character('2');
 		out.print_graphic_character(m);
-		if (bits && (bits != unit))
-			out.print_subparameter(bits / unit);
+		if (bits) out.print_subparameter(bits / unit);
 		semi = ';';
 	}
 }
@@ -268,13 +328,16 @@ TUIOutputBase::SGRAttr (
 	if (attr == current_attr) return;
 	out.csi();
 	char semi(0);
-	if (!out.caps.has_reverse_off && (current_attr & CharacterCell::INVERSE)) {
+	if (out.caps.lacks_reverse_off && (current_attr & CharacterCell::INVERSE)) {
 		if (semi) out.print_graphic_character(semi);
 		out.print_graphic_character('0');
 		semi = ';';
 		current_attr = 0;
 	}
-	enum { BF = CharacterCell::BOLD|CharacterCell::FAINT };
+	enum {
+		BF = CharacterCell::BOLD|CharacterCell::FAINT,
+		FE = CharacterCell::FRAME|CharacterCell::ENCIRCLE,
+	};
 	if ((attr & BF) != (current_attr & BF)) {
 		if (current_attr & BF) {
 			if (semi) out.print_graphic_character(semi);
@@ -293,89 +356,74 @@ TUIOutputBase::SGRAttr (
 			semi = ';';
 		}
 	}
+	if ((attr & FE) != (current_attr & FE)) {
+		if (current_attr & FE) {
+			if (semi) out.print_graphic_character(semi);
+			out.print_graphic_character('5');
+			out.print_graphic_character('4');
+			semi = ';';
+		}
+		if (CharacterCell::FRAME & attr) {
+			if (semi) out.print_graphic_character(semi);
+			out.print_graphic_character('5');
+			out.print_graphic_character('1');
+			semi = ';';
+		}
+		if (CharacterCell::ENCIRCLE & attr) {
+			if (semi) out.print_graphic_character(semi);
+			out.print_graphic_character('5');
+			out.print_graphic_character('2');
+			semi = ';';
+		}
+	}
 	SGRAttr1(attr, CharacterCell::ITALIC, '3', semi);
-	SGRAttr1(attr, CharacterCell::UNDERLINES, CharacterCell::SIMPLE_UNDERLINE, '4', semi);
+	if (out.caps.has_extended_underline) {
+		SGRAttr1(attr, CharacterCell::UNDERLINES, CharacterCell::SIMPLE_UNDERLINE, '4', semi);
+	} else {
+		SGRAttr1(attr, CharacterCell::UNDERLINES, '4', semi);
+	}
 	SGRAttr1(attr, CharacterCell::BLINK, '5', semi);
 	SGRAttr1(attr, CharacterCell::INVERSE, '7', semi);
-	SGRAttr1(attr, CharacterCell::INVISIBLE, '8', semi);
-	SGRAttr1(attr, CharacterCell::STRIKETHROUGH, '9', semi);
+	if (!out.caps.lacks_invisible) {
+		SGRAttr1(attr, CharacterCell::INVISIBLE, '8', semi);
+	}
+	if (!out.caps.lacks_strikethrough) {
+		SGRAttr1(attr, CharacterCell::STRIKETHROUGH, '9', semi);
+	}
+	if ((attr & CharacterCell::OVERLINE) != (current_attr & CharacterCell::OVERLINE)) {
+		if (semi) out.print_graphic_character(semi);
+		out.print_graphic_character('5');
+		if (attr & CharacterCell::OVERLINE)
+			out.print_graphic_character('3');
+		else
+			out.print_graphic_character('5');
+		semi = ';';
+	}
 	out.print_graphic_character('m');
 	current_attr = attr;
 }
 
-// This has to match the way that most realizing terminals will advance the cursor.
-inline
-unsigned
-TUIOutputBase::width (
-	uint32_t ch
-) const {
-
-	if ((ch < SPC)
-	||  (DEL <= ch && ch <= 0x0000009F)
-	||  (0x00001160 <= ch && ch <= 0x000011FF)
-	||  (0x0000200B == ch)
-	||  UnicodeCategorization::IsMarkEnclosing(ch)
-	||  UnicodeCategorization::IsMarkNonSpacing(ch)
-	||  UnicodeCategorization::IsOtherFormat(ch)
-	)
-		return 0U;
-	if (!out.caps.has_square_mode) {
-		if (0x000000AD == ch) return 1U;
-		if (UnicodeCategorization::IsWideOrFull(ch))
-			return 2U;
-	}
-	return 1U;
-}
-
 void
 TUIOutputBase::print(
-	const TUIDisplayCompositor::DirtiableCell & cell,
-	bool inverted
+	CharacterCell cell,	///< a copy of the character cell, so that we can alter it
+	bool marked,
+	bool is_pointer
 ) {
-	CharacterCell::attribute_type font_attributes(cell.attributes);
-	CharacterCell::colour_type fg(cell.foreground), bg(cell.background);
+	fixup(cell, marked, is_pointer);
 
-	if (faint_as_colour) {
-		if (CharacterCell::FAINT & font_attributes) {
-			dim(fg);
-//			dim(bg);
-			font_attributes &= ~CharacterCell::FAINT;
-		}
-	}
-	if (bold_as_colour) {
-		if (CharacterCell::BOLD & font_attributes) {
-			bright(fg);
-//			bright(bg);
-			font_attributes &= ~CharacterCell::BOLD;
-		}
-	}
-	if (inverted) {
-		invert(fg);
-		invert(bg);
+	unsigned w(width(cell.character));
+	if (w < 1U) {
+		cell.character = SPC;
+		w = 1U;
 	}
 
-	const unsigned w(width(cell.character));
-	bool replace_with_spaces(false);
-
-	if (!out.caps.has_invisible && (CharacterCell::INVISIBLE & font_attributes)) {
-		font_attributes &= ~CharacterCell::INVISIBLE;
-		replace_with_spaces = true;
-	} else
-	if (is_blank(cell.character)) {
-		replace_with_spaces = true;
-	}
-
-	SGRFGColour(fg);
-	SGRBGColour(bg);
-	SGRAttr(font_attributes);
-	if (replace_with_spaces) {
-		for (unsigned n(w); n > 0U; --n)
-			out.UTF8(SPC);
-	} else
-		out.UTF8(cell.character);
+	SGRFGColour(cell.foreground);
+	SGRBGColour(cell.background);
+	SGRAttr(cell.attributes);
+	out.UTF8(cell.character);
 	for (unsigned n(w); n > 0U; --n) {
 		++cursor_x;
-		if (!out.caps.pending_wrap && cursor_x >= c.query_w()) {
+		if (out.caps.lacks_pending_wrap && cursor_x >= c.query_w()) {
 			cursor_x = 0;
 			if (cursor_y < c.query_h())
 				++cursor_y;
@@ -390,31 +438,40 @@ TUIOutputBase::enter_full_screen_mode(
 		tcsetattr_nointr(out.fd(), TCSADRAIN, make_raw(original_attr));
 	if (out.caps.use_DECPrivateMode) {
 		out.XTermSaveRestore(true);
-		out.XTermAlternateScreenBuffer(alternate_screen_buffer);
+		out.XTermAlternateScreenBuffer(!options.no_alternate_screen_buffer);
 	}
 	out.CUP();
+	cursor_y = cursor_x = 0U;
 	SGRAttr(0U);
-	SGRFGColour(overscan_fg);
-	SGRBGColour(overscan_bg);
+	SGRFGColour(ColourPair::colour_type::default_foreground);
+	SGRBGColour(ColourPair::colour_type::default_background);
 	// DEC Locator is the less preferable protocol since it does not carry modifier information.
 	if (out.caps.use_DECLocator && !out.caps.has_XTerm1006Mouse) {
 		out.DECELR(true);
 		out.DECSLE(true /*press*/, true);
 		out.DECSLE(false /*release*/, true);
 	}
-	if (out.caps.use_DECPrivateMode) {
+	if (out.caps.use_SCOPrivateMode) {
 		if (out.caps.has_square_mode)
 			out.SquareMode(true);
+	}
+	if (out.caps.use_DECPrivateMode) {
 		out.DECAWM(false);
-		out.DECECM(false);	// We rely upon erasure to the background colour, not to the screen/default colour.
+		// We rely upon erasure to the background colour, not to the screen/default colour.
+		if (out.caps.has_DECECM)
+			out.DECECM(false);
 		out.DECBKM(true);	// We want to be able to distinguish Backspace from Control+Backspace.
 		if (out.caps.has_XTerm1006Mouse)
 			out.XTermSendAnyMouseEvents();
 		else
 			out.XTermSendNoMouseEvents();
+		out.TeraTermEscapeIsFS(false);	// We want Escape to have its normal function.
 		out.XTermDeleteIsDEL(false);	// We want to be able to distinguish Delete from Control+Backspace.
-		out.DECCKM(cursor_application_mode);
-		out.DECNKM(calculator_application_mode);
+		out.DECCKM(options.cursor_application_mode);
+		if (out.caps.use_DECNKM)
+			out.DECNKM(options.calculator_application_mode);
+		else
+			out.DECKPxM(options.calculator_application_mode);
 	}
 	out.change_cursor_visibility(false);
 	out.SCUSR(cursor_attributes, cursor_glyph);
@@ -426,24 +483,31 @@ TUIOutputBase::exit_full_screen_mode(
 ) {
 	out.SCUSR();
 	out.change_cursor_visibility(true);
-	if (out.caps.use_DECLocator) {
-		out.DECELR(false);
-		out.DECSLE();
-	}
 	if (out.caps.use_DECPrivateMode) {
-		out.DECNKM(false);
+		if (out.caps.use_DECNKM)
+			out.DECNKM(false);
+		else
+			out.DECKPxM(false);
 		out.DECCKM(false);
 		out.XTermSendNoMouseEvents();
 		out.DECBKM(false);			// Restore the more common Unix convention.
-		out.DECECM(false);
+		if (out.caps.has_DECECM)
+			out.DECECM(out.caps.initial_DECECM);
 		out.DECAWM(true);
+	}
+	if (out.caps.use_SCOPrivateMode) {
 		if (out.caps.has_square_mode)
 			out.SquareMode(true);
 	}
-	SGRBGColour(overscan_bg);
-	SGRFGColour(overscan_fg);
+	if (out.caps.use_DECLocator) {
+		out.DECSLE();
+		out.DECELR(false);
+	}
+	SGRBGColour(ColourPair::colour_type::default_background);
+	SGRFGColour(ColourPair::colour_type::default_foreground);
 	SGRAttr(0U);
-	GotoYX(0U, 0U);
+	out.CUP();
+	cursor_y = cursor_x = 0U;
 	if (out.caps.use_DECPrivateMode) {
 		out.XTermAlternateScreenBuffer(false);
 		out.XTermSaveRestore(false);
@@ -455,30 +519,23 @@ TUIOutputBase::exit_full_screen_mode(
 TUIOutputBase::TUIOutputBase(
 	const TerminalCapabilities & t,
 	FILE * f,
-	bool bc,
-	bool fc,
-	bool cursa,
-	bool calca,
-	bool ab,
+	const TUIOutputBase::Options & o,
 	TUIDisplayCompositor & comp
 ) :
 	c(comp),
-	out(t, f, true /* C1 is 7-bit aliased */),
-	bold_as_colour(bc),
-	faint_as_colour(fc),
-	cursor_application_mode(cursa),
-	calculator_application_mode(calca),
-	alternate_screen_buffer(ab),
+	options(o),
+	out(t, f, true /* C1 is 7-bit aliased */, false /* C1 is not raw 8-bit */),
 	window_resized(true),
 	refresh_needed(true),
 	update_needed(true),
 	cursor_y(0),
 	cursor_x(0),
-	current_fg(-1U, 0U, 0U, 0U),	// Set an impossible colour, forcing a change.
-	current_bg(-1U, 0U, 0U, 0U),	// Set an impossible colour, forcing a change.
-	current_attr(-1U),	// Assume all attributes are on and need to be turned off.
+	current(ColourPair::impossible),	// Set an impossible colour, forcing a change.
+	current_attr(0U),
 	cursor_glyph(CursorSprite::BOX),
-	cursor_attributes(CursorSprite::VISIBLE)
+	cursor_attributes(CursorSprite::VISIBLE),
+	invert_screen(-1),	// Use an impossible value to force an initial update.
+	current_attr_unknown(true)
 {
 	out.flush();
 	std::setvbuf(out.file(), out_buffer, _IOFBF, sizeof out_buffer);
@@ -488,7 +545,7 @@ TUIOutputBase::TUIOutputBase(
 TUIOutputBase::~TUIOutputBase()
 {
 	exit_full_screen_mode();
-	std::setvbuf(out.file(), 0, _IOFBF, 1024);
+	std::setvbuf(out.file(), nullptr, _IOFBF, 1024);
 }
 
 void
@@ -497,9 +554,16 @@ TUIOutputBase::handle_resize_event (
 	if (window_resized) {
 		window_resized = false;
 		struct winsize size;
-		if (0 <= tcgetwinsz_nointr(out.fd(), size))
+		if (0 <= tcgetwinsz_nointr(out.fd(), size)) {
+			sane(size);
 			c.resize(size.ws_row, size.ws_col);
+		}
 		refresh_needed = true;
+		// Some terminals reset attributes after a video mode change (and hence a resize event).
+		// So we need to force explicit changes to be sent by setting impossible current values.
+		current = ColourPair::impossible;
+		current_attr_unknown = true;
+		invert_screen = -1;
 	}
 }
 
@@ -518,43 +582,112 @@ TUIOutputBase::handle_update_event (
 ) {
 	if (update_needed) {
 		update_needed = false;
+		if (!out.caps.has_square_mode)
+			c.touch_width_change_shadows();
 		c.repaint_new_to_cur();
 		write_changed_cells_to_output();
 	}
 }
 
 void
+TUIOutputBase::suspend_self(
+) {
+	suspended();
+	TemporarilyUnblockSignals u(SIGTSTP, 0);
+	killpg(0, SIGTSTP);
+}
+
+void
+TUIOutputBase::tstp_signal(
+) {
+// On true kqueue() systems it is too late to do anything here, as the suspension has already happened.
+#if defined(__LINUX__) || defined(__linux__)
+	suspend_self();
+#endif
+}
+
+void
+TUIOutputBase::suspended(
+) {
+	exit_full_screen_mode();
+}
+
+void
+TUIOutputBase::continued(
+) {
+	enter_full_screen_mode();
+	// We don't know what might have happened whilst we were suspended.
+	current = ColourPair::impossible;
+	current_attr_unknown = true;
+	invert_screen = -1;
+	invalidate_cur();
+	set_update_needed();
+}
+
+void
 TUIOutputBase::write_changed_cells_to_output()
 {
+	const ScreenFlags::flag_type f(c.query_screen_flags());
+	if ((f & ScreenFlags::INVERTED) != invert_screen) {
+		invert_screen = (f & ScreenFlags::INVERTED);
+		c.touch_all();
+	}
+	// Do this once, instead of inside of every call to SGRAttr().
+	if (current_attr_unknown) {
+		out.csi();
+		out.print_graphic_character('0');
+		out.print_graphic_character('m');
+		current_attr = 0U;
+		current_attr_unknown = false;
+	}
 	const CursorSprite::attribute_type a(c.query_cursor_attributes());
 	if (CursorSprite::VISIBLE & a)
 		out.change_cursor_visibility(false);
-	for (unsigned row(0); row < c.query_h(); ++row) {
-		for (unsigned col(0); col < c.query_w(); ++col) {
+	for (unsigned row(0U); row < c.query_h(); ++row) {
+		for (unsigned col(0U); col < c.query_w(); ++col) {
 			TUIDisplayCompositor::DirtiableCell & cell(c.cur_at(row, col));
 			if (!cell.touched()) continue;
 			GotoYX(row, col);
-			if (is_blank(cell.character)) {
-				const unsigned n(c.query_w() - col);
-				if (3U < n && is_cheap_to_print(row, col, n) && is_all_blank(row, col, n)) {
-					out.EL(0U);
-					while (col < c.query_w())
-						c.cur_at(row, col++).untouch();
-					continue;
-				}
+			const unsigned toeol(c.query_w() - col);
+			if (3U < toeol
+			&&  (out.caps.has_DECECM || !out.caps.initial_DECECM)	// i.e. does not always erase to default colour
+			&&  !out.caps.faulty_inverse_erase
+			// EL sets erased cells to 0 attributes, by widespread tacit agreement.
+			&&  toeol == count_cheap_eraseable(row, col, toeol, 0)
+			) {
+				out.EL(0U);
+				while (col < c.query_w())
+					c.cur_at(row, col++).untouch();
+				continue;
 			}
-			const bool inverted(
-				((c.query_cursor_attributes() & CursorSprite::VISIBLE) && c.is_marked(false, row, col))
-			||
-				((c.query_pointer_attributes() & PointerSprite::VISIBLE) && c.is_pointer(row, col))
-			);
-			print(cell, inverted);
+			const bool marked((c.query_cursor_attributes() & CursorSprite::VISIBLE) && c.is_marked(false /* does not include cursor */, row, col));
+			const bool is_pointer((c.query_pointer_attributes() & PointerSprite::VISIBLE) && c.is_pointer(row, col));
+			print(cell, marked, is_pointer);
 			cell.untouch();
 			unsigned n(width(cell.character));
-			if (1U < n && is_cheap_to_print(row, col + 1U, n - 1U) && is_all_blank(row, col + 1U, n - 1U)) {
-				while (1U < n && col + 1U < c.query_w()) {
-					c.cur_at(row, ++col).untouch();
-					--n;
+			if (1U < n) {
+				--n;
+				if (n == count_cheap_spaces(row, col + 1U, n)) {
+					while (0U < n && col + 1U < c.query_w()) {
+						c.cur_at(row, ++col).untouch();
+						--n;
+					}
+				}
+			} else
+			if (1U == n) {
+				if (3U < toeol
+				&&  !out.caps.lacks_REP
+				&&  !marked
+				&&  !is_pointer
+				&&  (!out.caps.faulty_SP_REP || UnicodeCategorization::IsBMP(cell.character))
+				) {
+					const unsigned r(count_cheap_repeatable(row, col + 1U, toeol - 1U, cell.character));
+					if (3U < r) {
+						out.REP(r);
+						for (unsigned i(0U); i < r; ++i)
+							c.cur_at(row, ++col).untouch();
+						cursor_x += r;	// We are guaranteed no line wraps by toeol .
+					}
 				}
 			}
 		}
@@ -572,9 +705,51 @@ TUIOutputBase::write_changed_cells_to_output()
 }
 
 void
-TUIOutputBase::erase_new_to_backdrop () 
-{
-	for (unsigned short row(0U); row < c.query_h(); ++row)
-		for (unsigned short col(0U); col < c.query_w(); ++col)
-			c.poke(row, col, overscan_blank);
+TUIOutputBase::optimize_scroll_up(
+	unsigned short rows
+) {
+	const CursorSprite::attribute_type a(c.query_cursor_attributes());
+	if (CursorSprite::VISIBLE & a)
+		out.change_cursor_visibility(false);
+	GotoYX(0U, 0U);
+	for (unsigned row(0); row < rows; ++row)
+		out.reverse_index();
+	GotoYX(c.query_cursor_row(), c.query_cursor_col());
+	if (CursorSprite::VISIBLE & a)
+		out.change_cursor_visibility(true);
+	c.scroll_up(rows);
+	if ((out.caps.has_DECECM || !out.caps.initial_DECECM)	// i.e. does not always erase to default colour
+	&&  !out.caps.faulty_inverse_erase
+	) {
+		// RI scrolling sets erased cells to 0 attributes, by widespread tacit agreement.
+		TUIDisplayCompositor::DirtiableCell spc(SPC, 0, current);
+		for (unsigned row(0U); row < rows && row < c.query_h(); ++row)
+			for (unsigned col(0U); col < c.query_w(); ++col)
+				c.cur_at(row, col) = spc;
+	}
+}
+
+void
+TUIOutputBase::optimize_scroll_down(
+	unsigned short rows
+) {
+	const CursorSprite::attribute_type a(c.query_cursor_attributes());
+	if (CursorSprite::VISIBLE & a)
+		out.change_cursor_visibility(false);
+	GotoYX(c.query_h() - 1U, 0U);
+	for (unsigned row(0); row < rows; ++row)
+		out.forward_index();
+	GotoYX(c.query_cursor_row(), c.query_cursor_col());
+	if (CursorSprite::VISIBLE & a)
+		out.change_cursor_visibility(true);
+	c.scroll_down(rows);
+	if ((out.caps.has_DECECM || !out.caps.initial_DECECM)	// i.e. does not always erase to default colour
+	&&  !out.caps.faulty_inverse_erase
+	) {
+		// IND scrolling sets erased cells to 0 attributes, by widespread tacit agreement.
+		TUIDisplayCompositor::DirtiableCell spc(SPC, 0, current);
+		for (unsigned row(0U); row < rows && row < c.query_h(); ++row)
+			for (unsigned col(0U); col < c.query_w(); ++col)
+				c.cur_at(c.query_h() - 1U - row, col) = spc;
+	}
 }

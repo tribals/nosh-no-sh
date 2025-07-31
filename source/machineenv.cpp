@@ -24,7 +24,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-machineenv ( 
+machineenv (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -35,14 +35,13 @@ machineenv (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	machine_id::erase();
@@ -64,9 +63,7 @@ machineenv (
 #else
 	const long max(sysconf(_SC_HOST_NAME_MAX));
 	if (0 > max) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "HOST_NAME_MAX", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "HOST_NAME_MAX");
 	}
 	std::string name(max + 1, ' ');
 	gethostname(const_cast<char *>(name.data()), max + 1);

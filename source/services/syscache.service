@@ -4,11 +4,15 @@
 
 [Unit]
 Description=Undocumented PC-BSD/TrueOS service
+Description=WARNING: As of 2023, $p-daemon will automatically pull programs to run from a GitHub repository that PC-BSD/TrueOS has abandoned and left available for any random person to hijack.
 
 [Service]
 EnvironmentDirectory=env
 ExecStartPre=rm -f -- /run/%p.pipe
-ExecStart=%p-daemon
+# It is not safe to run this program any more.
+# See the full security announcement made on 2023-04-15 for details.
+#ExecStart=%p-daemon
+ExecStart=false
 
 [Install]
 WantedBy=workstation.target

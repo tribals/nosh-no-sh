@@ -10,6 +10,7 @@ Description=1-wire back-end server
 [Service]
 EnvironmentDirectory=env
 User=%p
+SessionLeader=yes
 ExecStart=%p --foreground --w1 ${flags}
 
 [Install]

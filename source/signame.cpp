@@ -44,6 +44,20 @@ signame (
 		case SIGQUIT:	return "QUIT";
 		case SIGSEGV:	return "SEGV";
 		case SIGFPE:	return "FPE";
-		default:	return 0;
+		case SIGTSTP:	return "TSTP";
+		case SIGCHLD:	return "CHLD";
+		case SIGTTIN:	return "TTIN";
+		case SIGTTOU:	return "TTOU";
+		case SIGWINCH:	return "WINCH";
+#if defined(SIGINFO)
+		case SIGINFO:	return "INFO";
+#endif
+		case SIGUSR1:	return "USR1";
+		case SIGUSR2:	return "USR2";
+		case SIGSTOP:	return "STOP";
+		case SIGCONT:	return "CONT";
+		case SIGIO:	return "IO";
+		case SIGURG:	return "URG";
+		default:	return nullptr;
 	}
 }

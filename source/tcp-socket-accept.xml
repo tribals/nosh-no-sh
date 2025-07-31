@@ -19,13 +19,13 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>tcp-socket-accept</command> 
-<arg choice='opt'>--verbose</arg> 
-<arg choice='opt'>--no-keepalives</arg> 
-<arg choice='opt'>--no-kill-IP-options</arg> 
-<arg choice='opt'>--no-delay</arg> 
-<arg choice='opt'>--connection-limit <replaceable>number</replaceable></arg> 
-<arg choice='opt'>--localname <replaceable>hostname</replaceable></arg> 
+<command>tcp-socket-accept</command>
+<arg choice='opt'>--verbose</arg>
+<arg choice='opt'>--no-keepalives</arg>
+<arg choice='opt'>--no-kill-IP-options</arg>
+<arg choice='opt'>--no-delay</arg>
+<arg choice='opt'>--connection-limit <replaceable>number</replaceable></arg>
+<arg choice='opt'>--localname <replaceable>hostname</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -33,8 +33,8 @@
 <refsection><title>Description</title>
 
 <para>
-<command>tcp-socket-accept</command> expects file descriptor 3 to be a socket that has been set up with <citerefentry><refentrytitle>tcp-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> to listen for incoming TCP connections.
-It loops forever, accepting TCP connections and (for each such connection) spawning <replaceable>next-prog</replaceable>, closing the listening socket in the child process and setting the connected socket as the child process' standard input and standard output.
+<command>tcp-socket-accept</command> expects to inherit 1 or more sockets that have been set up to listen for incoming TCP connections, as done by <citerefentry><refentrytitle>tcp-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+It loops forever, accepting TCP connections and (for each such connection) spawning <replaceable>next-prog</replaceable>, closing the listening socket(s) in the child process and setting the connected socket as the child process' standard input and standard output.
 </para>
 
 <para>
@@ -42,21 +42,60 @@ It loops forever, accepting TCP connections and (for each such connection) spawn
 </para>
 
 <para>
-Following the UCSPI conventions, <command>tcp-socket-accept</command> sets up several environment variables containing information about the TCP connection.
+If the <arg choice='plain'>--verbose</arg> option is used, <command>tcp-socket-accept</command> logs information about processes spawned and the current and maximum number of connections.
+The latter is set with the <arg choice='plain'>--connection-limit</arg> option, which defaults to 40.
+If it is reached, <command>tcp-socket-accept</command> stops accepting new connections until one or more child processes exit.
+<command>tcp-socket-accept</command> always limits the number of connections, and has no notion of an "unlimited" number of connections.
+(Whilst it is not accepting connections, the kernel will build up a backlog of unaccepted connections until the listening socket's backlog limit, specified by whatever opened the socket for <command>tcp-socket-accept</command>, is reached.)
+</para>
+
+<para>
+The <arg choice='plain'>--no-keepalives</arg>, <arg choice='plain'>--no-kill-IP-options</arg>, and <arg choice='plain'>--no-delay</arg> command line options set options on the accepted sockets.
+The first disables the use of TCP keepalive probes (which are used by default to ensure that dead connections are noticed and eliminated); the second permits IP options (which are removed by default) so that clients can set source routes; and the third disables the "Nagle" delay algorithm used for slow clients.
+</para>
+
+<refsection><title>Listening socket conventions</title>
+
+<para>
+There are no UCSPI conventions for listening sockets before a connection has been accepted.
+<command>tcp-socket-accept</command> follows the systemd convention, falling back on a daemontools-like default.
+</para>
+
+<para>
+If the <envar>LISTEN_PID</envar> environment variable is set, if its value is parseable as a (decimal) number, if that number is the process ID of the <command>tcp-socket-accept</command> process, if the <envar>LISTEN_FDS</envar> environment variable is set, and if its value is parseable as a (positive decimal) number <replaceable>n</replaceable>: then the listening sockets are taken to be file descriptors 3 up to but not including 3+<replaceable>n</replaceable>.
+(It is an error for there to be zero listening file descriptors.)
+Otherwise file descriptor 3 is taken unconditionally to be the single listening open file descriptor.
+</para>
+
+<para>
+<command>tcp-socket-accept</command> unconditionally unsets the <envar>LISTEN_PID</envar>, <envar>LISTEN_FDS</envar>, and <envar>LISTEN_FDNAMES</envar> environment variables after it has determined what the open file descriptors to use are.
+</para>
+
+</refsection>
+
+<refsection><title>UCSPI (specifically UCSPI-TCP) conventions</title>
+
+<para>
+<replaceable>next-prog</replaceable> is expected to follow the UCSPI conventions: its standard input and output are the connected socket, which it should treat as generic I/O streams and not expect to be a socket, and information about the local and remote ends of the connected socket is in environment variables.
+</para>
+
+<para>
+In the child process, <command>tcp-socket-accept</command> closes all of the listening sockets.
+It obtains information about the local socket connection, using the <citerefentry><refentrytitle><code>getpeername</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> and <citerefentry><refentrytitle><code>getsockname</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> library functions, and sets up the conventional UCSPI-TCP environment variables as follows:
 </para>
 
 <variablelist>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>PROTO</envar>
 </term><listitem>
 <para>
-This always has the value <code>TCP</code>.
+This always has the value <code>TCP</code>, indicating the prefix to the names of the remaining environment variables.
 </para>
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPLOCALIP</envar>
 </term><listitem>
 <para>
@@ -65,7 +104,7 @@ The local (server) IP address of the accepted socket, in human-readable form.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPLOCALPORT</envar>
 </term><listitem>
 <para>
@@ -74,7 +113,7 @@ The local (server) port number of the accepted socket.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPLOCALHOST</envar>
 </term><listitem>
 <para>
@@ -83,7 +122,7 @@ The value of <replaceable>hostname</replaceable> set by the <arg>--localname</ar
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEIP</envar>
 </term><listitem>
 <para>
@@ -92,7 +131,7 @@ The remote (client) IP address of the accepted socket, in human-readable form.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEPORT</envar>
 </term><listitem>
 <para>
@@ -101,7 +140,7 @@ The remote (client) port number of the accepted socket.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEINFO</envar>
 </term><listitem>
 <para>
@@ -110,7 +149,7 @@ Guaranteed unset.
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>TCPREMOTEHOST</envar>
 </term><listitem>
 <para>
@@ -121,33 +160,31 @@ Guaranteed unset.
 
 </variablelist>
 
-<para>
-If the <arg choice='plain'>--verbose</arg> option is used, <command>tcp-socket-accept</command> logs information about processes spawned and the current and maximum number of connections.
-The latter is set with the <arg choice='plain'>--connection-limit</arg> option, which defaults to 40.
-If it is reached, <command>tcp-socket-accept</command> stops accepting new connections until one or more child processes exit.
-<command>tcp-socket-accept</command> always limits the number of connections, and has no notion of an "unlimited" number of connections.
-</para>
+<warning>
+In the 21st century Internet, remote user account information and even host name information are attacker-supplied data and <emphasis>must not</emphasis> be expected by a UCSPI-TCP server, let alone relied upon.
+Even attempting to find out such information can involve contacting potentially malicious servers.
+<command>tcp-socket-accept</command> performs no lookups for such information.
+</warning>
 
-<para>
-The <arg choice='plain'>--no-keepalives</arg>, <arg choice='plain'>--no-kill-IP-options</arg>, and <arg choice='plain'>--no-delay</arg> command line options set options on the accepted sockets.
-The first disables the use of TCP keepalive probes (which are used by default to ensure that dead connections are noticed and eliminated); the second permits IP options (which are removed by default) so that clients can set source routes; and the third disables the "Nagle" delay algorithm used for slow clients.
-</para>
+</refsection>
 
 </refsection><refsection><title>USAGE</title>
 
 <para>
-<command>tcp-socket-accept</command> can be used 
+<command>tcp-socket-accept</command> can be used
+</para>
 <itemizedlist>
-<listitem>
+<listitem><para>
 as a "socket-activated" d&#xe6;mon monitored by <citerefentry><refentrytitle>systemd</refentrytitle><manvolnum>1</manvolnum></citerefentry> (with the systemd-recommended <code>Accept=false</code>),
-</listitem>
-<listitem>
+</para></listitem>
+<listitem><para>
 as a d&#xe6;mon started by <citerefentry><refentrytitle>inetd</refentrytitle><manvolnum>1</manvolnum></citerefentry> (with <code>wait</code> and as long as it is chained via <code>fdmove 0 3</code>), and
-</listitem>
-<listitem>
+</para></listitem>
+<listitem><para>
 as a simple d&#xe6;mon chained from <citerefentry><refentrytitle>tcp-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> and monitored by <citerefentry><refentrytitle>service-manager</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-</listitem>
+</para></listitem>
 </itemizedlist>
+<para>
 Together, <command>tcp-socket-accept</command> and <citerefentry><refentrytitle>tcp-socket-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> replace <citerefentry><refentrytitle>tcpserver</refentrytitle><manvolnum>1</manvolnum></citerefentry> from ucspi-tcp.
 </para>
 

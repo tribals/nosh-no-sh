@@ -5,7 +5,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #include <vector>
 #include <cstddef>
-#include "utils.h"
+#include "builtins.h"
 
 /* Table of commands ********************************************************
 // **************************************************************************
@@ -13,6 +13,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 // These are the built-in commands visible in the statically linked system-manager.
 
+extern void builtins ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void reboot_poweroff_halt_command ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void emergency_rescue_normal_command ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void isolate ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
@@ -25,10 +26,14 @@ extern void system_manager ( const char * & , std::vector<const char *> &, Proce
 extern void service_manager ( const char * & , std::vector<const char *> &, ProcessEnvironment & ) ;
 extern void move_to_control_group ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void set_control_group_knob ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void system_version ( const char * & , std::vector<const char *> &, ProcessEnvironment & );
 
-extern const
-struct command 
+const
+struct command
 commands[] = {
+	{	"builtins",			builtins		},
+	{	"version",			system_version		},
+
 	// These are spawned by system-manager.
 	{	"service-manager",		service_manager		},
 	{	"system-control",		system_control		},
@@ -48,11 +53,11 @@ commands[] = {
 };
 const std::size_t num_commands = sizeof commands/sizeof *commands;
 
-extern const
-struct command 
+const
+struct command
 personalities[] = {
 	{	"system-manager",	system_manager		},
-	{	"init",			system_manager,		},
+	{	"init",			system_manager		},
 	{	"systemd",		system_manager		},
 };
 const std::size_t num_personalities = sizeof personalities/sizeof *personalities;

@@ -5,10 +5,10 @@
 [Unit]
 Description=Common Unix Printing Service daemon
 # This is because CUPS needs to have a device re-scan done after it has started up.
-Before=udev-trigger-add@devices.service udev-trigger-add@subsystems.service
-Before=busybox-mdev-rescan.service
-Before=suckless-mdev-rescan.service
-Before=mdevd-rescan.service
+After=plug-and-play-manager.target
+Wants=plug-and-play-manager.target
+Before=plug-and-play-rescan-pre.target
+Wants=plug-and-play-rescan-pre.target
 
 [Service]
 RuntimeDirectory=cups

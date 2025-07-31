@@ -7,6 +7,7 @@ Description=Hue HTTP content server
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/lib/%p
 ExecStart=./build/env/bin/%p runcherrypyserver
 PrivateTmp=true

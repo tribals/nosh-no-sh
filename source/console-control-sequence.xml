@@ -26,13 +26,16 @@
 <command>console-control-sequence</command>
 <arg choice='opt'>--7bit</arg>
 <arg choice='opt'>--8bit</arg>
-<arg choice='opt'>--permit-fake-truecolour</arg> 
+<arg choice='opt'>--permit-fake-truecolour</arg>
 <arg choice='opt'>--foreground <replaceable>colour</replaceable></arg>
 <arg choice='opt'>--background <replaceable>colour</replaceable></arg>
 <arg choice='opt'>--bold <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--faint <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--italic <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--underline <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--overline <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--encircle <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--frame <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--blink <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--reverse <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--invisible <replaceable>boolean</replaceable></arg>
@@ -42,37 +45,45 @@
 <arg choice='opt'>--appcalckeys <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--altbuffer <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--backspace-is-bs <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--escape-is-fs <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--delete-is-del <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--bce <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--linewrap <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--inversescreen <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--insert <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--square <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--sco-function-keys <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--dec-function-keys <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--teken-function-keys <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--132-columns <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--regtabs <replaceable>interval</replaceable></arg>
 <arg choice='opt'>--settabs <replaceable>tabstops</replaceable></arg>
 <arg choice='opt'>--clrtabs <replaceable>tabstops</replaceable></arg>
-<arg choice='opt'>--notabs</arg> 
+<arg choice='opt'>--notabs</arg>
 <arg choice='opt'>--rows <replaceable>count</replaceable></arg>
 <arg choice='opt'>--columns <replaceable>count</replaceable></arg>
 <arg choice='opt'>--dec-locator-reports <group choice='req'><arg choice='plain'>off</arg><arg choice='plain'>press</arg><arg choice='plain'>release</arg><arg choice='plain'>all</arg></group></arg>
 <arg choice='opt'>--xterm-mouse-reports <group choice='req'><arg choice='plain'>off</arg><arg choice='plain'>click</arg><arg choice='plain'>drag</arg><arg choice='plain'>all</arg></group></arg>
-<arg choice='opt'>--cursor-shape <group choice='req'><arg choice='plain'>default</arg><arg choice='plain'>block</arg><arg choice='plain'>underline</arg><arg choice='plain'>star</arg><arg choice='plain'>box</arg><arg choice='plain'>bar</arg></group></arg>
-<arg choice='opt'>--underline-type <group choice='req'><arg choice='plain'>single</arg><arg choice='plain'>double</arg><arg choice='plain'>curly</arg><arg choice='plain'>dotted</arg><arg choice='plain'>dashed</arg></group></arg>
-<arg choice='opt'>--reset</arg> 
-<arg choice='opt'>--soft-reset</arg> 
-<arg choice='opt'>--showtabs</arg> 
+<arg choice='opt'>--cursor-shape <group choice='req'><arg choice='plain'>default</arg><arg choice='plain'>block</arg><arg choice='plain'>underline</arg><arg choice='plain'>star</arg><arg choice='plain'>box</arg><arg choice='plain'>bar</arg><arg choice='plain'>underover</arg><arg choice='plain'>mirrorl</arg></group></arg>
+<arg choice='opt'>--underline-type <group choice='req'><arg choice='plain'>single</arg><arg choice='plain'>double</arg><arg choice='plain'>curly</arg><arg choice='plain'>dotted</arg><arg choice='plain'>dashed</arg><arg choice='plain'>ldashed</arg><arg choice='plain'>lldashed</arg><arg choice='plain'>ldotted</arg><arg choice='plain'>lldotted</arg><arg choice='plain'>lcurly</arg></group></arg>
+<arg choice='opt'>--reset</arg>
+<arg choice='opt'>--soft-reset</arg>
+<arg choice='opt'>--showtabs</arg>
 </cmdsynopsis>
 <cmdsynopsis>
 <command>setterm</command>
-<arg choice='opt'>--7bit</arg> 
-<arg choice='opt'>--8bit</arg> 
-<arg choice='opt'>--permit-fake-truecolour</arg> 
+<arg choice='opt'>--7bit</arg>
+<arg choice='opt'>--8bit</arg>
+<arg choice='opt'>--permit-fake-truecolour</arg>
 <arg choice='opt'>--foreground <replaceable>colour</replaceable></arg>
 <arg choice='opt'>--background <replaceable>colour</replaceable></arg>
 <arg choice='opt'>--bold <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--faint <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--italic <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--underline <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--overline <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--encircle <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--frame <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--blink <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--reverse <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--invisible <replaceable>boolean</replaceable></arg>
@@ -82,24 +93,30 @@
 <arg choice='opt'>--appcalckeys <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--altbuffer <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--backspace-is-bs <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--escape-is-fs <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--delete-is-del <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--bce <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--linewrap <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--inversescreen <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--insert <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--square <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--sco-function-keys <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--dec-function-keys <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--teken-function-keys <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--132-columns <replaceable>boolean</replaceable></arg>
 <arg choice='opt'>--regtabs <replaceable>interval</replaceable></arg>
 <arg choice='opt'>--settabs <replaceable>tabstops</replaceable></arg>
 <arg choice='opt'>--clrtabs <replaceable>tabstops</replaceable></arg>
-<arg choice='opt'>--notabs</arg> 
+<arg choice='opt'>--notabs</arg>
 <arg choice='opt'>--rows <replaceable>count</replaceable></arg>
 <arg choice='opt'>--columns <replaceable>count</replaceable></arg>
 <arg choice='opt'>--dec-locator-reports <group choice='req'><arg choice='plain'>off</arg><arg choice='plain'>press</arg><arg choice='plain'>release</arg><arg choice='plain'>all</arg></group></arg>
 <arg choice='opt'>--xterm-mouse-reports <group choice='req'><arg choice='plain'>off</arg><arg choice='plain'>click</arg><arg choice='plain'>drag</arg><arg choice='plain'>all</arg></group></arg>
-<arg choice='opt'>--cursor-shape <group choice='req'><arg choice='plain'>default</arg><arg choice='plain'>block</arg><arg choice='plain'>underline</arg><arg choice='plain'>star</arg><arg choice='plain'>box</arg><arg choice='plain'>bar</arg></group></arg>
-<arg choice='opt'>--underline-type <group choice='req'><arg choice='plain'>single</arg><arg choice='plain'>double</arg><arg choice='plain'>curly</arg><arg choice='plain'>dotted</arg><arg choice='plain'>dashed</arg></group></arg>
-<arg choice='opt'>--reset</arg> 
-<arg choice='opt'>--soft-reset</arg> 
-<arg choice='opt'>--showtabs</arg> 
+<arg choice='opt'>--cursor-shape <group choice='req'><arg choice='plain'>default</arg><arg choice='plain'>block</arg><arg choice='plain'>underline</arg><arg choice='plain'>star</arg><arg choice='plain'>box</arg><arg choice='plain'>bar</arg><arg choice='plain'>underover</arg><arg choice='plain'>mirrorl</arg></group></arg>
+<arg choice='opt'>--underline-type <group choice='req'><arg choice='plain'>single</arg><arg choice='plain'>double</arg><arg choice='plain'>curly</arg><arg choice='plain'>dotted</arg><arg choice='plain'>dashed</arg><arg choice='plain'>ldashed</arg><arg choice='plain'>lldashed</arg><arg choice='plain'>ldotted</arg><arg choice='plain'>lldotted</arg><arg choice='plain'>lcurly</arg></group></arg>
+<arg choice='opt'>--reset</arg>
+<arg choice='opt'>--soft-reset</arg>
+<arg choice='opt'>--showtabs</arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -113,8 +130,11 @@
 <para>
 Although its behaviour is controlled by the <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry> environment variable, it does not use <citerefentry><refentrytitle>terminfo</refentrytitle><manvolnum>3</manvolnum></citerefentry> or <citerefentry><refentrytitle>termcap</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
 It instead uses <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
-The terminal type determines a few terminal capabilities (such as whether the terminal can actually handle DEC private mode control sequences at all, and its degree of ISO 8613-6 support), but most processing adheres to the ECMA-48 and ISO 8613-6 de jure standard control sequences and the DEC VT, DTTerm, and AIXTerm de facto standard ones.
+The terminal type determines a few terminal capabilities (such as whether the terminal can actually handle DEC private mode control sequences at all, and its degree of ISO 8613-6/ITU T.416 support), but most processing adheres to the ECMA-48 and ISO 8613-6/ITU T.416 de jure standard control sequences and the DEC VT, DTTerm, and AIXTerm de facto standard ones.
 </para>
+
+<refsection id="ControlSequences" xreflabel="ControlSequences">
+<title>Control sequences</title>
 
 <para>
 It emits simple terminal control sequences (ECMA-48 and DEC VT names in parentheses), as follows:
@@ -176,6 +196,33 @@ Set underline on/off according to <replaceable>boolean</replaceable>.
 </varlistentry>
 <varlistentry>
 <term>
+<arg choice='plain'>--frame <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(SGR 51 and SGR 53)
+Set framed characters on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<arg choice='plain'>--encircle <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(SGR 2 and SGR 53)
+Set encircled characters on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<arg choice='plain'>--overline <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(SGR 53 and SGR 55)
+Set overline on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
 <arg choice='plain'>--blink <replaceable>boolean</replaceable></arg>
 </term>
 <listitem><para>
@@ -233,7 +280,7 @@ Set cursor keypad sending application mode sequences on/off according to <replac
 <arg choice='plain'>--appcalckeys <replaceable>boolean</replaceable></arg>
 </term>
 <listitem><para>
-(DECNKM)
+(DECNKM, DECKPAM, DECKPNM)
 Set calculator keypad sending application mode sequences on/off according to <replaceable>boolean</replaceable>.
 </para></listitem>
 </varlistentry>
@@ -251,7 +298,16 @@ Switch to/from the XTerm alternate screen buffer according to <replaceable>boole
 </term>
 <listitem><para>
 (DECBKM)
-Set the Backspace key sending BS (instead of DEL) on/off according to <replaceable>boolean</replaceable>.
+Set the <keycap>&#x232b;&#160;Backspace</keycap> key sending BS (instead of DEL) on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<arg choice='plain'>--escape-is-fs <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(DECSM, DECRM)
+Set the <keycap>&#x238b;&#160;Escape</keycap> key(s) sending FS (instead of ESC) on/off according to <replaceable>boolean</replaceable>.
 </para></listitem>
 </varlistentry>
 <varlistentry>
@@ -260,7 +316,7 @@ Set the Backspace key sending BS (instead of DEL) on/off according to <replaceab
 </term>
 <listitem><para>
 (DECSM, DECRM)
-Set the Delete key(s) sending DEL (instead of DECFNK 3) on/off according to <replaceable>boolean</replaceable>.
+Set the <keycap>&#x2326;&#160;Delete</keycap> key(s) sending DEL (instead of DECFNK 3) on/off according to <replaceable>boolean</replaceable>.
 </para></listitem>
 </varlistentry>
 <varlistentry>
@@ -304,8 +360,35 @@ Set insert (not overstrike) on/off according to <replaceable>boolean</replaceabl
 <arg choice='plain'>--square <replaceable>boolean</replaceable></arg>
 </term>
 <listitem><para>
-(DEC Private Mode 1369)
+(SCO Private Mode 1)
 Set square (not oblong) mode on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<arg choice='plain'>--dec-function-keys <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(SCO Private Mode 2)
+Set the use of DEC function key sequences on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<arg choice='plain'>--sco-function-keys <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(SCO Private Mode 3)
+Set the use of SCO function key sequences on/off according to <replaceable>boolean</replaceable>.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>
+<arg choice='plain'>--teken-function-keys <replaceable>boolean</replaceable></arg>
+</term>
+<listitem><para>
+(SCO Private Mode 4)
+Set the use of Teken function key sequences on/off according to <replaceable>boolean</replaceable>.
 </para></listitem>
 </varlistentry>
 <varlistentry>
@@ -392,7 +475,7 @@ PuTTY
 <listitem><para>
 the Linux kernel built-in terminal emulator
 </para><para>
-<ulink url="http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=f8df13e0a901fe55631fed66562369b4dba40f8b">This extension was added in 2011</ulink>, albeit erroneously, differing from the long-standing XTerm and PuTTY semantics of clearing <emphasis>only</emphasis> the scrollback buffer.
+<ulink url="http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=f8df13e0a901fe55631fed66562369b4dba40f8b">This extension was added in 2011 by Petr Písař</ulink>, albeit erroneously, differing from the long-standing XTerm and PuTTY semantics of clearing <emphasis>only</emphasis> the scrollback buffer.
 </para></listitem>
 </itemizedlist>
 </listitem>
@@ -411,14 +494,14 @@ In the latter case, it rounds <arg choice="plain"><replaceable>count</replaceabl
 <para>
 It then resets the top and bottom margins to the screen borders using the DECSTBM control sequence.
 </para>
-<para>
-Note that some shells issue an ED 0 control sequence as part of their prompt, which has the (perhaps unexpected) effect of clearing the screen if a shell prompt is issued immediately after the terminal has been resized.
-</para>
+<note>
+Some shells issue an ED 0 control sequence as part of their prompt, which has the (perhaps unexpected) effect of clearing the screen if a shell prompt is issued immediately after the terminal has been resized.
+</note>
 <para>
 DECSTBM is supported by the DEC VT100 and later.
 DECSLPP is supported by the DEC VT340 and later.
 DECSNLS is supported by the DEC VT420 and later.
-The Linux and FreeBSD/TrueOS kernel virtual terminal subsystems do not support any of these control sequences.
+The Linux and FreeBSD kernel virtual terminal subsystems do not support any of these control sequences.
 <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> supports all three.
 </para>
 <para>
@@ -448,7 +531,7 @@ If the <arg choice='plain'>--rows</arg> command line option is used as well and 
 <para>
 DECSCPP is supported by the DEC VT340 and later.
 DECSLRM is supported by the DEC VT420 and later.
-The Linux and FreeBSD/TrueOS kernel virtual terminal subsystems do not support either of these control sequences.
+The Linux and FreeBSD kernel virtual terminal subsystems do not support either of these control sequences.
 <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> supports both.
 </para></listitem>
 </varlistentry>
@@ -477,43 +560,56 @@ This thus does nothing if the terminal type is not known to support the ECMA-48-
 </varlistentry>
 <varlistentry>
 <term>
-<arg choice='plain'>--cursor-shape <group choice='req'><arg choice='plain'>default</arg><arg choice='plain'>block</arg><arg choice='plain'>underline</arg><arg choice='plain'>star</arg><arg choice='plain'>box</arg><arg choice='plain'>bar</arg></group></arg>
+<arg choice='plain'>--cursor-shape <group choice='req'><arg choice='plain'>default</arg><arg choice='plain'>block</arg><arg choice='plain'>underline</arg><arg choice='plain'>star</arg><arg choice='plain'>box</arg><arg choice='plain'>bar</arg><arg choice='plain'>underover</arg><arg choice='plain'>mirrorl</arg></group></arg>
 </term>
 <listitem><para>
 (DESCUSR and LINXSCUSR)
 Specify the shape of the cursor.
-Some terminals and terminal emulators do not have distinct shapes for star, box, and bar.
+Some terminals and terminal emulators do not have distinct shapes for star, box, bar, underover, or mirrorl.
 </para></listitem>
 </varlistentry>
 <varlistentry>
 <term>
-<arg choice='plain'>--underline-type <group choice='req'><arg choice='plain'>single</arg><arg choice='plain'>double</arg><arg choice='plain'>curly</arg><arg choice='plain'>dotted</arg><arg choice='plain'>dashed</arg></group></arg>
+<arg choice='plain'>--underline-type <group choice='req'><arg choice='plain'>single</arg><arg choice='plain'>double</arg><arg choice='plain'>curly</arg><arg choice='plain'>dotted</arg><arg choice='plain'>dashed</arg><arg choice='plain'>ldashed</arg><arg choice='plain'>lldashed</arg><arg choice='plain'>ldotted</arg><arg choice='plain'>lldotted</arg><arg choice='plain'>lcurly</arg></group></arg>
 </term>
 <listitem><para>
 Specify the type of underlining for SGR 4 (i.e. <arg choice='plain'>--underline on</arg>).
 This sets an SGR sub-parameter which only a few terminal emulator programs yet recognize or even correctly process.
 Even of those, few yet implement all types of underline.
-<citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> does not yet support this sub-parameter, but will at least correctly ignore it.
+<citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> supports this sub-parameter.
 </para></listitem>
 </varlistentry>
-<varlistentry>
+<varlistentry id="Reset" xreflabel="Reset">
 <term>
-<arg choice='plain'>--reset</arg> 
+<arg choice='plain'>--reset</arg>
 </term>
 <listitem><para>
 (RIS)
-Reset the terminal to its initial state.
+Reset the terminal to its initial state, including the serial communications, and run self-tests.
+</para>
+<caution>
+Do not use this.
+Use <arg choice='plain'>--soft-reset</arg> for preference.
+DEC internal documentation stated that <quote>conforming software will not use the RIS control</quote> and <quote>it is not intended for use by conforming software</quote> in the early 1980s.
+</caution>
+<para>
+As the DEC VT420 programmers' reference manual notes, RIS is usually overkill.
+On a real terminal, it resets the serial communications line from the terminal end and will as a result look like a terminal hangup to the host.
+<arg choice='plain'>--soft-reset</arg> does not affect the serial communications.
 </para>
 <para>
-As the DEC VT420 programmers' reference manual notes, this is usually overkill.
-On a real terminal, it resets the serial communications line from the terminal end and will as a result look like a terminal hangup to the host.
-Use <arg choice='plain'>--soft-reset</arg> for preference.
-That does not affect the serial communications.
+Moreover, the RIS control sequence invokes what is known as "implied XOFF".
+To use it <emphasis>correctly</emphasis>, an application must put the line discipline into XOFF-received mode, so that it does not lose output by sending it while the terminal is resetting.
+This is not actually possible with terminal I/O on Linux or the BSDs, and it is not possible to use RIS completely correctly.
+<arg choice='plain'>--soft-reset</arg> does not invoke "implied XOFF".
+</para>
+<para>
+This is not a match for POSIX terminal I/O, and its use has been proscribed for decades.
 </para></listitem>
 </varlistentry>
 <varlistentry>
 <term>
-<arg choice='plain'>--soft-reset</arg> 
+<arg choice='plain'>--soft-reset</arg>
 </term>
 <listitem><para>
 (DECSTR)
@@ -522,19 +618,38 @@ Soft reset the terminal, if the terminal type is known to support it (<citerefen
 </varlistentry>
 <varlistentry>
 <term>
-<arg choice='plain'>--showtabs</arg> 
+<arg choice='plain'>--showtabs</arg>
 </term>
 <listitem><para>
 Output a ruler line followed by a line showing where each tabstop is (generated by emitting TAB characters to move to each tabstop).
 If the lines do not appear properly, this is usually a symptom of the terminal emulator not correctly processing C1 control characters such as the NEL used at the end of the lines.
-Terminal output width is determined from the value of the <envar>COLUMNS</envar> environment variable if it is set (per the Single Unix Specification which requires that it take precedence), or failing that determined from the line discipline if standard output is a terminal device, or assumed to be 160 characters otherwise.
 </para></listitem>
 </varlistentry>
 </variablelist>
 
+</refsection>
+
+<refsection id="LineDisciplines" xreflabel="LineDisciplines">
+<title>Use of line disciplines</title>
+
+<para>
+Terminal output width is determined from the value of the <envar>COLUMNS</envar> environment variable if it is set, per the Single Unix Specification which requires that it take precedence.
+Failing that, it is determined from the line discipline if standard output is a terminal device, or assumed to be 160 characters otherwise.
+</para>
+
 <para>
 Other than assuming a fixed output width, this command makes no attempt to behave differently if its output is not to a terminal, since one might want to use it to generate the control sequences to send to a file, a pipe, or a non-terminal device.
 </para>
+
+<para>
+For real terminals, it is necessary to tell the line discipline about size changes with a separate invocation of the <citerefentry><refentrytitle>stty</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
+Virtual terminals connect the line discipline to the emulator, through back channels that do not exist with real terminals, and the control sequences to change the emulator's idea of the display size will also change the line discipline's idea automatically.
+</para>
+
+</refsection>
+
+<refsection id="CharacterSets" xreflabel="CharacterSets">
+<title>Character sets</title>
 
 <para>
 If the <arg choice='plain'>--7bit</arg> command-line option is used, the various C1 control characters (CSI, HTS, NEL, and so forth) are sent using the ECMA-48 7-bit encoding scheme.
@@ -556,6 +671,8 @@ PuTTY requires the <arg choice='plain'>--7bit</arg> option be used as it does no
 </para></listitem>
 </itemizedlist>
 
+</refsection>
+
 <refsection id="GraphicRendition" xreflabel="GraphicRendition">
 <title>Colours and attributes</title>
 
@@ -568,16 +685,18 @@ The default <replaceable>colour</replaceable> is named <arg choice='plain'>defau
 The 16 standard colours can be specified by RGBCMYK names such as <arg choice='plain'>bright red</arg>, <arg choice='plain'>white</arg>, and <arg choice='plain'>yellow</arg>.
 Colour 7 is <arg choice='plain'>white</arg> or <arg choice='plain'>bright grey</arg>.
 Colour 8 is <arg choice='plain'>grey</arg> or <arg choice='plain'>bright black</arg>.
-Indexed colours can be specified by their index numbers, such as <arg choice='plain'>188</arg>.
-Note that hexadecimal and octal numbers are permitted, so care must be taken with leading zeroes.
 Direct RGB colours can be specified by <code>#</code> followed by the RGB value in hexadecimal, such as <arg choice='plain'>#00B0E815</arg>.
+Indexed colours can be specified by their index numbers, such as <arg choice='plain'>188</arg>.
 </para>
+<note>
+Hexadecimal and octal numbers are permitted in index number, so care must be taken with leading zeroes.
+</note>
 
 <para>
-If the terminal type is known to not support ISO 8613-6 Direct colour at all or is known to fake support by mapping 24-bit RGB colours to entries in their 8-bit colour palettes, <command>console-control-sequence</command> maps the RGB value to the nearest indexed colour value and uses ISO 8613-6 Indexed colour.
+If the terminal type is known to not support ISO 8613-6/ITU T.416 Direct colour at all or is known to fake support by mapping 24-bit RGB colours to entries in their 8-bit colour palettes, <command>console-control-sequence</command> maps the RGB value to the nearest indexed colour value and uses ISO 8613-6/ITU T.416 Indexed colour.
 It assumes a conventional palette with a 24 value greyscale and a 6&#x00D7;6&#x00D7;6 colour cube (the same as implemented in <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> for Indexed colour).
-Setting the first 16 ISO 8613-6 Indexed colours is done with the newer control sequences, not with the 16 ECMA-48 and aixterm standard colour ones.
-The <arg choice='plain'>--permit-fake-truecolour</arg> command-line option permits the use of ISO 8613-6 Direct colour control sequences even on terminals which are known to fake it.
+Setting the first 16 ISO 8613-6/ITU T.416 Indexed colours is done with the newer control sequences, not with the 16 ECMA-48 and AIXTerm standard colour ones.
+The <arg choice='plain'>--permit-fake-truecolour</arg> command-line option permits the use of ISO 8613-6/ITU T.416 Direct colour control sequences even on terminals which are known to fake it.
 </para>
 
 </refsection>
@@ -605,10 +724,10 @@ The <arg choice='plain'>--permit-fake-truecolour</arg> command-line option permi
 <refsection><title>de facto</title>
 <itemizedlist>
 <listitem><para>
-<ulink url="http://vaxhaven.com/images/5/55/EK-VT420-RM-002.pdf"><citetitle>VT520/VT525 Video Terminal Programmer Information</citetitle> <citebiblioid>EK-VT520-RM</citebiblioid></ulink> July 1994.  Digital.
+<ulink url="http://vaxhaven.com/images/e/ee/EK-VT520-RM-A01.pdf"><citetitle>VT520/VT525 Video Terminal Programmer Information</citetitle> <citebiblioid>EK-VT520-RM</citebiblioid></ulink> July 1994.  Digital.
 </para></listitem>
 <listitem><para>
-<ulink url="http://vaxhaven.com/images/e/ee/EK-VT520-RM-A01.pdf"><citetitle>VT420 Programmer Reference Manual</citetitle> <citebiblioid>EK-VT420-RM-002</citebiblioid></ulink> February 1992. Digital.
+<ulink url="http://vaxhaven.com/images/5/55/EK-VT420-RM-002.pdf"><citetitle>VT420 Programmer Reference Manual</citetitle> <citebiblioid>EK-VT420-RM-002</citebiblioid></ulink> February 1992. Digital.
 </para></listitem>
 </itemizedlist>
 </refsection>
@@ -634,7 +753,7 @@ To simplify the command-line option parsing, displaying the tabstops and ruler i
 Similarly, clearing all tabs is the remit of a distinct <arg choice='plain'>--notabs</arg> option.
 </para></listitem>
 <listitem><para>
-This command supports the additional 8 (de facto) standard colours (that originated with aixterm), and uses ISO 8613-6 Indexed and ISO 8613-6 Direct colour control sequences.
+This command supports the additional 8 (de facto) standard colours (that originated with AIXTerm), and uses ISO 8613-6/ITU T.416 Indexed and ISO 8613-6/ITU T.416 Direct colour control sequences.
 </para></listitem>
 <listitem><para>
 No such concept as "underline colour" or "boldface colour" is recognized.

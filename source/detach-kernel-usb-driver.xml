@@ -22,20 +22,20 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>detach-kernel-usb-driver</command> 
-<arg choice='req' rep='repeat'><replaceable>filename</replaceable></arg> 
+<command>detach-kernel-usb-driver</command>
+<arg choice='req' rep='repeat'><replaceable>filename</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsection><title>Description</title>
 
 <para>
-<command>detach-kernel-usb-driver</command> opens the device files <replaceable>filename</replaceable>, which is assumed to be a Generic USB (<citerefentry><refentrytitle>ugen</refentrytitle><manvolnum>4</manvolnum></citerefentry>) device, and instructs the kernel to detach its other device drivers from the device with the <citerefentry><refentrytitle>ioctl</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>detach-kernel-usb-driver</command> opens the device files <replaceable>filename</replaceable>, which is assumed to be a Generic USB (<citerefentry><refentrytitle>ugen</refentrytitle><manvolnum>4</manvolnum></citerefentry>) device, and instructs the kernel to detach its other device drivers from the device with the <citerefentry><refentrytitle>ioctl</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 The usual use of the command is to prevent the kernel from automatically adding a USB keyboard  or mouse to the set of devices constituting the primary user station, so that it can be employed for another user station.
 </para>
 
 <para>
-On kernels where this is configured, which includes TrueOS kernels, the kernel detects the appearance of a USB HID device and automatically attaches a <citerefentry><refentrytitle>ums</refentrytitle><manvolnum>4</manvolnum></citerefentry> or a <citerefentry><refentrytitle>ukbd</refentrytitle><manvolnum>4</manvolnum></citerefentry> device to it.
+On kernels where this is configured, the kernel detects the appearance of a USB HID device and automatically attaches a <citerefentry><refentrytitle>ums</refentrytitle><manvolnum>4</manvolnum></citerefentry> or a <citerefentry><refentrytitle>ukbd</refentrytitle><manvolnum>4</manvolnum></citerefentry> device to it.
 Plug and Play manager rules, in response to these devices, cause instances of <citerefentry><refentrytitle>moused</refentrytitle><manvolnum>1</manvolnum></citerefentry> to be started for each HID mouse and cause each HID keyboard to be attached to the primary user station and the kernel virtual terminals.
 </para>
 

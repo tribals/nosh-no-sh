@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="cin">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>cin</refentrytitle>
+<manvolnum>5</manvolnum>
+<refmiscinfo class="manual">file formats</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>cin</refname>
+<refpurpose>CIN files for input methods</refpurpose>
+</refnamediv>
+
+<refsection><title>Description</title>
+
+<para>
+<citerefentry><refentrytitle>console-input-method</refentrytitle><manvolnum>1</manvolnum></citerefentry> is table-driven, controlled by data files containing tables of mappings from the original ASCII composition element sequences to the unconverted and converted characters to display.
+These are CIN files, that are compatible with OpenVanilla, the Chinese Open Desktop, xcin, gcin, hime, OkidoKey.app, and MacOS.
+</para>
+
+<para>
+More general specifications for CIN files can be found at <ulink url="http://chinesemac.org/pages/input_methods.html">the Chinese MAC WWW site</ulink> and in <ulink url="https://groups.google.com/forum/#!msg/chinesemac/hgc7HjSSdrU/dkD0VFnN-Z8J">the Chinese MAC discussion forum</ulink>.
+This is a subset of the full file specification.
+In particular, this subset does not encompass alternative file encodings.
+Files are <emphasis>always</emphasis> to be encoded in UTF-8.
+</para>
+
+<para>
+CIN files comprise a sequence of lines, which divide into three types:
+</para>
+<variablelist>
+<varlistentry>
+<term>comment lines</term>
+<listitem><para>
+Comment lines begin with a <code>#</code> character as their first character.
+They are wholly ignored.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>directive lines</term>
+<listitem><para>
+Directive lines begin with a <code>%</code> character as their first character.
+The following directives are recognized:
+</para>
+<variablelist>
+<varlistentry>
+<term><code>%keep_key_case</code></term>
+<listitem><para>
+In the absence of this directive, the ASCII source parts of mappings are considered to be case-<emphasis>insensitive</emphasis>.
+Case-insensitivity is the appropriate default for East Asian languages, but for some of them and for specialist mappings for European scripts where the target parts can be in differing cases, case sensitivity is more useful.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>%keyname</code></term>
+<listitem><para>
+<code>%keyname&#160;begin</code> and <code>%keyname&#160;end</code> directives enclose a block of data lines that define the "engravings" for each ASCII letter.
+The "engraving" controls how an ASCII character is displayed on-screen by <citerefentry><refentrytitle>console-input-method</refentrytitle><manvolnum>1</manvolnum></citerefentry> when it is in its unconverted form.
+The first field must be a single ASCII character, and the second field is its UTF-8 display string.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>%chardef</code></term>
+<listitem><para>
+<code>%chardef&#160;begin</code> and <code>%chardef&#160;end</code> directives enclose a block of data lines that define the mappings from a sequence of ASCII characters, given in the first field, to a UTF-8 string, given in the second field.
+It is an error for the first field to contain anything other than ASCII characters.
+</para><note>
+Neither source forms nor what they are mapped to may contain whitespace.
+In <citerefentry><refentrytitle>console-input-method</refentrytitle><manvolnum>1</manvolnum></citerefentry> the SPC character when input acts as a separator between multiple mappable strings that are not intended to be treated as one single larger source string, and so cannot be part of the source form of a mapping in any case.
+(e.g. The input sequence <quote>TH&#160;OR&#160;N</quote> does not match a data line that maps the input sequence <quote>THORN</quote>, only the individual sequences <quote>TH</quote>, <quote>OR</quote>, and <quote>N</quote>.)
+</note></listitem>
+</varlistentry>
+</variablelist>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>data lines</term>
+<listitem><para>
+Data lines begin with any other character as their first character.
+These comprise 2 whitespace-separated fields.
+It is an error for there to be anything other than exactly 2 fields per line.
+Leading whitespace is treated as extraneous separator characters and stripped.
+</para><note>
+So to encode data lines where the first field begins with a <code>#</code> or a <code>%</code> character, simply prepend leading whitespace.
+</note>
+</listitem>
+</varlistentry>
+</variablelist>
+
+<refsection><title>Examples</title>
+
+<informalexample>
+<para>
+The Hangul CIN file from unicon exemplifies how the "engravings" cause ASCII input sequences to be displayed as Jamo when unconverted:
+</para>
+<literallayout>A &#x313c;
+b &#x3160;
+B &#x315f;</literallayout>
+</informalexample>
+<informalexample>
+<para>
+Its mappings block exemplifies how mappings files can need to be case sensitive:
+</para>
+<literallayout>rn	&#xad6c;
+rN	&#xada4;</literallayout>
+</informalexample>
+<informalexample>
+<para>
+The romaji-X11 CIN file exemplifies both long mappings (that do not match <quote>per&#160;</quote>) and how data lines beginning with <code>%</code> characters are written.
+</para>
+<literallayout>percent	%
+permil	&#x2030;
+ %o	&#x2030;
+ %0	&#x2030;
+ %:	&#x2030;
+perlakh	&#x2031;
+ %..	&#x2031;</literallayout>
+</informalexample>
+<informalexample>
+<para>
+The latin-letters CIN file from gcin exemplifies case-sensitive mappings:
+</para>
+<literallayout>THORN	&#x00de;
+thorn	&#x00fe;</literallayout>
+</informalexample>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

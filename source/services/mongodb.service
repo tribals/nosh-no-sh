@@ -12,6 +12,7 @@ Description=MongoDB database server daemon
 PrivateTmp=false
 NUMAInterleave=all
 User=%p
+SessionLeader=yes
 ExecStart=mongod
 # http://docs.mongodb.org/manual/reference/ulimit/#recommended-settings
 LimitNOFILE=64000

@@ -1,0 +1,3 @@
+initctl	start
+initctl	stop
+initctl	status

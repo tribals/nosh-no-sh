@@ -1,1 +1,1 @@
-Shim for the bcron package
+ This package provides shims that map cron commands onto bcron commands.

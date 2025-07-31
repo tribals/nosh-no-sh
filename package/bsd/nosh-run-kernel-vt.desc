@@ -1,1 +1,1 @@
-Run old-style kernel virtual terminals
+ This package runs old-style kernel virtual terminals, using the kernel virtual terminal device files and a service that auto-starts ttylogin services (on demand if possible).

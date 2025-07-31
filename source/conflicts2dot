@@ -1,11 +1,24 @@
 #!/bin/sh
 echo "digraph services {"
-for i in /etc/service-bundles/targets/*
+for i in \
+	/usr/local/etc/service-bundles/targets/* \
+	/etc/service-bundles/targets/* \
+	/run/service-bundles/targets/* \
+	/var/service-bundles/targets/* \
+	/var/local/service-bundles/targets/* \
+	/usr/pkg/etc/service-bundles/targets/*
 do
 	test -e "$i/service/down" && continue
 	echo "\"$i\"" "[shape=octagon,style=\"rounded,filled\",fillcolor=yellow]" ";"
 done
-for i in /var/sv/* /var/local/sv/* /etc/service-bundles/services/* /etc/service-bundles/targets/*
+for i in \
+	/usr/local/etc/service-bundles/services/* /usr/local/etc/service-bundles/targets/* \
+	/etc/service-bundles/services/* /etc/service-bundles/targets/* \
+	/run/service-bundles/services/* /run/service-bundles/targets/* \
+	/var/service-bundles/services/* /var/service-bundles/targets/* \
+	/var/local/service-bundles/services/* /var/local/service-bundles/targets/* \
+	/usr/pkg/etc/service-bundles/services/* /usr/pkg/etc/service-bundles/targets/* \
+	/var/sv/* /var/local/sv/* 
 do
 	test -e "$i/service/down" && continue
 	find "$i/conflicts/" -type l 2>/dev/null |

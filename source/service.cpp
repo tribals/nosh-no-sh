@@ -18,10 +18,10 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-service ( 
+service (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool verbose(false);
@@ -33,241 +33,278 @@ service (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{service-name} {command}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing service name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_service_name(prog, envs);
 	const char * service(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command name");
 	}
 	const char * command(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unrecognized extra arguments.");
-		throw EXIT_FAILURE;
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	args.clear();
-	args.insert(args.end(), "system-control");
-	args.insert(args.end(), command);
+	args.push_back("system-control");
+	args.push_back(command);
 	if (verbose)
-		args.insert(args.end(), "--verbose");
-	args.insert(args.end(), service);
+		args.push_back("--verbose");
+	args.push_back(service);
 	next_prog = arg0_of(args);
 }
 
 void
-invoke_rcd ( 
+invoke_rcd (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	bool quiet(false);
+	bool user(false);
 	try {
+		popt::bool_definition user_option('\0', "user", "Operate upon per-user services.", user);
+		bool quiet(false), skip_systemd_native(false);
 		popt::bool_definition quiet_option('q', "quiet", "Compatibility option; ignored.", quiet);
+		popt::bool_definition skip_systemd_native_option('\0', "skip-systemd=native", "Compatibility option; ignored.", skip_systemd_native);
 		popt::definition * top_table[] = {
-			&quiet_option
+			&user_option,
+			&quiet_option,
+			&skip_systemd_native_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{service-name} {start|stop|force-stop|force-reload|restart}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing service name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_service_name(prog, envs);
 	const char * service(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_argument(prog, envs, "command name");
 	const char * command(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unrecognized extra arguments.");
-		throw EXIT_FAILURE;
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	if (0 == std::strcmp("start", command))
 		command = "reset";
 	else
 	if (0 == std::strcmp("stop", command))
 		;	// Don't touch it.
-	else 
+	else
 	if (0 == std::strcmp("force-stop", command))
 		command = "stop";
-	else 
+	else
 	if (0 == std::strcmp("force-reload", command))
 		command = "condrestart";
-	else 
+	else
 	if (0 == std::strcmp("restart", command)) {
 		args.clear();
-		args.insert(args.end(), "foreground");
-		args.insert(args.end(), "system-control");
-		args.insert(args.end(), "stop");
-		args.insert(args.end(), service);
-		args.insert(args.end(), ";");
-		args.insert(args.end(), "system-control");
-		args.insert(args.end(), "reset");
-		args.insert(args.end(), service);
+		args.push_back("foreground");
+		args.push_back("system-control");
+		if (user)
+			args.push_back("--user");
+		args.push_back("stop");
+		args.push_back(service);
+		args.push_back(";");
+		args.push_back("system-control");
+		if (user)
+			args.push_back("--user");
+		args.push_back("reset");
+		args.push_back(service);
 		next_prog = arg0_of(args);
 		return;
 	}
 	else
-	{
-		std::fprintf(stderr, "%s: FATAL: %s: %s: %s\n", prog, service, command, "Unsupported subcommand.");
-		throw EXIT_FAILURE;
-	}
+		die_unsupported_command(prog, envs, service, command);
 
 	args.clear();
-	args.insert(args.end(), "system-control");
-	args.insert(args.end(), command);
-	args.insert(args.end(), service);
+	args.push_back("system-control");
+	if (user)
+		args.push_back("--user");
+	args.push_back(command);
+	args.push_back(service);
 	next_prog = arg0_of(args);
 }
 
 void
-update_rcd ( 
+update_rcd (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool force(false);
+	bool user(false);
 	try {
+		popt::bool_definition user_option('\0', "user", "Operate upon per-user services.", user);
 		popt::bool_definition force_option('f', "force", "Compatibility option; ignored.", force);
 		popt::definition * top_table[] = {
+			&user_option,
 			&force_option
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{service-name} {enable|disable|remove|defaults}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing service name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_service_name(prog, envs);
 	const char * service(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_argument(prog, envs, "command name");
 	const char * command(args.front());
 	args.erase(args.begin());
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
-	if (0 == std::strcmp("enable", command))
+	if (0 == std::strcmp("enable", command)
+	||  0 == std::strcmp("start", command)
+	||  0 == std::strcmp("defaults", command)
+	)
 		command = "preset";
 	else
 	if (0 == std::strcmp("disable", command))
 		;	// Don't touch it.
-	else 
-	if (0 == std::strcmp("remove", command))
+	else
+	if (0 == std::strcmp("remove", command)
+	||  0 == std::strcmp("stop", command)
+	)
 		command = "disable";
 	else
-	if (0 == std::strcmp("defaults", command)) {
-defaults:
-		if (!args.empty()) {
-			std::fprintf(stderr, "%s: WARNING: %s: %s %s\n", prog, service, command, "has not supported arguments since 2013.");
-			args.clear();
-		}
-		command = "preset";
-	} else
-	if (0 == std::strcmp("start", command)
-	||  0 == std::strcmp("stop", command)
-	) {
-		std::fprintf(stderr, "%s: WARNING: %s: %s %s\n", prog, service, command, "has been superseded by defaults since 2013.");
-		goto defaults;
-	}
-	else
-	{
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Unsupported subcommand.");
-		throw EXIT_FAILURE;
-	}
-
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Unrecognized extra arguments.");
-		throw EXIT_FAILURE;
-	}
+		die_unsupported_command(prog, envs, command);
 
 	args.clear();
-	args.insert(args.end(), "system-control");
-	args.insert(args.end(), command);
-	args.insert(args.end(), service);
+	args.push_back("system-control");
+	if (user)
+		args.push_back("--user");
+	args.push_back(command);
+	args.push_back(service);
 	next_prog = arg0_of(args);
 }
 
 void
-chkconfig ( 
+deb_systemd_invoke (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
+	bool user(false);
 	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "{service-name} {command}");
+		popt::bool_definition user_option('\0', "user", "Operate upon per-user services.", user);
+		popt::definition * top_table[] = {
+			&user_option,
+		};
+		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{service-name} {start|stop|restart}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing service name.");
-		throw static_cast<int>(EXIT_USAGE);
+	if (args.empty()) die_missing_service_name(prog, envs);
+	const char * service(args.front());
+	args.erase(args.begin());
+	if (args.empty()) die_missing_argument(prog, envs, "command name");
+	const char * command(args.front());
+	args.erase(args.begin());
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
+
+	if (0 == std::strcmp("start", command))
+		command = "reset";
+	else
+	if (0 == std::strcmp("stop", command))
+		;	// Don't touch it.
+	else
+	if (0 == std::strcmp("restart", command)) {
+		args.clear();
+		args.push_back("foreground");
+		args.push_back("system-control");
+		if (user)
+			args.push_back("--user");
+		args.push_back("stop");
+		args.push_back(service);
+		args.push_back(";");
+		args.push_back("system-control");
+		if (user)
+			args.push_back("--user");
+		args.push_back("reset");
+		args.push_back(service);
+		next_prog = arg0_of(args);
+		return;
 	}
+	else
+		die_unsupported_command(prog, envs, service, command);
+
+	args.clear();
+	args.push_back("system-control");
+	if (user)
+		args.push_back("--user");
+	args.push_back(command);
+	args.push_back(service);
+	next_prog = arg0_of(args);
+}
+
+void
+chkconfig (
+	const char * & next_prog,
+	std::vector<const char *> & args,
+	ProcessEnvironment & envs
+) {
+	const char * prog(basename_of(args[0]));
+	try {
+		bool force(false);
+		popt::bool_definition force_option('f', "force", "Compatibility option; ignored.", force);
+		popt::definition * top_table[] = {
+			&force_option
+		};
+		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{service-name} [reset|on|off]");
+
+		std::vector<const char *> new_args;
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
+		p.process(true /* strictly options before arguments */);
+		args = new_args;
+		next_prog = arg0_of(args);
+		if (p.stopped()) throw EXIT_SUCCESS;
+	} catch (const popt::error & e) {
+		die(prog, envs, e);
+	}
+
+	if (args.empty()) die_missing_service_name(prog, envs);
 	const char * service(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
 		args.clear();
-		args.insert(args.end(), "system-control");
-		args.insert(args.end(), "is-enabled");
+		args.push_back("system-control");
+		args.push_back("is-enabled");
 	} else {
 		const char * command(args.front());
 		args.erase(args.begin());
-		if (!args.empty()) {
-			std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Unrecognized extra arguments.");
-			throw EXIT_FAILURE;
-		}
+		if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 		if (0 == std::strcmp("reset", command))
 			command = "preset";
@@ -277,25 +314,22 @@ chkconfig (
 		else
 		if (0 == std::strcmp("off", command))
 			command = "disable";
-		else 
-		{
-			std::fprintf(stderr, "%s: FATAL: %s: %s: %s\n", prog, service, command, "Unsupported subcommand.");
-			throw EXIT_FAILURE;
-		}
+		else
+			die_unsupported_command(prog, envs, service, command);
 
 		args.clear();
-		args.insert(args.end(), "system-control");
-		args.insert(args.end(), command);
+		args.push_back("system-control");
+		args.push_back(command);
 	}
-	args.insert(args.end(), service);
+	args.push_back(service);
 	next_prog = arg0_of(args);
 }
 
 void
-rc_update ( 
+rc_update (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -304,32 +338,24 @@ rc_update (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{add|del} {service-name}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command name");
 	}
 	const char * command(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing service name.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_service_name(prog, envs);
 	const char * service(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Unrecognized extra arguments.");
-		throw EXIT_FAILURE;
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	if (0 == std::strcmp("add", command)) {
 		if (!args.empty())
@@ -341,54 +367,48 @@ rc_update (
 			std::fprintf(stderr, "%s: WARNING: %s: %s %s\n", prog, service, command, "does not support run-levels.");
 		command = "disable";
 	} else
-	{
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Unsupported subcommand.");
-		throw EXIT_FAILURE;
-	}
+		die_unsupported_command(prog, envs, command);
 
 	args.clear();
-	args.insert(args.end(), "system-control");
-	args.insert(args.end(), command);
-	args.insert(args.end(), service);
+	args.push_back("system-control");
+	args.push_back(command);
+	args.push_back(service);
 	next_prog = arg0_of(args);
 }
 
 void
-initctl ( 
+initctl (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "{command} {service-name}");
+		popt::top_table_definition main_option(0, nullptr, "Main options", "version|start|status|stop|show-config {service-name}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command name");
 	}
 	const char * command(args.front());
 	args.erase(args.begin());
-	const char * service(0);
+	const char * service(nullptr);
 
         if (0 == std::strcmp("version", command)) {
-                /* This is unchanged. */;
+                /* This is unchanged. */
 	} else
 	{
 		if (args.empty()) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Missing service name.");
-			throw static_cast<int>(EXIT_USAGE);
+			die_invalid_argument(prog, envs, command, "Missing service name.");
 		}
 		service = args.front();
 		args.erase(args.begin());
@@ -403,61 +423,61 @@ initctl (
 		if (0 == std::strcmp("show-config", command))
 			command = "show-json";
 		else
-		{
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Unsupported subcommand.");
-			throw EXIT_FAILURE;
-		}
+			die_unsupported_command(prog, envs, command);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Unrecognized extra arguments.");
-		throw EXIT_FAILURE;
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
         args.clear();
-        args.insert(args.end(), "system-control");
-        args.insert(args.end(), command);
+        args.push_back("system-control");
+        args.push_back(command);
 	if (service)
-		args.insert(args.end(), service);
+		args.push_back(service);
 	next_prog = arg0_of(args);
 }
 
+// Some commands are thin wrappers around initctl subcommands of the same name.
 void
-svcadm ( 
+wrap_initctl_subcommand (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & /*envs*/
 ) {
+	args.insert(args.begin(), "initctl");
+	next_prog = arg0_of(args);
+}
+
+void
+svcadm (
+	const char * & next_prog,
+	std::vector<const char *> & args,
+	ProcessEnvironment & envs
+) {
 	const char * prog(basename_of(args[0]));
 	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "{command} {service-name}");
+		popt::top_table_definition main_option(0, nullptr, "Main options", "version|enable|disable {service-name}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing command name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "command name");
 	}
 	const char * command(args.front());
 	args.erase(args.begin());
-	const char * service(0);
+	const char * service(nullptr);
 
         if (0 == std::strcmp("version", command)) {
-                /* This is unchanged. */;
+                /* This is unchanged. */
 	} else
 	{
-		if (args.empty()) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Missing service name.");
-			throw static_cast<int>(EXIT_USAGE);
-		}
+		if (args.empty()) die_missing_service_name(prog, envs);
 		service = args.front();
 		args.erase(args.begin());
 
@@ -467,20 +487,14 @@ svcadm (
 		if (0 == std::strcmp("disable", command)) {
 			command = "stop";
 		} else
-		{
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, command, "Unsupported subcommand.");
-			throw EXIT_FAILURE;
-		}
+			die_unsupported_command(prog, envs, command);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Unrecognized extra arguments.");
-		throw EXIT_FAILURE;
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
         args.clear();
-        args.insert(args.end(), "system-control");
-        args.insert(args.end(), command);
+        args.push_back("system-control");
+        args.push_back(command);
 	if (service)
-		args.insert(args.end(), service);
+		args.push_back(service);
 	next_prog = arg0_of(args);
 }

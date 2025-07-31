@@ -1,17 +1,19 @@
-<title>Terminals</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
 <link rel="Next" href="troubleshooting.html" title="Troubleshooting" />
 <link rel="Prev" href="timestamps.html" title="Timestamps" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Terminals</title>
+<h1 class="Ruled">
 Terminals
 </h1>
 
-<h2>
+<h2 class="Ruled">
 Virtual terminals
 </h2>
 
 <p>
 The most commonly employed terminal nowadays is a virtual (as opposed to real) terminal.
+Virtual terminals do not have many of the complexities of real terminals, and dealing with them can make some assumptions as to core always-available functionality, a fair amount of which traes back to Multiscreen on SCO Unix.
 </p>
 
 <p>
@@ -19,31 +21,79 @@ Using the tools in the toolset one can set up services that handle TUI login on 
 </p>
 
 <p>
-To log on over virtual terminals, kernel or user-space,
-<a href="virtual-terminal-login.html">one sets up <code>ttylogin</code> services</a>.
+To log on over virtual terminals, either kernel or user-space, <a href="virtual-terminal-login.html">one sets up <code>ttylogin</code> services</a>.
 </p>
 
 <p>
-<a href="kernel-virtual-terminals.html">To use kernel virtual terminals one arranges for such services to be enabled and (demand-)started.</a>
+To use kernel virtual terminals <a href="kernel-virtual-terminals.html">one arranges for such <code>ttylogin</code> services to be enabled and (demand-)started.</a>
 </p>
 
 <p>
-<a href="user-virtual-terminals.html">Setting up user-space virtual terminals involves similar services, additional <code>console-terminal-emulator</code> services, and realizers.</a>
+Setting up user-space virtual terminals <a href="user-virtual-terminals.html">involves similar <code>ttylogin</code> services, additional <code>console-terminal-emulator</code> services, and  further services for various realizers, multiplexors, and input methods</a>.
+These <a href="user-virtual-terminal-configuration.html">are configured in various ways</a>.
 </p>
 
 <p>
-<a href="terminal-resources.html">Terminals need various resources</a>, some of which are supplied with the toolset.
+User-space virtual terminals need <a href="terminal-resources.html">various resources</a>, some of which are supplied with the toolset.
+They provide <a href="user-virtual-terminal-enhancements.html">a few enhancements</a> over the kernel virtual terminals that they are designed to be compatible with.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Real terminals
 </h2>
+
+<p>
+Real terminals are comparatively rare nowadays.
+They attach via serial or parallel ports, and their handling has to include many complexities such as line speeds, modems, hardware flow control, carrier detect, terminal types at the other end of the line, and the fact that one cannot necessarily always assume even a 1980s level of terminal capability.
+</p>
 
 <p>
 Using the tools in the toolset one can set up services that handle TUI login on real terminals.
 </p>
 
 <p>
-To log on over real terminals
-<a href="real-terminal-login.html">one sets up <code>ttylogin</code> services</a>.
+To log on locally from real terminals <a href="real-terminal-login.html">one sets up <code>ttylogin</code> services</a> that are aliases for a choice of underlying real terminal login services that handle all of the many things that apply to real terminals but not to virtual terminals.
+</p>
+
+<p>
+To perform remote log-on as if the system were a real terminal attached to some other system, <a href="real-terminal-call-out.html">one sets up <code>console-terminal-emulator</code> services</a>.
+</p>
+
+<h2 class="Ruled">
+The console
+</h2>
+
+<p>
+On Linux-based operating systems and the BSDs, the console device (<code>/dev/console</code>) is always an alias for a terminal device, but that device can be either a virtual terminal or a real terminal.
+(See <a href="commands/freebsd-console.xml"><code>freebsd-console</code></a> and <a href="commands/linux-console.xml"><code>linux-console</code></a>.)
+</p>
+
+<p>
+There are only two service bundles supplied as standard that directly provide TUI login on <code>/dev/console</code> itself:
+</p>
+<dl>
+<dt>the <code>emergency-login@console</code> service</dt>
+<dd><p>
+This is intended to provide console login in emergency situations where full normal multiple TUI login is inoperable, and even the system account database may be inoperable or corrupt.
+It uses <a href="commands/emergency-login.xml"><code>emergency-login</code></a>.
+</p></dd>
+<dt>the <code>rescue</code> standard target</dt>
+<dd><p>
+This is intended to provide console login in rescue situations where full normal multiple TUI login is inoperable, and uses the system <code>login</code> program.
+</p></dd>
+</dl>
+
+<p>
+Neither of these make any effort to avoid concurrent TUI login on the underlying virtual terminal or real terminal.
+It is presumed that in both "emergency" and "rescue" modes the full normal multiple TUI login services simply have not been started by <a href="commands/system-control.xml"><code>system-control</code></a> (q.v.).
+</p>
+
+<p>
+Otherwise, in normal &mdash; non-emergency non-rescue mode &mdash; operation login on <code>/dev/console</code> is provided by a TUI login service running against the underlying virtual terminal or real terminal, and the <code>/dev/console</code> device is ignored as a terminal.
+</p>
+
+<p>
+Historically, SCO Unix in normal full multiple TUI login mode ran login services on <em>both</em> <code>/dev/console</code> <em>and</em> its virtual terminals, the former directly from the <a href="https://jdebp.uk/FGA/inittab-is-history.html"> otherwise (even then) obsolete "inittab"</a> and the latter from the Service Access Facility that obsoleted it.
+It resolved the conflict by wrapping the <code>/dev/console</code> login program inside <a href="http://uw7doc.sco.com/en/man/html.1M/vtgetty.1M.html">a <code>vtgetty</code> wrapper</a> that offered the choice of either waiting for all TUI login services on virtual terminals to end, or of forcibly stopping them, before proceeding with console login.
+This does not allow for the possibility of the console not being a virtual terminal, and is not a fully functional approach for Linux and the BSDs.
 </p>

@@ -10,6 +10,7 @@ Wants=redis-runtime
 [Service]
 NUMAInterleave=all
 User=redis
+SessionLeader=yes
 LimitNOFILE=64000
 # These are what a Debian person thinks, and are not the official word from redis development.
 PrivateTmp=yes

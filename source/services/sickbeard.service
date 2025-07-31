@@ -10,6 +10,7 @@ Description=SickBeard daemon
 systemdUserEnvironment=true
 EnvironmentDirectory=env
 User=sickbeard
+SessionLeader=yes
 WorkingDirectory=/opt/sickbeard
 ExecStart=python SickBeard.py --nolaunch ${SB_OPTS}
 

@@ -83,7 +83,13 @@ Realizer::Realizer (
 {
 }
 
-Realizer::~Realizer() {}
+Realizer::~Realizer()
+{
+	// For security, we erase several sources of information about old terminal sessions.
+	std::rewind(buffer_file);
+	std::fflush(buffer_file);
+	ftruncate(fileno(buffer_file), 0);
+}
 
 inline
 void
@@ -95,21 +101,21 @@ Realizer::paint_all_cells (
 	std::rewind(buffer_file);
 	std::fflush(buffer_file);
 
-	uint8_t header[HEADER_LENGTH] = { 
+	uint8_t header[HEADER_LENGTH] = {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
-		static_cast<uint8_t>(vt.query_cursor_glyph()), 
-		static_cast<uint8_t>(vt.query_cursor_attributes()), 
-		static_cast<uint8_t>(vt.query_pointer_attributes()), 
+		static_cast<uint8_t>(vt.query_cursor_glyph() & 0x0F),
+		static_cast<uint8_t>(vt.query_cursor_attributes() & 0x0F),
+		static_cast<uint8_t>((vt.query_pointer_attributes()& 0x0F) | (vt.query_screen_flags() << 4)),
 		0,
 	};
 	const uint32_t bom(0xFEFF);
 	std::memcpy(&header[ 0], &bom, sizeof bom);
-	const uint16_t cols(vt.query_w()), rows(vt.query_h());
+	const uint16_t cols(vt.query_size().w), rows(vt.query_size().h);
 	std::memcpy(&header[ 4], &cols, sizeof cols);
 	std::memcpy(&header[ 6], &rows, sizeof rows);
-	const uint16_t x(vt.query_cursor_x()), y(vt.query_cursor_y());
+	const uint16_t x(vt.query_cursor().x), y(vt.query_cursor().y);
 	std::memcpy(&header[ 8], &x, sizeof x);
 	std::memcpy(&header[10], &y, sizeof y);
 	std::fwrite(header, sizeof header, 1U, buffer_file);
@@ -120,10 +126,10 @@ Realizer::paint_all_cells (
 	for (unsigned row(0); row < rows; ++row) {
 		for (unsigned col(0); col < cols; ++col) {
 			const CharacterCell & cell(vt.at(row, col));
-			unsigned char b[CELL_LENGTH] = { 
-				cell.foreground.alpha, cell.foreground.red, cell.foreground.green, cell.foreground.blue, 
-				cell.background.alpha, cell.background.red, cell.background.green, cell.background.blue, 
-				0, 0, 0, 0, 
+			unsigned char b[CELL_LENGTH] = {
+				cell.foreground.alpha, cell.foreground.red, cell.foreground.green, cell.foreground.blue,
+				cell.background.alpha, cell.background.red, cell.background.green, cell.background.blue,
+				0, 0, 0, 0,
 				static_cast<uint8_t>(cell.attributes & 0xFF), static_cast<uint8_t>(cell.attributes >> 8U),
 				0, 0
 			};
@@ -163,7 +169,7 @@ Realizer::handle_input_event(
 	uint32_t b
 ) {
 	switch (b & INPUT_MSG_MASK) {
-		case INPUT_MSG_SESSION:	
+		case INPUT_MSG_SESSION:
 		{
 			const uint32_t f((b & 0x00FFFF00) >> 8U);
 			VirtualTerminalList::iterator next_vt(vts.begin());
@@ -177,7 +183,7 @@ Realizer::handle_input_event(
 			}
 			break;
 		}
-		case INPUT_MSG_CKEY:	
+		case INPUT_MSG_CKEY:
 		{
 			const uint32_t c((b & 0x00FFFF00) >> 8U);
 			switch (c) {
@@ -209,7 +215,7 @@ Realizer::handle_input_event(
 						set_refresh_needed();
 					}
 					break;
-				default:	
+				default:
 					(*current_vt)->WriteInputMessage(b);
 					break;
 			}
@@ -226,10 +232,10 @@ Realizer::handle_input_event(
 */
 
 void
-console_multiplexor [[gnu::noreturn]] ( 
+console_multiplexor [[gnu::noreturn]] (
 	const char * & /*next_prog*/,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool display_only(false);
@@ -242,82 +248,62 @@ console_multiplexor [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{vc-multiplexed} {virtual-terminal(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing multiplexor virtual terminal directory name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "multiplexor virtual terminal directory name");
 	}
 	const char * dirname(args.front());
 	args.erase(args.begin());
 
 	const int queue(kqueue());
 	if (0 > queue) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 	std::vector<struct kevent> ip;
 
 	FileDescriptorOwner upper_vt_dir_fd(open_dir_at(AT_FDCWD, dirname));
 	if (0 > upper_vt_dir_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, dirname, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname);
 	}
 
 	// We need an explicit lock file, because we cannot lock FIFOs.
 	FileDescriptorOwner lock_fd(open_lockfile_at(upper_vt_dir_fd.get(), "lock"));
 	if (0 > lock_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "lock", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "lock");
 	}
 	// We are allowed to open the read end of a FIFO in non-blocking mode without having to wait for a writer.
 	mkfifoat(upper_vt_dir_fd.get(), "input", 0620);
 	InputFIFO upper_input_fifo(open_read_at(upper_vt_dir_fd.get(), "input"));
 	if (0 > upper_input_fifo.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "input", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "input");
 	}
 	if (0 > fchown(upper_input_fifo.get(), -1, getegid())) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "input", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "input");
 	}
 	// We have to keep a client (write) end descriptor open to the input FIFO.
 	// Otherwise, the first console client process triggers POLLHUP when it closes its end.
 	// Opening the FIFO for read+write isn't standard, although it would work on Linux.
 	FileDescriptorOwner upper_input_write_fd(open_writeexisting_at(upper_vt_dir_fd.get(), "input"));
 	if (0 > upper_input_write_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "input", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "input");
 	}
 	FileDescriptorOwner upper_buffer_fd(open_writecreate_at(upper_vt_dir_fd.get(), "display", 0640));
 	if (0 > upper_buffer_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "display", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "display");
 	}
 	if (0 > fchown(upper_buffer_fd.get(), -1, getegid())) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "display", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "display");
 	}
 	FileStar upper_buffer_file(fdopen(upper_buffer_fd.get(), "w"));
 	if (!upper_buffer_file) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, dirname, "display", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, dirname, "display");
 	}
 	upper_buffer_fd.release();
 
@@ -330,28 +316,20 @@ console_multiplexor [[gnu::noreturn]] (
 		const char * name(*i);
 		FileDescriptorOwner vt_dir_fd(open_dir_at(AT_FDCWD, name));
 		if (0 > vt_dir_fd.get()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, name);
 		}
 		FileDescriptorOwner vt_buffer_fd(open_read_at(vt_dir_fd.get(), "display"));
 		if (0 > vt_buffer_fd.get()) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, name, "display", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, name, "display");
 		}
 		FileStar vt_buffer_file(fdopen(vt_buffer_fd.get(), "r"));
 		if (!vt_buffer_file) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, name, "display", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, name, "display");
 		}
 		vt_buffer_fd.release();
 		FileDescriptorOwner vt_input_fd(display_only ? -1 : open_writeexisting_at(vt_dir_fd.get(), "input"));
 		if (!display_only && vt_input_fd.get() < 0) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s/%s: %s\n", prog, name, "input", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, name, "input");
 		}
 		vt_dir_fd.release();
 
@@ -359,22 +337,21 @@ console_multiplexor [[gnu::noreturn]] (
 	}
 
 	if (vts.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing VT list.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "VT list");
 	}
 
-	append_event(ip, upper_input_fifo.get(), EVFILT_READ, EV_ADD, 0, 0, 0);
+	append_event(ip, upper_input_fifo.get(), EVFILT_READ, EV_ADD, 0, 0, nullptr);
 	ReserveSignalsForKQueue kqueue_reservation(SIGTERM, SIGINT, SIGHUP, SIGPIPE, 0);
 	PreventDefaultForFatalSignals ignored_signals(SIGTERM, SIGINT, SIGHUP, SIGPIPE, 0);
-	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	for (VirtualTerminalList::const_iterator t(vts.begin()); t != vts.end(); ++t) {
 		const VirtualTerminalBackEnd & lower_vt(**t);
-		append_event(ip, lower_vt.query_buffer_fd(), EVFILT_VNODE, EV_ADD|EV_DISABLE|EV_CLEAR, NOTE_WRITE, 0, 0);
-		append_event(ip, lower_vt.query_input_fd(), EVFILT_WRITE, EV_ADD|EV_DISABLE, 0, 0, 0);
+		append_event(ip, lower_vt.query_buffer_fd(), EVFILT_VNODE, EV_ADD|EV_DISABLE|EV_CLEAR, NOTE_WRITE, 0, nullptr);
+		append_event(ip, lower_vt.query_input_fd(), EVFILT_WRITE, EV_ADD|EV_DISABLE, 0, 0, nullptr);
 	}
 
 	VirtualTerminalList::iterator current_vt(vts.begin());
@@ -401,22 +378,20 @@ console_multiplexor [[gnu::noreturn]] (
 			for (VirtualTerminalList::iterator t(vts.begin()); t != vts.end(); ++t) {
 				const VirtualTerminalBackEnd & lower_vt(**t);
 				if (t == current_vt)
-					append_event(ip, lower_vt.query_buffer_fd(), EVFILT_VNODE, EV_ENABLE, NOTE_WRITE, 0, 0);
+					append_event(ip, lower_vt.query_buffer_fd(), EVFILT_VNODE, EV_ENABLE, NOTE_WRITE, 0, nullptr);
 				if (t == old_vt)
-					append_event(ip, lower_vt.query_buffer_fd(), EVFILT_VNODE, EV_DISABLE, NOTE_WRITE, 0, 0);
+					append_event(ip, lower_vt.query_buffer_fd(), EVFILT_VNODE, EV_DISABLE, NOTE_WRITE, 0, nullptr);
 			}
 
 			old_vt = current_vt;
 		}
 
-		const int rc(kevent(queue, ip.data(), ip.size(), p.data(), p.size(), (*current_vt)->query_reload_needed() ? &immediate_timeout : 0));
+		const int rc(kevent(queue, ip.data(), ip.size(), p.data(), p.size(), (*current_vt)->query_reload_needed() ? &immediate_timeout : nullptr));
 		ip.clear();
 
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "poll", std::strerror(error));
-			throw EXIT_FAILURE;
+			if (EINTR == errno) continue;
+			die_errno(prog, envs, "kevent");
 		}
 
 		if (0 == rc) {
@@ -440,7 +415,7 @@ console_multiplexor [[gnu::noreturn]] (
 				break;
 			case EVFILT_READ:
 				if (upper_input_fifo.get() == static_cast<int>(e.ident))
-					upper_input_fifo.ReadInput();
+					upper_input_fifo.ReadInput(e.data);
 				break;
 			case EVFILT_WRITE:
 				for (VirtualTerminalList::iterator t(vts.begin()); t != vts.end(); ++t) {
@@ -458,12 +433,12 @@ console_multiplexor [[gnu::noreturn]] (
 			VirtualTerminalBackEnd & lower_vt(**t);
 			if (lower_vt.MessageAvailable()) {
 				if (!lower_vt.query_polling_for_write()) {
-					append_event(ip, lower_vt.query_input_fd(), EVFILT_WRITE, EV_ENABLE, 0, 0, 0);
+					append_event(ip, lower_vt.query_input_fd(), EVFILT_WRITE, EV_ENABLE, 0, 0, nullptr);
 					lower_vt.set_polling_for_write(true);
 				}
 			} else {
 				if (lower_vt.query_polling_for_write()) {
-					append_event(ip, lower_vt.query_input_fd(), EVFILT_WRITE, EV_DISABLE, 0, 0, 0);
+					append_event(ip, lower_vt.query_input_fd(), EVFILT_WRITE, EV_DISABLE, 0, 0, nullptr);
 					lower_vt.set_polling_for_write(false);
 				}
 			}

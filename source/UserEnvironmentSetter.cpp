@@ -7,127 +7,26 @@ For copyright and licensing terms, see the file named COPYING.
 #include <string>
 #include <cstring>
 #include <cstdlib>
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
-#include <sys/types.h>
-#include <login_cap.h>
-#endif
 #include <unistd.h>
-#include <paths.h>
 #include "UserEnvironmentSetter.h"
 #include "ProcessEnvironment.h"
-
-// OpenBSD requires const incorrectness bodges.
-#if defined(__OpenBSD__)
-namespace {
-inline login_cap_t * login_getclass(const char * c) { return login_getclass(const_cast<char *>(c)); }
-inline const char * login_getcapstr(login_cap_t * d, const char * cap, const char * def, const char * err) { return login_getcapstr(d, const_cast<char *>(cap), const_cast<char *>(def), const_cast<char *>(err)); }
-}
-#endif
-
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
-
-#if !defined(LOGIN_DEFROOTCLASS)
-#define LOGIN_DEFROOTCLASS "root"
-#endif
-#if !defined(LOGIN_DEFCLASS)
-#define LOGIN_DEFCLASS "default"
-#endif
-
-namespace {
-
-// FreeBSD's login_getpwclass() has a security hole when the class is "me".
-// And OpenBSD does not have the function at all.
-inline
-login_cap_t *
-login_getsystemclass(
-	const passwd * pwd
-) {
-	const char * c(0);
-	if (pwd) {
-		if (pwd->pw_class && *pwd->pw_class)
-			c = pwd->pw_class;
-		else
-			c = 0 == pwd->pw_uid ? LOGIN_DEFROOTCLASS : LOGIN_DEFCLASS;
-	}
-	return login_getclass(c);
-}
-
-#if defined(__OpenBSD__)
-// OpenBSD lacks this, too.
-inline login_cap_t * login_getuserclass(const passwd *) { return 0; }
-#endif
-
-}
-
-#else
-
-namespace {
-
-struct login_cap_t {} singleton_cap;
-inline login_cap_t * login_getsystemclass(const passwd *) { return &singleton_cap; }
-inline login_cap_t * login_getuserclass(const passwd *) { return &singleton_cap; }
-inline const char * login_getcapstr(struct login_cap_t * d, const char *cap, const char *def, const char *err) { return d && cap ? def : err; }
-inline void login_close(struct login_cap_t *) {}
-
-}
-
-#endif
-
-/// \brief A wrapper for login_cap_t that automatically closes the database in its destructor.
-struct UserEnvironmentSetter::LoginDBOwner {
-#if 0 // These are unused at present.
-	operator login_cap_t * () const { return d ; }
-	login_cap_t * operator -> () const { return d ; }
-	login_cap_t * release() { login_cap_t *dp(d); d = 0; return dp; }
-	LoginDBOwner & operator= ( login_cap_t * n ) { assign(n); return *this; }
-#endif
-	LoginDBOwner(login_cap_t * dp = 0) : d(dp) {}
-	~LoginDBOwner() { assign(0); }
-	const char * getcapstr(const char *, const char *, const char *);
-protected:
-	login_cap_t * d;
-	void assign(login_cap_t * n) { if (d) login_close(d); d = n; }
-	std::string res;
-private:
-	LoginDBOwner & operator= (const LoginDBOwner &);
-	LoginDBOwner(const LoginDBOwner &);
-};
-
-const char * 
-UserEnvironmentSetter::LoginDBOwner::getcapstr(
-	const char * cap,
-	const char * def,
-	const char * err
-) {
-#if defined(__OpenBSD__)
-	// OpenBSD's login_getcapstr() does not have FreeBSD's NULL pointer check.
-	if (!d) return err;
-#endif
-	const char * r(login_getcapstr(d, cap, def, err));
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
-	// FreeBSD's and OpenBSD's login_getcapstr() leaks memory, only sometimes.
-	if (def != r && err != r && r) {
-		res = r;
-		free(const_cast<char *>(r));
-		r = res.c_str();
-	}
-#endif
-	return r;
-}
+#include "DefaultEnvironment.h"
+#include "LoginClassRecordOwner.h"
 
 UserEnvironmentSetter::UserEnvironmentSetter(
 	ProcessEnvironment & e
 ) :
-	set_path(false),
 	set_user(false),
 	set_shell(false),
-	set_tools(false),
-	set_term(false),
-	set_timezone(false),
-	set_locale(false),
+	default_locale(false),
+	default_path(false),
+	default_term(false),
+	default_timezone(false),
+	default_tools(false),
 	set_dbus(false),
 	set_xdg(false),
 	set_other(false),
+	toolkit_pager(false),
 	envs(e)
 {
 }
@@ -149,7 +48,7 @@ UserEnvironmentSetter::set_if (
 inline
 void
 UserEnvironmentSetter::set (
-	const passwd * pw,
+	const passwd & pw,
 	const char * var,
 	const char * val,
 	bool is_path
@@ -165,15 +64,15 @@ UserEnvironmentSetter::set (
 				s += c;
 			} else
 			if ('~' == c) {
-				if (pw->pw_dir) {
-					s += pw->pw_dir;
-					if (*val && '/' != *val && *pw->pw_dir)
+				if (pw.pw_dir) {
+					s += pw.pw_dir;
+					if (*val && '/' != *val && *pw.pw_dir)
 						s += '/';
 				}
-			} else 
+			} else
 			if ('$' == c) {
-				if (pw->pw_name)
-					s += pw->pw_name;
+				if (pw.pw_name)
+					s += pw.pw_name;
 			} else
 			if (is_path && std::isspace(c)) {
 				while (*val && std::isspace(*val)) ++val;
@@ -187,7 +86,7 @@ UserEnvironmentSetter::set (
 
 void
 UserEnvironmentSetter::set_vec (
-	const passwd * pw,
+	const passwd & pw,
 	const char * vec
 ) {
 	if (!vec) return;
@@ -205,15 +104,15 @@ end:
 			*cur += c;
 		} else
 		if ('~' == c) {
-			if (pw->pw_dir) {
-				*cur += pw->pw_dir;
-				if (*vec && '/' != *vec && *pw->pw_dir)
+			if (pw.pw_dir) {
+				*cur += pw.pw_dir;
+				if (*vec && '/' != *vec && *pw.pw_dir)
 					*cur += '/';
 			}
-		} else 
+		} else
 		if ('$' == c) {
-			if (pw->pw_name)
-				*cur += pw->pw_name;
+			if (pw.pw_name)
+				*cur += pw.pw_name;
 		} else
 		if (',' == c) {
 			set_if(var, &var != cur, val);
@@ -229,32 +128,42 @@ end:
 }
 
 void
-UserEnvironmentSetter::set_str (
+UserEnvironmentSetter::default_str (
+	const char * var,
+	const char * val
+) {
+	if (!envs.query(var)) envs.set(var, val);
+}
+
+void
+UserEnvironmentSetter::default_str (
 	const char * var,
 	const char * cap,
-	const passwd * pw,
-	LoginDBOwner & lc_system,
-	LoginDBOwner & lc_user,
+	const passwd & pw,
+	LoginClassRecordOwner & lc_system,
+	LoginClassRecordOwner & lc_user,
 	const char * def
 ) {
-	const char * val(lc_user.getcapstr(cap, def, 0));
+	if (envs.query(var)) return;
+	const char * val(lc_user.getcapstr(cap, def, nullptr));
 	if (!val || def == val)
 		val = lc_system.getcapstr(cap, def, def);
 	set(pw, var, val, false);
 }
 
 void
-UserEnvironmentSetter::set_pathstr (
+UserEnvironmentSetter::default_pathstr (
 	const char * var,
 	const char * cap,
-	const passwd * pw,
-	LoginDBOwner & lc_system,
-	LoginDBOwner & lc_user,
+	const passwd & pw,
+	LoginClassRecordOwner & lc_system,
+	LoginClassRecordOwner & lc_user,
 	const char * def
 ) {
+	if (envs.query(var)) return;
 	// FreeBSD's login_getpath() has botched processing of backslash.
 	// And OpenBSD does not have the function at all.
-	const char * val(lc_user.getcapstr(cap, def, 0));
+	const char * val(lc_user.getcapstr(cap, def, nullptr));
 	if (!val || def == val)
 		val = lc_system.getcapstr(cap, def, def);
 	set(pw, var, val, true);
@@ -264,12 +173,12 @@ inline
 void
 UserEnvironmentSetter::set_vec (
 	const char * cap,
-	const passwd * pw,
-	LoginDBOwner & lc
+	const passwd & pw,
+	LoginClassRecordOwner & lc
 ) {
 	// FreeBSD's login_getpath() has a memory leak and botched processing of backslash.
 	// And OpenBSD does not have the function at all.
-	const char * val(lc.getcapstr(cap, 0, 0));
+	const char * val(lc.getcapstr(cap, nullptr, nullptr));
 	if (val)
 		set_vec(pw, val);
 }
@@ -278,104 +187,139 @@ inline
 void
 UserEnvironmentSetter::set_vec (
 	const char * cap,
-	const passwd * pw,
-	LoginDBOwner & lc_system,
-	LoginDBOwner & lc_user
+	const passwd & pw,
+	LoginClassRecordOwner & lc_system,
+	LoginClassRecordOwner & lc_user
 ) {
 	set_vec(cap, pw, lc_system);
 	set_vec(cap, pw, lc_user);
 }
 
 void
+UserEnvironmentSetter::prependpath (
+	const char * var,
+	const std::string & app
+) {
+	if (const char * val = envs.query(var)) {
+		std::string s(app);
+		s += ':';
+		s += val;
+		envs.set(var, s);
+	} else {
+		envs.set(var, app);
+	}
+}
+
+void
 UserEnvironmentSetter::apply (
 	const passwd * pw
 ) {
+	const char * pager(toolkit_pager ? "console-tty37-viewer" : DefaultEnvironment::UserLogin::PAGER);
 	if (pw) {
-		LoginDBOwner lc_system(login_getsystemclass(pw));
-		LoginDBOwner lc_user(login_getuserclass(pw));
+		LoginClassRecordOwner lc_system(LoginClassRecordOwner::GetSystem(*pw));
+		LoginClassRecordOwner lc_user(LoginClassRecordOwner::GetUser(*pw));
 		// These three are supersedable by setenv in login.conf.
-		if (set_tools) {
-			// POSIX gives us two choices of default line editor; we do not dump ed on people.
-			set_str("EDITOR", "editor", pw, lc_system, lc_user, "ex");
-			// POSIX gives us one choice of default visual editor.
-			set_str("VISUAL", "visual", pw, lc_system, lc_user, "vi");
-			set_str("PAGER", "pager", pw, lc_system, lc_user, "more");
-		}
 		if (set_xdg) {
 			envs.set("XDG_RUNTIME_DIR", "/run/user/" + std::string(pw->pw_name) + "/");
-			// TrueOS Desktop adds /share to the default search path.
-			// But it inverts this order, making "local" the lowest priority.
-			// We give "local" data files priority over the operating system data files, as the XDG Desktop Specification does.
-			envs.set("XDG_DATA_DIRS", "/usr/local/share:/usr/share:/share");
-#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
-			envs.set("XDG_CONFIG_DIRS", "/usr/local/etc/xdg");
-#else
-			// The default of /etc/xdg applies to everyone else.
-			envs.set("XDG_CONFIG_DIRS", 0);
-#endif
-			// XDG_CONFIG_HOME defaults to $HOME/.config which is fine.
-			envs.set("XDG_CONFIG_HOME", 0);
-			// XDG_DATA_HOME defaults to $HOME/.local/share which is fine.
-			envs.set("XDG_DATA_HOME", 0);
+			envs.set("XDG_DATA_DIRS", DefaultEnvironment::UserLogin::XDG_DATA_DIRS);
+			envs.set("XDG_CONFIG_DIRS", DefaultEnvironment::UserLogin::XDG_CONFIG_DIRS);
+			// XDG_CONFIG_HOME has a fallback of $HOME/.config which is fine.
+			envs.set("XDG_CONFIG_HOME", nullptr);
+			// XDG_DATA_HOME has a fallback of $HOME/.local/share which is fine.
+			envs.set("XDG_DATA_HOME", nullptr);
+			// XDG_STATE_HOME has a fallback of $HOME/.local/state which is fine.
+			envs.set("XDG_STATE_HOME", nullptr);
+			// XDG_CACHE_HOME has a fallback of $HOME/.cache which is fine.
+			envs.set("XDG_CACHE_HOME", nullptr);
 		}
 		if (set_dbus)
 			envs.set("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/" + std::string(pw->pw_name) + "/bus");
 		// setenv in login.conf can be superseded by all of the rest.
 		if (set_other)
-			set_vec("setenv", pw, lc_system, lc_user);
-		if (set_path) {
-			// Always default to STDPATH, even for non-superusers.
-			set_pathstr("PATH", "path", pw, lc_system, lc_user, _PATH_STDPATH);
-			set_pathstr("MANPATH", "manpath", pw, lc_system, lc_user, 0);
+			set_vec("setenv", *pw, lc_system, lc_user);
+		if (default_locale) {
+			default_str("LANG", "lang", *pw, lc_system, lc_user, DefaultEnvironment::UserLogin::LANG);
+			default_str("MM_CHARSET", "charset", *pw, lc_system, lc_user, DefaultEnvironment::UserLogin::MM_CHARSET);
+		}
+		if (default_path) {
+			default_pathstr("PATH", "path", *pw, lc_system, lc_user, nullptr);
+			default_pathstr("MANPATH", "manpath", *pw, lc_system, lc_user, nullptr);
+			default_pathstr("TERMPATH", "termpath", *pw, lc_system, lc_user, nullptr);
+			default_pathstr("TERMINFO_DIRS", "terminfopath", *pw, lc_system, lc_user, nullptr);
+			// Superusers and non-superusers have the same default.
+			default_str("PATH", DefaultEnvironment::UserLogin::PATH);
+			default_str("TERMPATH", DefaultEnvironment::UserLogin::TERMPATH);
+			default_str("TERMINFO_DIRS", DefaultEnvironment::UserLogin::TERMINFO_DIRS);
+		}
+		if (default_term)
+			default_str("TERM", "term", *pw, lc_system, lc_user, DefaultEnvironment::TERM);
+		if (default_timezone)
+			default_str("TZ", "timezone", *pw, lc_system, lc_user, DefaultEnvironment::UserLogin::TZ);
+		if (default_tools) {
+			default_str("EDITOR", "editor", *pw, lc_system, lc_user, DefaultEnvironment::UserLogin::EDITOR);
+			default_str("VISUAL", "visual", *pw, lc_system, lc_user, DefaultEnvironment::UserLogin::VISUAL);
+			default_str("PAGER", "pager", *pw, lc_system, lc_user, pager);
+			default_str("MANPAGER", "manpager", *pw, lc_system, lc_user, pager);
 		}
 		if (set_user) {
 			envs.set("HOME", pw->pw_dir);
 			envs.set("USER", pw->pw_name);
 			envs.set("LOGNAME", pw->pw_name);
 		}
-		if (set_shell)
-			envs.set("SHELL", *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL);
-		if (set_term)
-			set_str("TERM", "term", pw, lc_system, lc_user, 0);
-		if (set_timezone)
-			set_str("TZ", "timezone", pw, lc_system, lc_user, "UTC");
-		if (set_locale) {
-			set_str("LANG", "lang", pw, lc_system, lc_user, "POSIX");
-			set_str("MM_CHARSET", "charset", pw, lc_system, lc_user, "UTF-8");
-		}
-	} else {
-		if (set_tools) {
-			envs.set("EDITOR", 0);
-			envs.set("PAGER", 0);
+		if (set_shell) {
+			envs.set("SHELL", nullptr);
+			default_str("SHELL", "shell", *pw, lc_system, lc_user, *pw->pw_shell ? pw->pw_shell : DefaultEnvironment::UserLogin::SHELL);
 		}
 		if (set_xdg) {
-			envs.set("XDG_RUNTIME_DIR", 0);
-			envs.set("XDG_DATA_DIRS", 0);
-			envs.set("XDG_CONFIG_DIRS", 0);
-			envs.set("XDG_CONFIG_HOME", 0);
-			envs.set("XDG_DATA_HOME", 0);
+			prependpath("PATH", std::string(pw->pw_dir ? pw->pw_dir : "") + "/.local/bin");
+			prependpath("MANPATH", std::string(pw->pw_dir ? pw->pw_dir : "") + "/.local/share/man");
+			prependpath("MANPATH", std::string(pw->pw_dir ? pw->pw_dir : "") + "/.local/man");
+			prependpath("TERMPATH", std::string(pw->pw_dir ? pw->pw_dir : "") + "/.config/termcap");
+			prependpath("TERMINFO_DIRS", std::string(pw->pw_dir ? pw->pw_dir : "") + "/.config/terminfo");
+		}
+	} else {
+		if (set_xdg) {
+			envs.set("XDG_RUNTIME_DIR", nullptr);
+			envs.set("XDG_DATA_DIRS", DefaultEnvironment::UserLogin::XDG_DATA_DIRS);
+			envs.set("XDG_CONFIG_DIRS", DefaultEnvironment::UserLogin::XDG_CONFIG_DIRS);
+			// XDG_CONFIG_HOME has a fallback of $HOME/.config which is fine.
+			envs.set("XDG_CONFIG_HOME", nullptr);
+			// XDG_DATA_HOME has a fallback of $HOME/.local/share which is fine.
+			envs.set("XDG_DATA_HOME", nullptr);
+			// XDG_STATE_HOME has a fallback of $HOME/.local/state which is fine.
+			envs.set("XDG_STATE_HOME", nullptr);
+			// XDG_CACHE_HOME has a fallback of $HOME/.cache which is fine.
+			envs.set("XDG_CACHE_HOME", nullptr);
 		}
 		if (set_dbus)
-			envs.set("DBUS_SESSION_BUS_ADDRESS", 0);
-		if (set_path) {
-			// Always use STDPATH, even for non-superusers.
-			envs.set("PATH", _PATH_STDPATH);
-			envs.set("MANPATH", 0);
+			envs.set("DBUS_SESSION_BUS_ADDRESS", nullptr);
+		if (default_locale) {
+			default_str("LANG", DefaultEnvironment::UserLogin::LANG);
+			default_str("MM_CHARSET", DefaultEnvironment::UserLogin::MM_CHARSET);
+		}
+		if (default_path) {
+			// Superusers and non-superusers have the same default.
+			default_str("PATH", DefaultEnvironment::UserLogin::PATH);
+			default_str("TERMPATH", DefaultEnvironment::UserLogin::TERMPATH);
+			default_str("TERMINFO_DIRS", DefaultEnvironment::UserLogin::TERMINFO_DIRS);
+		}
+		if (default_term)
+			default_str("TERM", DefaultEnvironment::TERM);
+		if (default_timezone)
+			default_str("TZ", DefaultEnvironment::UserLogin::TZ);
+		if (default_tools) {
+			default_str("EDITOR", DefaultEnvironment::UserLogin::EDITOR);
+			default_str("VISUAL", DefaultEnvironment::UserLogin::VISUAL);
+			default_str("PAGER", pager);
+			default_str("MANPAGER", pager);
 		}
 		if (set_user) {
-			envs.set("HOME", 0);
-			envs.set("USER", 0);
-			envs.set("LOGNAME", 0);
+			envs.set("HOME", nullptr);
+			envs.set("USER", nullptr);
+			envs.set("LOGNAME", nullptr);
 		}
-		if (set_shell)
-			envs.set("SHELL", _PATH_BSHELL);
-		if (set_term)
-			envs.set("TERM", 0);
-		if (set_timezone)
-			envs.set("TZ", "UTC");
-		if (set_locale) {
-			envs.set("LANG", "POSIX");
-			envs.set("MM_CHARSET", "UTF-8");
+		if (set_shell) {
+			default_str("SHELL", DefaultEnvironment::UserLogin::SHELL);
 		}
 	}
 }

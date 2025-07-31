@@ -35,60 +35,157 @@ It is designed to be run as part of system or container/jail initialization.
 </para>
 
 <para>
-The dynamic hostname is the hostname that is returned from the <citerefentry><refentrytitle>gethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function, which may vary during the system's lifetime as the machine is (for example) granted DHCP leases.
-On operating systems such as FreeBSD, OpenBSD, and Linux, the dynamic hostname is the same as the nodename that is returned by the the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function (although the POSIX standard does not in fact require this).
-</para>
-
-<para>
-The statically configured hostname is the value of the <envar>hostname</envar> environment variable that the <command>set-dynamic-hostname</command> program is started with.
-Normally, <command>set-dynamic-hostname</command> will be chain-loaded from something like <citerefentry><refentrytitle>envdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> reading <envar>hostname</envar> out of an environment directory or <citerefentry><refentrytitle>read-conf</refentrytitle><manvolnum>1</manvolnum></citerefentry> reading it from a file such as <filename>/etc/rc.conf</filename>.
-</para>
-
-<para>
-If that environment variable is missing, <command>set-dynamic-hostname</command> looks (on operating systems that support it) to the kernel environment variable <envar>dhcp.host-name</envar>, which is the host name contained in the DHCP lease obtained by a PXE boot loader.
-If that fails, it sets the dynamic hostname to <quote><code>localhost</code></quote>.
-</para>
-
-<para>
 Unless the <arg choice="plain">--force</arg> option is used, <command>set-dynamic-hostname</command> will not attempt to set the dynamic hostname if it has already been set to something.
 Thus setting the dynamic hostname for a container/jail can be done by simply setting it as the jail is created.
 Any later execution of <command>set-dynamic-hostname</command> within the jail, as part of its startup process, will not override that.
 </para>
 
 <para>
-No restrictions are placed upon hostnames by <command>set-dynamic-hostname</command>, nor by most operating systems, except length restrictions.
-However, for best results, administrators should obey the rules set out in RFC 1123 &#x00A7; 2.1, which limit hostnames to:
+No restrictions are placed upon hostnames by <command>set-dynamic-hostname</command> itself, nor by most operating systems, except length restrictions.
 </para>
 
+<refsection><title>The dynamic hostname</title>
+
+<para>
+The dynamic hostname is the hostname that is set with the <citerefentry><refentrytitle>sethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function, which may vary during the system's lifetime as the machine is (for example) granted DHCP leases.
+It is conventionally accessible via the <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command, the <envar>HOST</envar> shell variable in the Z shell, and any programs that simply call the <citerefentry><refentrytitle>gethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function themselves.
+</para>
+
+</refsection>
+
+<refsection><title>The static hostname</title>
+
+<para>
+The statically configured hostname is the value of the <envar>hostname</envar> environment variable that the <command>set-dynamic-hostname</command> program is started with.
+Normally, <command>set-dynamic-hostname</command> will be chain-loaded from something like <citerefentry><refentrytitle>envdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> reading <envar>hostname</envar> out of an environment directory or <citerefentry><refentrytitle>read-conf</refentrytitle><manvolnum>1</manvolnum></citerefentry> reading it from a file such as <filename>/etc/rc.conf</filename>.
+The nosh toolkit comes with a system service bundle that invokes the <command>set-dynamic-hostname</command> command, and whose <envar>hostname</envar> environment variable is converted, via a configuration import mechanism, from the <filename>/etc/rc.conf</filename> configuration file.
+</para>
+
+<para>
+If that environment variable is missing, <command>set-dynamic-hostname</command> looks (on operating systems that support it) to the kernel environment variable <envar>dhcp.host-name</envar>, which is the host name contained in the DHCP lease obtained by a PXE boot loader.
+If that fails, it sets the dynamic hostname to <quote><code>localhost.</code></quote>, a fully-qualified DNS domain name.
+</para>
+
+<para>
+For statically configured hostnames, it is recommended to follow the conventions laid out in the OpenBSD <citerefentry><refentrytitle>myname</refentrytitle><manvolnum>5</manvolnum></citerefentry>, the FreeBSD <citerefentry><refentrytitle>rc.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>, and the FreeBSD and OpenBSD <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>7</manvolnum></citerefentry> manual pages.
+The modern convention, stated by these manual pages, is that this is a multiple-label, possibly also fully-qualified (i.e. with a trailing <quote><code>.</code></quote> character), DNS domain name in human-readable (not machine-readable as in the DNS protocol) form; and that it follow the lexical rules for such names (including disallowing all-numeric labels and being case-insensitive).
+</para>
+
+<para>
+35 years after the invention of internationalized domain names, it is still not settled whether non-English hostnames should be encoded as Punycode or UTF-8.
+It is the author's recommendation to use UTF-8, because hostnames are human-readable strings presented by applications programs to their users, not on-the-wire Punycode-encoded DNS domain names.
+</para>
+
+</refsection>
+
+</refsection>
+
+<refsection id="STANDARDS" xreflabel="STANDARDS"><title>Standards</title>
+
+<para>
+The Single Unix Specification requires that operating systems have three things:
+</para>
 <itemizedlist>
 <listitem><para>
-the characters 
-<code>A</code>&#x2013;<code>Z</code>, 
-<code>a</code>&#x2013;<code>z</code>, 
-<code>0</code>&#x2013;<code>9</code>, 
-<code>.</code>, and
-<code>-</code>
-(preferring lowercase, since RFC 1123 Host Names are not case sensitive) with the first character not being either <code>.</code> or <code>-</code> and the last character not being <code>.</code>
+a "host" name, that is the name that is returned from the <citerefentry><refentrytitle>gethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
 </para></listitem>
 <listitem><para>
-a maximum of 63 characters (hostnames here being the initial label(s) of an RFC 1123 Host Name)
+a "domain" name, that is the name that is returned from the <citerefentry><refentrytitle>getdomainname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+</para></listitem>
+<listitem><para>
+a "node" name, that is the name that is returned from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
 </para></listitem>
 </itemizedlist>
 
 <para>
-For clarity, observe that a RFC 1123 Host Name comprises two parts:
+The Single Unix Specification does not define any relationships amongst these three.
+What namespaces and qualifying domains encompass the "host" and "node" names is up to individual operating systems to define, and they need not bear any relation to the "domain" name.
 </para>
 
-<itemizedlist>
-<listitem><para>
-the dynamic hostname, as set by this command, comprising the initial one or more labels (usually only the first label); and
-</para></listitem>
-<listitem><para>
-the domain name, as returned by the <citerefentry><refentrytitle>getdomainname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function (and on Linux the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function), comprising the remaining labels.
-</para></listitem>
-</itemizedlist>
+<para>
+Nor does it specify how any of these are set, nor that they are even variable during system runtime.
+It notes that in historical operating systems the "node" name was, indeed, hardwired into the code of the operating system at compile time.
+</para>
 
-</refsection><refsection><title>Author</title>
+<para>
+Nor does it define any ways in which these are accessible from the shell or from utilities.
+</para>
+
+<refsection><title>Reality</title>
+
+<para>
+In reality, FreeBSD, OpenBSD, and Linux-based operating systems present these different concepts to system administrators and users instead:
+</para>
+<variablelist>
+<varlistentry>
+<term>a dynamic "hostname"</term>
+<listitem><para>
+This is the "host" name that is returned from the <citerefentry><refentrytitle>gethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function and set by the (non-standardized but universal) <citerefentry><refentrytitle>sethostname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+It is also the "node" name that is returned from the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function; the two being guaranteed identical on these operating systems.
+It is conventionally accessible via the <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command, via the <citerefentry><refentrytitle>uname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command with the <arg choice="plain">-n</arg> option, and as aforementioned.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>a dynamic "NIS domain name"</term>
+<listitem><para>
+This is the "domain" name that is returned from the <citerefentry><refentrytitle>getdomainname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function and set by the (non-standardized but universal) <citerefentry><refentrytitle>setdomainname</refentrytitle><manvolnum>2</manvolnum></citerefentry> library function.
+It is conventionally accessible via the <citerefentry><refentrytitle>domainname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
+Peter Tobias's hostname also provides <citerefentry><refentrytitle>nisdomainname</refentrytitle><manvolnum>1</manvolnum></citerefentry> and <citerefentry><refentrytitle>ypdomainname</refentrytitle><manvolnum>1</manvolnum></citerefentry> commands.
+</para><para>
+Despite this access overkill, it is rarely of practical use.
+</para>
+<note>
+Very old documentation calls this the "YP domain name", although the BSDs stopped using the name "Yellow Pages" for this in the 1980s.
+</note>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>a dynamic "DNS domain name"</term>
+<listitem><para>
+This is derived from the "hostname", somehow.
+FreeBSD and OpenBSD provide no command for accessing this.
+Peter Tobias's hostname provides the <citerefentry><refentrytitle>dnsdomainname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command, as well as various name-qualification options to its <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
+</para>
+<note>
+There is no consistency in how this happens, not even from subsystem to subsystem on a single operating system, nor even within a single toolkit (e.g. Peter Tobias's hostname).
+Some programs take the "hostname" and simply strip off a leading "label" by looking for the first <quote><code>.</code></quote> character.
+Some programs follow the more complex steps given in the FreeBSD and OpenBSD <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>7</manvolnum></citerefentry> manual page; albeit that not all do, even on FreeBSD itself, with the <envar>HOSTALIASES</envar> environment variable not widely recognized and name qualification not following the rules set out on that page (which do not agree with how DNS client libraries from ISC's BIND and djbdns actually fully-qualify names).
+Peter Tobias's hostname documents a complex and bewildering set of rules for how its <citerefentry><refentrytitle>dnsdomainname</refentrytitle><manvolnum>1</manvolnum></citerefentry> and its <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>1</manvolnum></citerefentry> commands interact with their various command-line options when it comes to name qualification and deriving DNS domain names.
+</note>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection><title>History</title>
+
+<para>
+RFC 1123 &#x00A7; 2.1 describes Host Names, limiting such Host Names to the characters
+<quote><code>A</code></quote>&#x2013;<quote><code>Z</code></quote>,
+<quote><code>a</code></quote>&#x2013;<quote><code>z</code></quote>,
+<quote><code>0</code></quote>&#x2013;<quote><code>9</code></quote>,
+<quote><code>.</code></quote>, and
+<quote><code>-</code></quote>
+(preferring lowercase, since RFC 1123 Host Names are not case sensitive) with the first character not being either <quote><code>.</code></quote> or <quote><code>-</code></quote> and the last character not being a <quote><code>.</code></quote> character.
+</para>
+
+<para>
+An old convention was that the Host Name was the Single Unix Specification's "host" name qualified with its "domain" name.
+In practice, this would have only been true on operating systems where "Yellow Pages" was the primary name lookup mechanism.
+It is explicitly contradicted by modern practice (and indeed by RFC 1123), where the "hostname" is a DNS name, not a YP/NIS name.
+It and RFC 1123 are also explicitly contradicted by the FreeBSD and OpenBSD <citerefentry><refentrytitle>hostname</refentrytitle><manvolnum>7</manvolnum></citerefentry> manual page which explains that "hostname"s are indeed allowed to end with a <quote><code>.</code></quote> character in the modern DNS-based world.
+</para>
+
+<para>
+Peter Tobias's hostname does not mention RFC 1123, only RFC 1035, disallows a <quote><code>-</code></quote> as the last character as well, and silently removes whitespace; albeit that (as aforementioned) the operating systems that it runs on have no such restrictions themselves.
+</para>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Author</title>
 <para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
 </refsection>
 

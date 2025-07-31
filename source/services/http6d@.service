@@ -8,8 +8,10 @@ Description=NOTE: Bernstein's publicfile supports HTTP over both IPv4 and IPv6 w
 
 [Service]
 User=publicfile
+SessionLeader=yes
+EnvironmentDirectory=env
 EnvironmentUserOnly=true
-LimitNOFILE=20
+LimitNOFILE=8
 LimitDATA=5000000
 ExecStart=sh -c 'exec httpd ~publicfile/public'
 

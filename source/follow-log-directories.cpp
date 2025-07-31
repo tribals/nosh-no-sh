@@ -30,12 +30,14 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-enum { 
+namespace {
+
+enum {
 	EXTERNAL_TAI64_LENGTH = 16,
 	EXTERNAL_TAI64N_LENGTH = 24
 };
 
-static inline
+inline
 bool
 is_external_tai64n (
 	const char stamp[EXTERNAL_TAI64N_LENGTH]
@@ -47,7 +49,7 @@ is_external_tai64n (
 	return true;
 }
 
-static inline
+inline
 bool
 is_current (
 	const dirent & e
@@ -59,7 +61,7 @@ is_current (
 #endif
 }
 
-static inline
+inline
 bool
 is_lock (
 	const dirent & e
@@ -71,7 +73,7 @@ is_lock (
 #endif
 }
 
-static inline
+inline
 bool
 is_old (
 	const dirent & e
@@ -86,18 +88,17 @@ is_old (
 	return is_external_tai64n(e.d_name + 1);
 }
 
-namespace {
-
 struct index : public std::pair<dev_t, ino_t> {
 	index(const struct stat & s) : pair(s.st_dev, s.st_ino) {}
 };
 
 class Cursor : public index {
 public:
-	Cursor ( const struct stat & );
+	Cursor ( const struct stat &, const std::string &, FileDescriptorOwner &, FileDescriptorOwner & );
 	~Cursor() {}
-	std::string appname;
-	FileDescriptorOwner main_dir, last_file, current_file;
+	const std::string appname;
+	const FileDescriptorOwner main_dir, last_file;
+	FileDescriptorOwner current_file;
 	void eof();
 	void process(const char *, std::size_t);
 	bool at_or_beyond(const char stamp[EXTERNAL_TAI64N_LENGTH]) const;
@@ -116,11 +117,11 @@ protected:
 }
 
 inline
-Cursor::Cursor ( const struct stat & s ) :
+Cursor::Cursor ( const struct stat & s, const std::string & n, FileDescriptorOwner & m, FileDescriptorOwner & l ) :
 	index(s),
-	appname(),
-	main_dir(-1),
-	last_file(-1),
+	appname(n),
+	main_dir(m.release()),
+	last_file(l.release()),
 	current_file(-1),
 	state(BOL),
 	message(),
@@ -130,8 +131,8 @@ Cursor::Cursor ( const struct stat & s ) :
 }
 
 inline
-void 
-Cursor::read_last() 
+void
+Cursor::read_last()
 {
 	if (-1 != last_file.get()) {
 		char stamp[EXTERNAL_TAI64N_LENGTH + 1];
@@ -142,7 +143,7 @@ Cursor::read_last()
 }
 
 inline
-void 
+void
 Cursor::update(
 	const char stamp[EXTERNAL_TAI64N_LENGTH]
 ) {
@@ -164,6 +165,8 @@ Cursor::emit ()
 		{ const_cast<char *>("@"), 1 },
 		{ line_stamp, EXTERNAL_TAI64N_LENGTH },
 		{ const_cast<char *>(" "), 1 },
+		{ const_cast<char *>(appname.data()), appname.length() },
+		{ const_cast<char *>(" "), 1 },
 		{ const_cast<char *>(message.data()), message.length() },
 		{ const_cast<char *>("\n"), 1 }
 	};
@@ -173,7 +176,7 @@ Cursor::emit ()
 
 inline
 void
-Cursor::eof () 
+Cursor::eof ()
 {
 	std::fprintf(stderr, "%s: At EOF, last is now %.*s.\n", appname.c_str(), EXTERNAL_TAI64N_LENGTH, last);
 	switch (state) {
@@ -214,7 +217,7 @@ Cursor::process (
 		case ONESPACE:
 			if (' ' == c)
 				state = BODY;
-			else 
+			else
 			if ('\n' == c)
 				state = BOL;
 			else
@@ -236,7 +239,7 @@ Cursor::process (
 			if ('@' == c) {
 				line_stamp_pos = 0;
 				state = STAMP;
-			} else 
+			} else
 			if ('\n' != c)
 				state = SKIP;
 			break;
@@ -264,6 +267,8 @@ Cursor::at_or_beyond (
 	return 0 <= std::memcmp(last, stamp, EXTERNAL_TAI64N_LENGTH);
 }
 
+namespace {
+
 typedef std::map<struct index, Cursor *> cursor_collection;
 static cursor_collection cursors;
 
@@ -271,9 +276,11 @@ typedef std::map<int, Cursor *> fd_index;
 static fd_index by_current_file_fd;
 static fd_index by_main_dir_fd;
 
-static inline
+inline
 void
 rescan (
+	const char * prog,
+	const ProcessEnvironment & envs,
 	const FileDescriptorOwner & queue,
 	const FileDescriptorOwner & scan_dir_fd,
 	const char * scan_directory
@@ -281,9 +288,7 @@ rescan (
 	FileDescriptorOwner duplicated_scan_dir_fd(dup(scan_dir_fd.get()));
 	if (0 > duplicated_scan_dir_fd.get()) {
 exit_scan:
-		const int error(errno);
-		std::fprintf(stderr, "FATAL: %s: %s\n", scan_directory, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, scan_directory);
 	}
 
 	const DirStar scan_dir(duplicated_scan_dir_fd);
@@ -330,7 +335,7 @@ exit_scan:
 			continue;
 		}
 
-		Cursor * c(new Cursor(cursor_dir_s));
+		Cursor * c(new Cursor(cursor_dir_s, entry->d_name, main_dir_fd, last_file_fd));
 		if (!c) continue;
 
 		std::fprintf(stderr, "New cursor %s/%s\n", scan_directory, entry->d_name);
@@ -340,25 +345,20 @@ exit_scan:
 			delete c;
 			continue;
 		}
-		c->main_dir.reset(main_dir_fd.release());
-		c->last_file.reset(last_file_fd.release());
-		c->appname = entry->d_name;
 
 		c->read_last();
 
 		by_main_dir_fd.insert(fd_index::value_type(c->main_dir.get(), c));
 
 		struct kevent e[1];
-		set_event(&e[0], c->main_dir.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, 0);
-		if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, 0, 0, 0)) {
-			const int error(errno);
-			std::fprintf(stderr, "FATAL: %s: %s\n", "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+		set_event(e[0], c->main_dir.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, nullptr);
+		if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, nullptr, 0, nullptr)) {
+			die_errno(prog, envs, "kevent");
 		}
 	}
 }
 
-static inline
+inline
 void
 process (
 	Cursor & c,
@@ -372,9 +372,11 @@ process (
 	}
 }
 
-static inline
+inline
 void
 catch_up (
+	const char * prog,
+	const ProcessEnvironment & envs,
 	const FileDescriptorOwner & queue,
 	Cursor & c,
 	const char * scan_directory
@@ -383,9 +385,7 @@ catch_up (
 		FileDescriptorOwner duplicated_main_dir_fd(dup(c.main_dir.get()));
 		if (0 > duplicated_main_dir_fd.get()) {
 exit_scan:
-			const int error(errno);
-			std::fprintf(stderr, "FATAL: %s/%s/%s: %s\n", scan_directory, c.appname.c_str(), "main", std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, scan_directory, c.appname.c_str(), "main");
 		}
 
 		DirStar main_dir(duplicated_main_dir_fd);
@@ -464,17 +464,17 @@ exit_scan:
 	std::fprintf(stderr, "Synchronized %s/%s/%s/%s, now waiting for changes.\n", scan_directory, c.appname.c_str(), "main", "current");
 
 	struct kevent e[1];
-	set_event(&e[0], c.current_file.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, 0);
-	if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, 0, 0, 0)) {
-		const int error(errno);
-		std::fprintf(stderr, "FATAL: %s: %s\n", "kevent", std::strerror(error));
-		throw EXIT_FAILURE;
+	set_event(e[0], c.current_file.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, nullptr);
+	if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, nullptr, 0, nullptr)) {
+		die_errno(prog, envs, "kevent");
 	}
 }
 
-static inline
+inline
 void
 mark_as_behind (
+	const char * prog,
+	const ProcessEnvironment & envs,
 	const FileDescriptorOwner & queue,
 	Cursor & c,
 	const char * scan_directory
@@ -484,11 +484,9 @@ mark_as_behind (
 		c.eof();
 
 		struct kevent e[1];
-		set_event(&e[0], c.current_file.get(), EVFILT_VNODE, EV_DELETE, NOTE_WRITE|NOTE_EXTEND, 0, 0);
-		if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, 0, 0, 0)) {
-			const int error(errno);
-			std::fprintf(stderr, "FATAL: %s: %s\n", "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+		set_event(e[0], c.current_file.get(), EVFILT_VNODE, EV_DELETE, NOTE_WRITE|NOTE_EXTEND, 0, nullptr);
+		if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, nullptr, 0, nullptr)) {
+			die_errno(prog, envs, "kevent");
 		}
 
 		by_current_file_fd.erase(c.current_file.get());
@@ -496,6 +494,8 @@ mark_as_behind (
 
 		std::fprintf(stderr, "Desynchronized from %s/%s/%s/%s\n", scan_directory, c.appname.c_str(), "main", "current");
 	}
+}
+
 }
 
 /* Main function ************************************************************
@@ -506,70 +506,60 @@ void
 follow_log_directories [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "{directory}");
+		popt::top_table_definition main_option(0, nullptr, "Main options", "{directory}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (1 != args.size()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "One directory name is required.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
-	const char * const scan_directory(args[0]);
+	if (args.empty()) die_missing_argument(prog, envs, "scan directory");
+	const char * const scan_directory(args.front());
+	args.erase(args.begin());
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	const FileDescriptorOwner queue(kqueue());
 	if (0 > queue.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "FATAL: %s: %s\n", "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 
 	FileDescriptorOwner scan_dir_fd(open_dir_at(AT_FDCWD, scan_directory));
 	if (0 > scan_dir_fd.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "FATAL: %s: %s\n", scan_directory, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, scan_directory);
 	} else {
 		struct kevent e[1];
-		set_event(&e[0], scan_dir_fd.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, 0);
-		if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, 0, 0, 0)) {
-			const int error(errno);
-			std::fprintf(stderr, "FATAL: %s: %s\n", "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+		set_event(e[0], scan_dir_fd.get(), EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_EXTEND, 0, nullptr);
+		if (0 > kevent(queue.get(), e, sizeof e/sizeof *e, nullptr, 0, nullptr)) {
+			die_errno(prog, envs, "kevent");
 		}
 	}
 
 	bool rescan_needed(true);
 	for (;;) {
 		if (rescan_needed) {
-			rescan(queue, scan_dir_fd, scan_directory);
+			rescan(prog, envs, queue, scan_dir_fd, scan_directory);
 			rescan_needed = false;
 		}
 
 		for (cursor_collection::iterator i(cursors.begin()); cursors.end() != i; ++i) {
-			if (-1 == i->second->current_file.get()) 
-				catch_up(queue, *i->second, scan_directory);
+			if (-1 == i->second->current_file.get())
+				catch_up(prog, envs, queue, *i->second, scan_directory);
 		}
 
 		struct kevent p[20];
-		const int rc(kevent(queue.get(), 0, 0, p, sizeof p/sizeof *p, 0));
+		const int rc(kevent(queue.get(), nullptr, 0, p, sizeof p/sizeof *p, nullptr));
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
-			std::fprintf(stderr, "FATAL: %s: %s\n", "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+			if (EINTR == errno) continue;
+			die_errno(prog, envs, "kevent");
 		}
 
 		for (size_t i(0); i < static_cast<std::size_t>(rc); ++i) {
@@ -585,7 +575,7 @@ follow_log_directories [[gnu::noreturn]] (
 					fd_index::iterator mi(by_main_dir_fd.find(fd));
 					if (mi != by_main_dir_fd.end()) {
 						Cursor & c(*mi->second);
-						mark_as_behind(queue, c, scan_directory);
+						mark_as_behind(prog, envs, queue, c, scan_directory);
 						break;
 					}
 					fd_index::iterator ci(by_current_file_fd.find(fd));

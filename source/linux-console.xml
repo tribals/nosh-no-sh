@@ -35,6 +35,25 @@ The default list in the absence of a parameter is usually <filename>tty0</filena
 </para>
 
 <para>
+These names are not devices in the filesystem.
+Contrary to the erroneous kernel documentation, <filename>tty2</filename> does not denote the second kernel virtual terminal, nor <filename>lp0</filename> the first parallel port.
+The names decompose into an alphabetic <emphasis>registration name</emphasis> and a numeric <emphasis>index</emphasis>.
+</para>
+<itemizedlist>
+<listitem><para>
+The registration names are internal names used by device drivers when they register that they can do console I/O, and are not required to bear any relation to what is visible in the filesystem.
+The kernel virtual terminal subsystem registers the console name <filename>tty</filename>, the parallel port driver registers the console name <filename>lp</filename>, the z/VM hypervisor registers the console name <filename>hvc</filename>, and so forth.
+</para></listitem>
+<listitem><para>
+The index only has meaning for device drivers that register more than one console I/O handler by the same name, allowing a particular handler instance to be selected from the <code>console=</code> parameter.
+</para><para>
+This is not in fact the case for the KVT subsystem, the parallel port driver, nor indeed many of the drivers in the system; which register just a single console I/O handler each, no matter how many character devices they supply in the filesystem, using -1 as the index (which matches any index in the <code>console=</code> command-line argument).
+It is thus often ignored, making (say) <filename>tty0</filename> functionally equivalent to <filename>tty2</filename>.
+See <citerefentry><refentrytitle>linux-vt</refentrytitle><manvolnum>4</manvolnum></citerefentry> for how to direct console output to different kernel virtual terminals, when <filename>tty</filename> or <filename>tty<replaceable>NN</replaceable></filename> is specified as the console.
+</para></listitem>
+</itemizedlist>
+
+<para>
 <filename>/dev/console</filename> is a fully functional terminal device, with a line discipline.
 Its input and output are routed via the underlying device by the kernel.
 It does not support serial device control.
@@ -49,7 +68,7 @@ The initial root filesystem (initramfs, initrd, or physical on-disc filesystem) 
 
 <para>
 The system console is a character device with major number 5 and minor number 1.
-(Compare minor number 2 for <citerefentry><refentrytitle>ptmx</refentrytitle><manvolnum>4</manvolnum></citerefentry> and minor number 0 for <citerefentry><refentrytitle>tty</refentrytitle><manvolnum>4</manvolnum></citerefentry>.) 
+(Compare minor number 2 for <citerefentry><refentrytitle>ptmx</refentrytitle><manvolnum>4</manvolnum></citerefentry> and minor number 0 for <citerefentry><refentrytitle>tty</refentrytitle><manvolnum>4</manvolnum></citerefentry>.)
 Thus a <filename>devtmpfs</filename> filesystem automatically gains a node named <filename>console</filename> that denotes this device.
 </para>
 
@@ -58,7 +77,7 @@ Thus a <filename>devtmpfs</filename> filesystem automatically gains a node named
 <para>
 The <filename>/dev/console</filename> device file available within a container may differ.
 What it is is determined by the applications software that created the container and populated its <filename>/dev</filename> directory.
-Some container systems have the convention of it being a bind-mounted pseudo-terminal slave side device, for example.
+Some container systems have the convention of it being a bind-mounted pseudo-terminal front-end device, for example.
 Specifics are beyond the scope of this manual page, which only addresses the kernel-provided device file.
 See your container software's documentation.
 </para>
@@ -73,7 +92,7 @@ See your container software's documentation.
 <listitem>
 <para>
 The list of devices specified for the console.
-This is in the reverse order to the order used on the kernel command line, and thus the first item on the list is the one that <filename>/dev/console</filename> device maps to.
+This is in the reverse order to the order used on the kernel command line, and thus the first item on the list is the one that the <filename>/dev/console</filename> device maps to.
 </para>
 </listitem>
 </varlistentry>

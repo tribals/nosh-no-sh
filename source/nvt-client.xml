@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="nvt-client">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>nvt-client</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>nvt-client</refname>
+<refpurpose>noddy Unicode Network Virtual Terminal client</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>nvt-client</command>
+<arg choice='opt'>--local-echo</arg>
+<arg choice='opt'>--no-remote-echo</arg>
+<arg choice='opt'>--pass-through-overlength-remote-data</arg> 
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Description</title>
+
+<para>
+<command>nvt-client</command> is a utility that acts as a noddy Unicode NVT (Network Virtual Terminal) client.
+Per the UCSPI conventions, it expects file descriptors 6 and 7 to be reading from and writing to a network socket, respectively, and uses its standard input and output as the local terminal device underlying the NVT.
+(<citerefentry><refentrytitle>tcp-socket-connect</refentrytitle><manvolnum>1</manvolnum></citerefentry> can be used to set this process state up.)
+Standard I/O do not need to actually be a terminal, of course.
+</para>
+
+<para>
+Its primary use case is for building noddy automated (anonymous, unauthenticated) clients for servers that speak "line" protocols (derived from the NVT idea) like HTTP, which would otherwise be built with Bernstein <citerefentry><refentrytitle>addcr</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>delcr</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>fixcrio</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+It does in one program what <citerefentry><refentrytitle>addcr</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>delcr</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>fixcrio</refentrytitle><manvolnum>1</manvolnum></citerefentry> did in two; with the advantages that it handles data transfer in both directions simultaneously, handles the connection between the two directions that the TELNET protocol requires, understands UTF-8, understands the UCSPI conventions, and can do local echo.
+</para>
+
+<para>
+It enters a loop where it simultaneously:
+</para>
+
+<itemizedlist>
+
+<listitem>
+<para>
+writes all data received from the network to its own standard output, until the network closes (or shuts down) its send side; and
+</para>
+</listitem>
+
+<listitem>
+<para>
+writes all data received from its own standard input to the network, until its standard input signals EOF with a 0 byte read.
+</para>
+</listitem>
+
+</itemizedlist>
+
+<para>
+EOF from the network with no pending network data remaining to be written to standard output (i.e. the remote to local buffer is fully drained) terminates <command>nvt-client</command> normally.
+EOF from standard input with no pending network data remaining to be written to the network (i.e. the local to remote buffer is fully drained) causes the network write file descriptor to be shut down for writing (if it is actually a TCP socket).
+It is expected that the server will in turn see EOF and as a consequence close things from its end.
+</para>
+
+<para>
+Data received from the network input are first decoded from the RFC 854 (TELNET) protocol, removing all NVT commands and options and acting upon them.
+Network input is then treated as UTF-8, sanitized, and written to standard output.
+The NVT newline convention is translated into the POSIX newline convention.
+</para>
+
+<para>
+Data received from standard input are treated as UTF-8, sanitized, then encoded using the RFC 854 protocol to escape any IAC characters, and written to network output.
+The POSIX newline convention is translated into the NVT newline convention.
+</para>
+
+<para>
+<command>nvt-client</command> has no "escape" characters, command mode, or any kind of interactive local off-line control.
+It does not send TELNET commands for "special" characters nor act upon any received, and recognizes no input character as "special".
+It expects the server to handle any special characters, and turns off special character processing by the local line discipline for the duration of its run, if its standard input is a terminal device.
+If it is sent signals such as <code>SIGHUP</code> it ABENDs in the appropriate way.
+</para>
+
+<note>
+In order to normally end a <command>nvt-client</command> that is being used interactively, it is thus necessary to ask the server end to terminate the connection.
+This will be either some form of <command>QUIT</command> command in whatever line-based protocol is being spoken, or a character such as EOT that the remote end denotes as a "special" terminal character for signalling the end of transmission.
+One can ABEND it by sending it a signal, of course; but this will have to be done via some other means than via the local line discipline.
+</note>
+
+<refsection><title>TELNET options</title>
+
+<para>
+<command>nvt-client</command> never initiates an option negotiation, so will not confuse not-fully-NVT line-oriented protocols with junk characters (except for doubling up of the IAC character, which as RFC 5198 explains is not a conflict when UTF-8 is involved).
+It understands the RFC 856 Binary option, the RFC 857 ECHO option, the RFC 858 Suspend Go Ahead option, the RFC 860 Timing Mark option, and the RFC 1073 NAWS option.
+All other TELNET options are rejected when requested.
+</para>
+
+<para>
+Any responses to TELNET option commands are sent to the network output, when the commands are received from network input, in order.
+Thus, Timing Mark is trivially supported.
+8-bit clean "binary" is effectively always the case anyway, in order to even support UTF-8; and if NAWS is negotiated on, <command>nvt-client</command> sends window sizes whenever it receives a <code>SIGWINCH</code> signal.
+</para>
+
+</refsection>
+
+<refsection><title>echoplex and duplex</title>
+
+<para>
+<command>nvt-client</command> operates solely in a modern full-duplex character mode.
+It has no plethora of line and "edit" modes for (say) old Multics terminals mentioned in RFCs, nor any half-duplex considerations.
+Indeed, its primary use case is where its standard I/O is not a terminal and it is not even talking to a fully-fledged NVT at the remote end.
+</para>
+
+<para>
+It never sends Go Ahead, RFC 854 having permitted clients to never do so since 1983; and allows the remote end to suspend Go Ahead, which like almost everything in the decades since the RFCs were written, it has no need of.
+This thus does not satisfy the "kludge line mode" heuristic that is used by BSD <citerefentry><refentrytitle>telnetd</refentrytitle><manvolnum>8</manvolnum></citerefentry>, which requires Go Ahead to be sent by clients.
+</para>
+
+<para>
+Normally, <command>nvt-client</command> does no local echo, which is the default per RFC 857.
+It permits the remote end to negotiate the RFC 857 ECHO option; and if ECHO on is negotiated, the remote end can of course then echo whatever it so chooses, and have its own echo control settings.
+It never negotiates RFC 857 ECHO for itself; it being a client rather than a server.
+</para>
+
+<para>
+The <arg choice='plain'>--local-echo</arg> command line option is for use with not-fully-NVT line-oriented protocols, where it might be useful to see what is being sent when using <command>nvt-client</command> interactively from a terminal as a protocol debugging tool.
+When that command line option is employed, <command>nvt-client</command> does its own local echo using the <citerefentry><refentrytitle>vis</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function in "safe" mode.
+</para>
+
+<para>
+Local echo is turned <emphasis>off</emphasis> if the remote end negotiates the ECHO option on and turned back <emphasis>on</emphasis> if the remote end negotiates ECHO off.
+This may seem confusing, and the confusion originates with RFC 857.
+Think of it as the remote end negotiating its taking over the handling of echoing all input, including whether it even happens or not.
+The <arg choice='plain'>--no-remote-echo</arg> command line option prevents the remote end from being allowed to negotiate ECHO on, keeping the local echo choice at the local end.
+</para>
+
+</refsection>
+
+<refsection><title>UTF-8</title>
+
+<para>
+Per RFC 5198, UTF-8 encoding is mostly layered on top of the underlying NVT protocol.
+(The original, fully 32-bit, UTF-8 encoding is supported.)
+TELNET command and option sequences are never encoded in UTF-8.
+</para>
+
+<para>
+However, also per RFC 5198, the newline convention conversions are layered on top of UTF-8.
+No action is taken on any control characters other than Line Feed (LF), Carriage Return (CR), and Null (NUL).
+Moreover, contra RFC 5198, no Unicode normalization is done; no combining characters combined, no character re-orderings in the data stream performed.
+The actual Unicode data stream, once sanitized, is outwith <command>nvt-client</command>'s remit; and is the responsibility of whatever is generating and consuming the data.
+</para>
+
+<para>
+<command>nvt-client</command> guarantees that it sends valid UTF-8 to the network; although for forwards compatibility it allows all code points, not just the assigned ones at the time of writing.
+Encoding errors in local data are always silently dropped; but overlength encodings that are otherwise valid are renormalized to their shortest encoding and passed through.
+</para>
+
+<para>
+Network input is more strictly sanitized; with both encoding errors and overlength encodings being silently dropped.
+The <arg choice='plain'>--pass-through-overlength-remote-data</arg> command line option lifts that latter restriction, permitting overlength encodings in data from the network and causing them to be normalized and passed through.
+</para>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Security</title>
+
+<caution>
+<command>nvt-client</command> has <emphasis>no security</emphasis>.
+It should not be used where any form of security or privacy of communication is desired.
+</caution>
+
+<para>
+It has no encryption, no support for any TELNET authentication methods, and no form of TLS negotiation.
+All data, passwords or otherwise, are sent over the network <emphasis>as cleartext</emphasis>, and are potentially interceptable by any device on any (bus-style) network over which the data flow between the local and remote ends.
+</para>
+
+<caution>
+Do not use <command>nvt-client</command> with TELNET servers that provide Unix or Unix-like log-on interfaces.
+</caution>
+
+<para>
+Unix or Unix-like log-on is not within <command>nvt-client</command>'s use case, which is <emphasis>unauthenticated</emphasis>, <emphasis>public</emphasis>, and <emphasis>interceptable</emphasis> comunication.
+Logging on to a "TELNET BBS" as a "guest" or a "visitor" may not per se require a password, but even then other personally identifying information (e.g. a mailbox address, or the host transmitting who it thinks the client is) is not secured and subject to interception.
+</para>
+
+<para>
+Pace all of these dire warnings; because <command>nvt-client</command> obeys the UCSPI conventions, it is possible to wrap it inside a third-party UCSPI-SSL tool that encrypts the data streams between <command>nvt-client</command> and the network transport layer and does certificate authentication for server and client.
+</para>
+
+<para>
+Because of its UTF-8 sanitization, <command>nvt-client</command> silently prevents attempts to bypass the newline conversions that employ overlong encodings for CR, LF, and NUL.
+The <arg choice='plain'>--pass-through-overlength-remote-data</arg> command line option is not the default in order to militate against Gresham' Law, where bad protocol implementations drive up the cost of correct protocol implementations and make bad protocol the cheaper option; and does not open up a hole for characters to bypass character clasification checks.
+</para>
+
+<para>
+<command>nvt-client</command> does not support either of the two environment TELNET options, nor the terminal type TELNET option.
+No information from the local process's environment is sent to the network.
+</para>
+
+</refsection>
+
+<refsection><title>Example</title>
+
+<informalexample>
+<para>
+This script downloads the <code>text/plain</code> page from the HTTP 1.x server specified as its arguments:
+</para>
+<programlisting>#!/bin/sh -e
+printf 'GET /%s HTTP/1.0\nHost: %s:%s\nAccept: text/*\n\n' "${2-}" "${1-0}" "${3-80}" |
+tcp-socket-connect -- "${4-${1-0}}" "${3-80}" nvt-client |
+awk '/^$/ { body=1; next } { if (body) print }'</programlisting>
+</informalexample>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

@@ -6,7 +6,7 @@
 
 [Unit]
 Description=%p service
-After=swapauto.service
+After=swapauto.target
 
 [Service]
 Type=oneshot

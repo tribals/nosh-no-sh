@@ -1,20 +1,50 @@
 # shell function library for FreeBSD/TrueOS
 # vim: set filetype=sh:
-old_escape() { system-control escape --alt-escape --no-ext-escape -- "$@" ; }
-escape() { system-control escape --alt-escape -- "$@" ; }
+old_escape() { system-control escape --format old-alt -- "$@" ; }
+pwescape() { system-control escape --format account -- "$@" ; }
 service_with_dedicated_logger() {
 	:
 }
-login_service_with_dedicated_logger() {
+prefixed_service_with_dedicated_logger() {
 	:
 }
-ktty_login_service_with_dedicated_logger() {
+tty_service_with_dedicated_logger() {
+	:
+}
+login_service_with_dedicated_logger() {
+        tty_service_with_dedicated_logger "ttylogin@" "$1"
+}
+kvt_login_service_with_dedicated_logger() {
 	case "`uname`" in
-	OpenBSD)	ktty=ttyC; break ;;
-	Linux)		ktty=tty; break ;;
-	*)		ktty=ttyv; break ;;
+	OpenBSD)	ttybase=ttyC; break ;;
+	NetBSD)		ttybase=ttyE; break ;;
+	*)		ttybase=ttyv; break ;;
 	esac
-	login_service_with_dedicated_logger "${ktty}$1"
+	tty_service_with_dedicated_logger "ttylogin@" "${ttybase}$1"
+}
+kvt_realizer_service_with_dedicated_logger() {
+	case "`uname`" in
+	OpenBSD)	ttybase=ttyC; break ;;
+	NetBSD)		ttybase=ttyE; break ;;
+	*)		ttybase=ttyv; break ;;
+	esac
+	prefixed_service_with_dedicated_logger "console-kvt-realizer@" "${ttybase}$1"
+}
+serial_tty_login_service_with_dedicated_logger() {
+	case "`uname`" in
+	OpenBSD)	ttybase=tty0; break ;;
+	NetBSD)		ttybase=tty0; break ;;
+	*)		ttybase=ttyu; break ;;
+	esac
+	tty_service_with_dedicated_logger "getty@" "${ttybase}$1"
+}
+serial_tty_callout_service_with_dedicated_logger() {
+	case "`uname`" in
+	OpenBSD)	ttybase=tty0; break ;;
+	NetBSD)		ttybase=dty0; break ;;
+	*)		ttybase=cuau; break ;;
+	esac
+	prefixed_service_with_dedicated_logger "ttycallout@" "${ttybase}$1"
 }
 socket_with_dedicated_logger() {
 	:

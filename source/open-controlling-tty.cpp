@@ -18,6 +18,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <fcntl.h>
 #include "popt.h"
 #include "utils.h"
+#include "fdutils.h"
 #include "ProcessEnvironment.h"
 
 /* Main function ************************************************************
@@ -25,7 +26,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-open_controlling_tty ( 
+open_controlling_tty (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -56,28 +57,22 @@ open_controlling_tty (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	const char * tty(envs.query("TTY"));
-	if (!tty) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "TTY", "Missing environment variable.");
-		throw EXIT_FAILURE;
-	}
+	if (!tty) die_missing_environment_variable(prog, envs, "TTY");
 
 #if !defined(_GNU_SOURCE)
 	if (revoke) {
 		if (0 > ::revoke(tty)) {
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s: %s\n", prog, "revoke", tty, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, "revoke", tty);
 		}
 	}
 #endif
@@ -85,21 +80,26 @@ open_controlling_tty (
 	// The System V way of acquiring the controlling TTY is just to open it.
 	// This is so full of ifs and buts on Linux that it is ridiculous; and it doesn't forcibly remove control.
 	// So we just use the BSD mechanism, which works on both the BSDs and Linux.
-	int fd(open(tty, O_RDWR|O_NOCTTY, 0));
+	int fd(open_readwriteexisting_at(AT_FDCWD, tty));
 	if (fd < 0) {
 #if defined(_GNU_SOURCE)
 error_exit:
 #endif
-		{
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, tty, std::strerror(error));
-		}
+		message_fatal_errno(prog, envs, tty);
 close_exit:
 		if (fd >= 0) close(fd);
 		throw EXIT_FAILURE;
 	}
 	if (!isatty(fd)) {
 		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, tty, "Not a terminal device.");
+		goto close_exit;
+	}
+	if (0 > set_close_on_exec(fd, false)) {
+		message_fatal_errno(prog, envs, "FD_CLOEXEC", tty);
+		goto close_exit;
+	}
+	if (0 > set_non_blocking(fd, false)) {
+		message_fatal_errno(prog, envs, "O_NONBLOCK", tty);
 		goto close_exit;
 	}
 
@@ -123,7 +123,7 @@ close_exit:
 		sa.sa_handler=SIG_IGN;
 		sa.sa_flags=0;
 		sigemptyset(&sa.sa_mask);
-		sigaction(SIGHUP,&sa,NULL);
+		sigaction(SIGHUP,&sa,nullptr);
 
 		// Unfortunately, the TTY has to actually ALREADY be OUR controlling TTY for this to work.
 		if (::vhangup()) goto error_exit;
@@ -131,7 +131,7 @@ close_exit:
 		sa.sa_handler=SIG_DFL;
 		sa.sa_flags=0;
 		sigemptyset(&sa.sa_mask);
-		sigaction(SIGHUP,&sa,NULL);
+		sigaction(SIGHUP,&sa,nullptr);
 
 		// Because we've just hung up, we have to re-open.
 		// This causes a race condition against any other privileged process also attempting to open this TTY.
@@ -143,18 +143,15 @@ close_exit:
 
 	// Now just dup the file descriptors.
 	if (0 > dup2(fd, STDIN_FILENO)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "stdin", std::strerror(error));
+		message_fatal_errno(prog, envs, "stdin");
 		goto close_exit;
 	}
 	if (0 > dup2(fd, STDOUT_FILENO)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "stdout", std::strerror(error));
+		message_fatal_errno(prog, envs, "stdout");
 		goto close_exit;
 	}
 	if (0 > dup2(fd, STDERR_FILENO)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "stderr", std::strerror(error));
+		message_fatal_errno(prog, envs, "stderr");
 		goto close_exit;
 	}
 

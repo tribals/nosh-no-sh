@@ -8,6 +8,15 @@ then
 	echo 1>&2 "/dev/random is not available."
 	exec false
 fi
+case "`uname`" in
+FreeBSD)	
+	if test 0 -ne "$(/sbin/sysctl -n security.jail.jailed)"
+	then
+		echo 1>&2 "Do not use this in a jail."
+		exec false
+	fi
+	;;
+esac
 
 # These are fallback defaults to the conventional Linux/FreeBSD/OpenBSD locations.
 # An unconventional location should be signalled by actually setting the service environment variables and not relying upon a fallback default.
@@ -15,12 +24,17 @@ fi
 case "`uname`" in
 Linux)	
 	file="${file-/var/lib/urandom/random-seed}"
+	dir="${dir-/var/lib/urandom/random-seeds}"	# Our addition to the Linux convention.
 	;;
 *BSD)	
 	dir="${dir-/var/db/entropy}" 
 	file="${file-/var/db/entropy-file}" 
 	;;
 esac
+save_num="${save_num:-8}"
+save_sz="${save_sz:-4096}" 
+
+umask 0377
 
 load() {
 	case "${dir}" in
@@ -29,16 +43,25 @@ load() {
 	*)
 		if test -d "${dir}"
 		then
-			ls -1 "${dir}/" | while read -r f
+			ls -1 -r "${dir}/" | while read -r f
 			do
 				if test -f "${dir}/${f}"
 				then
-					dd if="${dir}/${f}" of=/dev/random bs=4096
-					rm -- "${dir}/${f}"
+					case "${f}" in
+					[0-9]*.data)
+						dd if="${dir}/${f}" of=/dev/random bs="${save_sz}" count=1
+						rm -- "${dir}/${f}"
+						;;
+					*)
+						echo 1>&2 "${dir}/${f}": Skipping apparently non-data file.
+						;;
+					esac
 				else
 					echo 1>&2 "${dir}/${f}": Refusing to load random seed from non-regular file.
 				fi
 			done
+		else
+			echo 1>&2 "${dir}": Not a directory.
 		fi
 		;;
 	esac
@@ -48,9 +71,11 @@ load() {
 	*)
 		if test -f "${file}"
 		then
-			dd if="${file}" of=/dev/random bs=4096
+			dd if="${file}" of=/dev/random bs="${save_sz}" count=1
+			install -m 0600 -o 0 -g 0 /dev/null "${file}"	# additional security
 		else
 			echo 1>&2 "${file}": Refusing to load random seed from non-regular file.
+			return 111
 		fi
 		;;
 	esac
@@ -61,12 +86,54 @@ save() {
 	[Nn][Oo]|'')
 		;;
 	*)
-		umask 077
 		if ! test -e "${file}" || test -f "${file}"
 		then
-			dd if=/dev/random of="${file}" bs=4096 count=1
+			install -m 0600 -o 0 -g 0 /dev/null "${file}"	# additional security
+			dd if=/dev/random of="${file}" bs="${save_sz}" count=1
 		else
 			echo 1>&2 "${file}": Refusing to save random seed to non-regular file.
+			return 111
+		fi
+		;;
+	esac
+}
+
+savemore() {
+	case "${dir}" in
+	[Nn][Oo]|'')
+		;;
+	*)
+		install -d -m 0700 "${dir}"
+		if test -d "${dir}"
+		then
+			ls -1 -r "${dir}/" | while read -r f
+			do
+				if test -f "${dir}/${f}"
+				then
+					case "${f}" in
+					[0-9]*.data)
+						n="${f%.data}"
+						if test "${n}" -ge "${save_num}"
+						then
+							echo 1>&2 "${dir}/${f}": Removing excess random seed file.
+							rm -- "${dir}/${f}"
+						else
+							mv -- "${dir}/${f}" "${dir}/$(( n + 1 )).data"
+						fi
+						;;
+					*)
+						echo 1>&2 "${dir}/${f}": Skipping apparently non-data file.
+						;;
+					esac
+				else
+					echo 1>&2 "${dir}/${f}": Refusing to process non-regular file.
+				fi
+			done
+			install -m 0600 -o 0 -g 0 /dev/null "${dir}/0.data"	# additional security
+			dd if=/dev/random of="${dir}/0.data" bs="${save_sz}" count=1
+		else
+			echo 1>&2 "${dir}": Not a directory.
+			return 111
 		fi
 		;;
 	esac

@@ -23,20 +23,26 @@
 <refsynopsisdiv>
 <cmdsynopsis>
 <command>console-convert-kbdmap</command>
-<arg choice='opt' rep='repeat'><replaceable>kbdmap</replaceable></arg>
+<arg choice='opt' repeat='rep'><replaceable>kbdmap(s)</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsection><title>Description</title>
 
 <para>
-<command>console-convert-kbdmap</command> parses one or more BSD/SCO keyboard map files in the human-readable <citerefentry><refentrytitle>kbdmap</refentrytitle><manvolnum>5</manvolnum></citerefentry> format and emits, to its standard output, a machine-readable map file that is suitable for use with <citerefentry><refentrytitle>console-fb-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+<command>console-convert-kbdmap</command> parses one or more BSD/SCO keyboard map files in the human-readable <citerefentry><refentrytitle>kbdmap</refentrytitle><manvolnum>5</manvolnum></citerefentry> format and emits, to its standard output, a machine-readable map file that is suitable for use with <citerefentry><refentrytitle>console-ugen-hid-realizer</refentrytitle><manvolnum>1</manvolnum>, </citerefentry><citerefentry><refentrytitle>console-hid-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-pcat-keyboard-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, or <citerefentry><refentrytitle>console-evdev-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+The machine-readable map file format is given in <citerefentry><refentrytitle>console-keyboard-map</refentrytitle><manvolnum>5</manvolnum></citerefentry>.
 </para>
 
 <para>
-The BSD/SCO kbdmaps are overlaid on top of a larger, pre-defined, keyboard map.
+The BSD/SCO kbdmaps are overlaid on top of a much larger, pre-defined, keyboard map.
 The underlay map has a U.S. International IBM PC/AT QWERTY layout as group 1, and the ISO 9995-3 "common secondary group" as group 2.
-The expectation is that the BSD/SCO keymaps become the "national variant" portion in group 1; overwriting the group 1 entries for the alphanumeric rows A, B, C, D, and E, the function key block, and the PC/AT subset of the calculator keypad; but leaving group 2 as the ISO 9995-3 trans-national "common" group.
+</para>
+
+<para>
+<citerefentry><refentrytitle>console-keyboard-map</refentrytitle><manvolnum>5</manvolnum></citerefentry> keyboard maps contain a lot of entries for things that are simply inexpressible in BSD keyboard maps, such as consumer media device control keys, a distinct cursor/editing keypad, and calculator keypad keys such as change sign, comma, and equals.
+These are largely invariant, fortunately, and are supplied by the fixed underlay map.
+The expectation is that the BSD/SCO keymaps become the "national variant" portion in group 1; overwriting the group 1 entries for the alphanumeric rows A, B, C, D, and E, the function key block, and the PC/AT subset of the calculator keypad; but leaving group 2 as the ISO 9995-3 trans-national "common" group and leaving the non-BSD-expressible things as they stand.
 </para>
 
 <para>
@@ -48,127 +54,202 @@ BSD/SCO kbdmaps that have 128 or fewer entries are taken to define level1, level
 Such keymaps are effectively group 1 only.
 </para></listitem>
 <listitem><para>
-BSD/SCO kbdmaps can also have anywhere from 128 to 256 entries.
-Such keymaps are the BSD way of defining what is in effect a group 2, with the keycodes above 128 being the "group2" equivalents to keycodes 128 lower.
+BSD/SCO kbdmaps can also have anywhere from 129 to 256 entries.
+Such keymaps are the BSD way of defining what is in effect a group 2, with the keycodes above 127 being the "group2" equivalents to keycodes with values 128 lower.
 </para><para>
-However, in actual "group 2" keymaps invariably the second four columns duplicate the first four.
-So, in order to fit the BSD/SCO kbdmap into group 1, leaving the ISO 9995-3 common group 2 in group 2, the redundancy in the BSD/SCO kbdmap is eliminated:
+However, in practice invariably the second four columns in actual such "group 2" keymaps duplicate the first four.
+So, in order to fit the BSD/SCO kbdmap all into group 1, leaving the ISO 9995-3 common group 2 in group 2, the redundancy in the BSD/SCO kbdmap is eliminated:
 </para>
 <itemizedlist>
 <listitem><para>
 level1 and level2 of group 1 in the converted keymap are taken from the first four columns of the first 128 entries in the BSD/SCO kbdmap.
+In other words: BSD/SCO "group 1" levels 1 and 2 become group 1 levels 1 and 2 in the converted keymap.
 </para></listitem>
 <listitem><para>
 level3 and level4 of group 1 in the converted keymap are taken from the first four columns of the second 128 entries in the BSD/SCO kbdmap.
+In other words: BSD/SCO "group 2" levels 1 and 2 become group 1 levels 3 and 4 in the converted keymap.
 </para></listitem>
 </itemizedlist>
+<para>
+As a necessary concomitant to this, the <code>ashift</code> and <code>alock</code> actions are converted to a shift and a lock of level3, respectively.
+</para>
 </listitem>
 <listitem><para>
 Keycode 0x5D (decimal 93, the <keycap>&#x21ee;&#160;AltGr</keycap> or <keycap>&#x2325;&#160;Option</keycap> key) with level2 modifier in effect is always a group2 modifier latch.
 The BSD/SCO kbdmap is itself overlaid with this, because otherwise there would be no group2 modifier (since BSD/SCO kbdmaps have no notion of the ISO 9995-3 common group 2 or a modifier to switch to it, and do not set the appropriate action).
 </para></listitem>
 <listitem><para>
-"accent" definitions in a keymap are ignored.
-The "accent" keys instead simply generate Unicode characters as other keys.
+"accent" definition sections in a keymap are ignored.
+The various "accent" key actions in the map sections instead simply cause Unicode character messages like other keys do.
 But these are Unicode combining characters.
-<citerefentry><refentrytitle>console-fb-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry> combines those characters with following characters using the ISO 9995-3 rules.
+<citerefentry><refentrytitle>console-ugen-hid-realizer</refentrytitle><manvolnum>1</manvolnum>, </citerefentry><citerefentry><refentrytitle>console-hid-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-pcat-keyboard-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>console-evdev-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry> combine those characters with following characters using the ISO 9995-3 rules.
 </para></listitem>
 </itemizedlist>
 
 <para>
-Because multiple BSD/SCO kbdmaps can be processed, and because the keymaps are overlaid over an existing map, a complete map can be built up in layers should one want to, by having individual maps for the main alphanumeric layout, control and caps-lock, and so forth.  
+Because multiple BSD/SCO kbdmaps can be processed, and because the keymaps are overlaid over an existing map, a complete map can be built up in layers should one want to, by having individual maps for the main alphanumeric layout, control and caps-lock, and so forth.
 Similarly, minor variants on a given map can be built up as a common base map with short difference maps for each variant.
 </para>
 
-<para>
-<citerefentry><refentrytitle>console-fb-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>
-keyboard maps contain a lot of entries for things that are simply inexpressible in BSD keyboard maps, such as consumer media device control keys, a distinct cursor/editing keypad, and calculator keypad keys such as change sign, comma, and equals.
-These are largely invariant, fortunately, and are supplied by the fixed underlay map.
-</para>
+<refsection><title>Extensions to <citerefentry><refentrytitle>kbdmap</refentrytitle><manvolnum>5</manvolnum></citerefentry> </title>
 
 <para>
-Some additional notes:
-</para>
-<itemizedlist>
-<listitem><para>
-There is no ASCII control character named "ns".
-</para></listitem>
-<listitem><para>
-PC98 FreeBSD/TrueOS keymaps do not use harmonized keycodes and thus do not convert correctly.
-</para></listitem>
-<listitem><para>
-<citerefentry><refentrytitle>atkbd</refentrytitle><manvolnum>5</manvolnum></citerefentry> does not define meanings for "<code>fkey65</code>" and higher.
-</para></listitem>
-<listitem><para>
-The "<code>ashift</code>" and "<code>alock</code>" actions are converted to a shift and a lock of level3, respectively.
-</para></listitem>
-<listitem><para>
-The "<code>dsla</code>" action has no direct Unicode combining character equivalent, as there is no "combining slash" Unicode code point.
-But because it operates like the combining stroke character does in ISO 9995-3 appendix F, that is what it is converted into.
-</para></listitem>
-<listitem><para>
-The "<code>dapo</code>" action has no direct Unicode combining character equivalent, as there is no "combining apostrophe" Unicode code point.
-This is a BSDism that isn't used in BSD-supplied keymaps, but that is used in third-party keymaps for currency characters.
-However, it is redundant.
-The ISO 9995-3 common group 2 that is underlaid beneath all BSD/SCO kbdmaps actually has keys for all of the currency characters that "<code>dapo</code>" is often used for:
+<command>console-convert-kbdmap</command> implements the following extensions to the BSD/SCO kbdmap keyword set:
 </para>
 <variablelist>
 <varlistentry>
-<term>Pound</term>
+<term><code>bspace</code></term>
 <listitem><para>
-<keycap>Group2</keycap>+<keycap>&#x21e7;&#160;Level2</keycap>+E03 
-(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>O&#x21eb;&#160;ption</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>3</keycap>)
+BSD/SCO kbdmaps map the <keycap>&#x232b;&#160;Backspace</keycap> key to a hardwired BS control character.
+However, <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> understands a soft-settable Backspace extended key that can be programmed using the DECBKM control sequence (DEC private mode 67) between the BS and DEL characters, as on a real DEC VT terminal.
+<code>bspace</code> is a message action for this extended Backspace key, and can be used instead of a <code>bs</code> action.
 </para></listitem>
 </varlistentry>
 <varlistentry>
-<term>Yen</term>
+<term><code>escape</code></term>
 <listitem><para>
-<keycap>Group2</keycap>+<keycap>&#x21e7;&#160;Level2</keycap>+D06 
-(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>Y</keycap>)
+BSD/SCO kbdmaps map the <keycap>&#x238b;&#160;Escape</keycap> key to a hardwired ESC control character.
+However, <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> understands a soft-settable Escape extended key that can be programmed using a DEC private mode #7727 control sequence between the ESC and FS characters, as on the TeraTerm terminal emulator.
+<code>escape</code> is a message action for this extended Escape key, and can be used instead of a <code>esc</code> action.
 </para></listitem>
 </varlistentry>
 <varlistentry>
-<term>Euro</term>
+<term><code>delete</code></term>
 <listitem><para>
-<keycap>Group2</keycap>+<keycap>&#x21e7;&#160;Level2</keycap>+E04 
-(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>4</keycap>)
+BSD/SCO kbdmaps map the <keycap>&#x2326;&#160;Delete</keycap> key(s) to a hardwired DEL control character.
+However, <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> understands a soft-settable Delete extended key that can be programmed using DEC private mode #1037 between the DEL control character and a DECFNK control sequence, as on a real DEC VT terminal.
+<code>delete</code> is a message action for this extended Delete key, and can be used instead of a <code>del</code> action.
 </para></listitem>
 </varlistentry>
 <varlistentry>
-<term>Dollar</term>
+<term><code>return</code></term>
 <listitem><para>
-<keycap>Group2</keycap>+<keycap>&#x21eb;&#160;Level3</keycap>+B08 
-(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>,</keycap>)
+BSD/SCO kbdmaps map the <keycap>&#x2ba0;&#160;Return</keycap> key on the main keypad to a hardwired CR or LF control character.
+However, <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> understands a Return extended key that produces the control characters that a real DEC VT terminal would.
+<code>return</code> is a message action for this extended Return key, and can be used instead of a <code>cr</code> or a <code>nl</code> action.
 </para></listitem>
 </varlistentry>
 <varlistentry>
-<term>cent</term>
+<term><code>enter</code></term>
 <listitem><para>
-<keycap>Group2</keycap>+<keycap>&#x21eb;&#160;Level3</keycap>+B02 
-(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>c</keycap>)
+BSD/SCO kbdmaps map the <keycap>Enter</keycap> key on the calculator keypad to a hardwired CR or LF control character.
+This prevents <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> from ever generating DEC application mode control sequences for it.
+<citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> understands an Enter extended key that allows for a more complete DEC VT emulation.
+<code>enter</code> is a message action for this extended Enter key, and can be used instead of a <code>cr</code> or a <code>lf</code> action.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>g2shift</code></term>
+<term><code>g2latch</code></term>
+<term><code>g2lock</code></term>
+<listitem><para>
+These extensions allow specifying the Group 2 modifier from BSD/SCO kbdmaps.
+</para><note>
+The <code>ashift</code> and <code>alock</code> actions are level 3 shifts, not a group modifier.
+</note></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>imsw</code></term>
+<term><code>hanja</code></term>
+<listitem><para>
+BSD/SCO kbdmaps have no concept of input methods and map the <keycap>Grave</keycap> key on the main keypad to ordinary UCS3 characters.
+However, <citerefentry><refentrytitle>console-input-method</refentrytitle><manvolnum>1</manvolnum></citerefentry> recognizes an IM Switch extended key for toggling the input method UI on and off, and a Kanji/Hanja key for selecting and cycling through "chinese" input methods.
+<code>imsw</code> and <code>hanja</code> are message actions for these two extended keys.
 </para></listitem>
 </varlistentry>
 </variablelist>
-</listitem>
+
+</refsection>
+
+<refsection><title>Additional notes</title>
+
+<itemizedlist>
 <listitem><para>
-BSD/SCO kbdmaps hardwire the BS and DEL control characters for the <keycap>&#x232b;&#160;Backspace</keycap> key, and hardwire the DEL control character for the <keycap>&#x2326;&#160;Delete</keycap> key(s).
-However, <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> supplies a soft-settable backspace action that can be programmed using the DECBKM control sequence (DEC private mode 67) and a soft-settable delete action that can be programmed using DEC private mode 1037.
-To allow specifying these from BSD/SCO kbdmaps, the convertor adds a "bspace" and a "delete" extension to the BSD/SCO kbdmap keyword set.
+There is no ASCII control character named "ns".
+This was an error in FreeBSD 11 and earlier tooling that the author reported as a bug and had fixed.
 </para></listitem>
 <listitem><para>
-BSD/SCO kbdmaps hardwire the CR and LF control characters for the <keycap>&#x2ba0;&#160;Return</keycap> and <keycap>Enter</keycap> keys.
-This prevents <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> from ever generating DEC application mode control sequences for the latter.
-To allow for a more complete DEC VT emulation from BSD/SCO kbdmaps, the convertor adds "return" and "enter" extensions to the BSD/SCO kbdmap keyword set that map to the extended key messages rather than directly to control code characters.
-</para></listitem>
-<listitem><para>
-The convertor adds "g2shift", "g2latch", and "g2lock" extensions to the BSD/SCO kbdmap keyword set to allow specifying the Group 2 modifier from BSD/SCO kbdmaps.
+FreeBSD keymaps for PC98 do not use harmonized keycodes and thus do not convert correctly.
 </para></listitem>
 <listitem><para>
 The meanings of <code>fkey49</code> to <code>fkey61</code> are changed according to whether they are applied to a PC/XT keycode, with value less than <code>0x5D</code>, or to a PC/AT keycode for the cursor/editing keypad keys.
 For the PC/XT keycodes these denote the calculator keypad keys as message actions.
 For the PC/AT keycodes these denote the cursor/editing keypad keys as message actions.
 </para></listitem>
+<listitem><para>
+<citerefentry><refentrytitle>atkbd</refentrytitle><manvolnum>5</manvolnum></citerefentry> does not define meanings for <code>fkey65</code> and higher.
+</para></listitem>
+<listitem><para>
+The <code>dsla</code> action has no direct Unicode combining character equivalent, as there is no "combining slash" Unicode code point.
+But because it operates like the combining stroke character does in ISO 9995-3 appendix F, that is what it is converted into.
+</para></listitem>
+<listitem><para>
+The "<code>dapo</code>" action has no direct Unicode combining character equivalent, as there is no "combining apostrophe" Unicode code point.
+This is a BSDism that isn't used in BSD-supplied keymaps, but that is used in third-party keymaps for currency characters.
+However, it is redundant.
+The ISO 9995-3 common group 2 that is underlaid beneath all BSD/SCO kbdmaps actually has keys for all of the currency characters that <code>dapo</code> is often used for:
+</para>
+<variablelist>
+<varlistentry>
+<term>Pound</term>
+<listitem><para>
+<keycap>Group2</keycap>+<keycap>&#x21e7;&#160;Level2</keycap>+E03
+(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>3</keycap>)
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>Yen</term>
+<listitem><para>
+<keycap>Group2</keycap>+<keycap>&#x21e7;&#160;Level2</keycap>+D06
+(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>Y</keycap>)
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>Euro</term>
+<listitem><para>
+<keycap>Group2</keycap>+<keycap>&#x21e7;&#160;Level2</keycap>+E04
+(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>4</keycap>)
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>Dollar</term>
+<listitem><para>
+<keycap>Group2</keycap>+<keycap>&#x21eb;&#160;Level3</keycap>+B08
+(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>,</keycap>)
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>cent</term>
+<listitem><para>
+<keycap>Group2</keycap>+<keycap>&#x21eb;&#160;Level3</keycap>+B02
+(<keycap>&#x21e7;&#160;Shift</keycap>+<keycap>&#x21eb;&#160;Option</keycap>,<keycap>&#x21eb;&#160;Option</keycap>+<keycap>c</keycap>)
+</para></listitem>
+</varlistentry>
+</variablelist>
+</listitem>
 </itemizedlist>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Example</title>
+<informalexample>
+<para>
+Convert the BSD "U.S. Programmer Dvorak" layout keyboard map, overlaying with partial keymaps that change the meanings of various individual keys to more closely match DEC VT keyboard semantics (using the extensions aforenoted).
+</para>
+<literallayout><computeroutput>$ </computeroutput><userinput>console-convert-kbdmap /usr/share/vt/keymaps/us.dvorakp.kbd /package/admin/nosh/config/convert/{soft_backspace,soft_delete,soft_enter,soft_escape,soft_return,soft_tab,swap_capsctrl}.kbd &gt; us.104.dvorakp.capsctrl</userinput><computeroutput>
+</computeroutput></literallayout>
+</informalexample>
+</refsection>
+
+<refsection><title>Security</title>
+
+<para>
+It requires no special privileges to <emphasis>generate</emphasis> a keyboard map.
+This program does not <emphasis>install</emphasis> keyboard maps.
+That is done by saving its output to a file in an appropriate place, such as in the auto-configuration directories used by <citerefentry><refentrytitle>console-ugen-hid-realizer</refentrytitle><manvolnum>1</manvolnum>, </citerefentry><citerefentry><refentrytitle>console-hid-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>console-pcat-keyboard-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, or <citerefentry><refentrytitle>console-evdev-realizer</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</para>
 
 </refsection>
 

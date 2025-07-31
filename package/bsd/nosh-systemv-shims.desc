@@ -1,1 +1,11 @@
-System V shim service and system management utilities
+ This package provides shims for old-style BSD and System 5 system management commands.
+  * init, shutdown, telinit, halt, haltsys, poweroff, reboot, runlevel
+  * emergency, normal, rescue
+ .
+ The shims simply invoke native service management commands.
+ .
+ For rcctl, use the nosh-openbsd-shims package.
+ For utx, use the nosh-freebsd-shims package.
+ For fastboot, fasthalt, and fastpoweroff, use the nosh-bsd-shims package.
+ For chkconfig, invoke-rc.d, update-rc.d, and deb-systemd-invoke use the nosh-debian-shims package.
+ For rc-update and rc-service use the nosh-openrc-shims package.

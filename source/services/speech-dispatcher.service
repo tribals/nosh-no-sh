@@ -7,6 +7,7 @@ Description=Text-to-Speech server
 
 [Service]
 User=%p
+SessionLeader=yes
 RuntimeDirectory=%p
 RuntimeDirectoryMode=0750
 RuntimeDirectoryOwner=%p

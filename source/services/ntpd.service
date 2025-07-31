@@ -4,13 +4,13 @@
 
 [Unit]
 Description=NTP daemon
-Conflicts=systemd-timesyncd.service openntpd.service chrony.service VBoxService.service
-Before=time-sync.target
-Wants=time-sync.target
+Conflicts=chrony.service openntpd.service sntpclock.service systemd-timesyncd.service taiclock.service VBoxService.service vmtoolsd.service
+Before=system-time-synchronized.target
+After=persistent-clock-loaded.target
 
 [Service]
 EnvironmentDirectory=env
-ExecStart=%p --nofork ${panicgate} ${user:+-u "${user}${group:+:${group}}"} ${logfile:+--logfile "${logfile}"} ${flags}
+ExecStart=%p --nofork ${panicgate} ${user:+-u "${user}${group:+:${group}}"} ${logfile:+--logfile "${logfile}"} ${config:+--configfile "${config}"} ${flags}
 
 [Install]
 WantedBy=workstation.target

@@ -16,14 +16,14 @@ split_list (
 	const std::string & s
 ) {
 	std::list<std::string> r;
-	std::string * current = 0;
+	std::string * current = nullptr;
 	enum { UNQUOTED, DOUBLE, SINGLE } quote(UNQUOTED);
 	bool slash(false);
 	for (std::string::const_iterator p(s.begin()), e(s.end()); e != p; ++p) {
 		const char c(*p);
 		if (UNQUOTED == quote && !slash) {
 			if (std::isspace(c)) {
-				current = 0;
+				current = nullptr;
 				continue;
 			}
 		}

@@ -3,7 +3,7 @@
 ## **************************************************************************
 
 [Unit]
-After=machine-id.service extra-shared-libraries.target
+After=machine-id.target extra-shared-libraries.target
 
 [Service]
 RuntimeDirectory=dbus

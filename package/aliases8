@@ -1,5 +1,6 @@
 system-manager	systemd
 telinit	chkconfig
+telinit	deb-systemd-invoke
 telinit	emergency
 telinit	fastboot
 telinit	fasthalt

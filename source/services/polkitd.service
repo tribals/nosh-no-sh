@@ -8,6 +8,7 @@ After=local-syslog.target
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.PolicyKit
 RuntimeDirectory=PolicyKit
 RuntimeDirectoryMode=0770
 RuntimeDirectoryOwner=polkitd

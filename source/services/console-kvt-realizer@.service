@@ -1,0 +1,31 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=User-space virtual terminal realized on KVT %I
+# This service needs a session with a controlling terminal, and only one session can have the controlling terminal.
+Conflicts=ttylogin@%i.service
+# It conflicts with things that (unconditionally) start ttylogin@ services, too.
+Conflicts=ttylogin-starter.service
+
+[Service]
+PermissionsStartOnly=yes
+EnvironmentDirectory=env/
+# This service needs a controlling terminal, so needs a session for that controlling terminal.
+SessionLeader=yes
+StandardInput=tty
+StandardError=log
+User=user-vt-kvt-realizer
+Group=user-vt-realizer
+ExecStart=%p ${FONTS} ${FLAGS}
+TTYPath=%I
+# If the realizer process UID does not own the terminal device, it silently fails to write to the framebuffer.
+TTYOwner=true
+# The realizer sets the line discipline and KVT text mode itself; and has no need to reset the emulator because it does not write TUI output.
+TTYReset=no
+# Open file descriptors from old login sessions need to be revoked, on KVTs.
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

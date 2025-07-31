@@ -1,1 +1,5 @@
-Run the AppleTalk services
+ This package runs the various services for AppleTalk:
+  * File server
+  * Print server
+  * Timelord
+  * dbd

@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Bernstein's TAICLOCK daemon
+After=system-time-synchronized.target
+After=persistent-clock-loaded.target
+
+[Service]
+User=%p
+SessionLeader=yes
+EnvironmentDirectory=env
+LimitDATA=3000000
+ExecStart=%p
+
+[Install]
+WantedBy=server.target

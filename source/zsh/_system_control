@@ -7,54 +7,67 @@
 
 function _system_control_subcommands()
 {
-	local -a commands
-	commands=(
-	'activate:start a service'
-	'cat:print a service bundle'\''s control scripts'
-	'condrestart:send a TERM signal to a running service'
-	'convert-fstab-services:convert fstab to service bundles'
-	'convert-systemd-units:convert systemd unit files to a service bundle'
-	'deactivate:stop a service'
-	'disable:configure a service to not auto-start'
-	'emergency:start emergency mode'
-	'enable:configure a service to auto-start'
-	'escape:escape names as the conversion utilities do'
-	'find:locate a service'\''s service directory'
-	'force-reload:send a TERM signal to a running service'
-	'get-mount-what:find the /etc/fstab mount "what" from its "where"'
-	'get-mount-where:find the /etc/fstab mount "where" from its "what"'
-	'halt:halt the system'
-	'hangup:send a HUP signal to a running service'
-	'init:run initial action'
-	'is-active:query whether a service is started'
-	'is-enabled:query whether a service is enabled'
-	'is-loaded:query whether a service is loaded'
+	local -a commands0 commands1 commands2 commands3 commands4
+	commands0=(
 	'is-service-manager-client:query whether the service manager is running'
-	'isolate:start a service'
-	'load-kernel-module:load a kernel module'
-	'nagios-check-service:nagios plug-in for checking services'
+	'version:output version information'
+	)
+	_describe -t system-control-command0 'system-control sub-commands' commands0
+	commands1=(
+	'emergency:start emergency mode'
+	'halt:halt the system'
+	'init:run initial action'
 	'normal:start normal mode'
 	'poweroff:power off the system'
 	'powercycle:power cycle the system'
-	'preset:configure a service auto-start according to config files'
-	'print-service-env:display a standard-format env/ directory for a service'
 	'reboot:reboot the system'
 	'rescue:start rescue mode'
+#	'sysinit:run initial action'
+	)
+	_describe -t system-control-command1 'system-control system managament sub-commands' commands1
+	commands2=(
+	'activate:start a service'
+	'condrestart:send a TERM signal to a running service'
+	'deactivate:stop a service'
+	'force-reload:send a TERM signal to a running service'
+	'hangup:send a HUP signal to a running service'
+	'is-active:query whether a service is started'
+	'is-enabled:query whether a service is enabled'
+	'is-loaded:query whether a service is loaded'
+	'isolate:start a service'
 	'reset:reset a service to its preset state'
-	'set-service-env:change a standard-format env/ directory for a service'
-	'show-json:print machine-readable service status'
-	'show:print machine-readable service status'
 	'start:start a service'
 	'status:display service status'
 	'stop:stop a service'
-#	'sysinit:run initial action'
 	'try-restart:send a TERM signal to a running service'
-	'unload-kernel-module:unload a kernel module'
 	'unload-when-stopped:set a service to unload when it next stops'
-	'version:output version information'
-	'write-volume-service-bundle:convert an fstab record to service bundles'
 	)
-	_describe -t command 'system-control sub-commands' commands
+	_describe -t system-control-command2 'system-control service control/status sub-commands' commands2
+	commands3=(
+	'cat:print a service bundle'\''s control scripts'
+	'disable:configure a service to not auto-start'
+	'enable:configure a service to auto-start'
+	'find:locate a service'\''s service directory'
+	'preset:configure a service auto-start according to config files'
+	'print-service-env:display a standard-format env/ directory for a service'
+	'print-service-scripts:print a service bundle'\''s control scripts'
+	'set-service-env:change a standard-format env/ directory for a service'
+	'show-json:print machine-readable service status'
+	'show:print machine-readable service status'
+	)
+	_describe -t system-control-command3 'system-control service configuration sub-commands' commands3
+	commands4=(
+	'convert-fstab-services:convert fstab to service bundles'
+	'convert-systemd-units:convert systemd unit files to a service bundle'
+	'escape:escape names as the conversion utilities do'
+	'get-mount-what:find the /etc/fstab mount "what" from its "where"'
+	'get-mount-where:find the /etc/fstab mount "where" from its "what"'
+	'load-kernel-module:load a kernel module'
+	'nagios-check-service:nagios plug-in for checking services'
+	'unload-kernel-module:unload a kernel module'
+	'write-volume-service-bundles:convert an fstab record to service bundles'
+	)
+	_describe -t system-control-command4 'system-control utility sub-commands' commands4
 }
 
 function _chkconfig_subcommands()
@@ -167,7 +180,7 @@ function _utx_types()
 function _service_bundles()
 {
 	local -a dir
-	dir=(/var/local/sv /var/sv /etc/service-bundles/services /etc/service-bundles/targets)
+	dir=(/usr/local/etc/service-bundles/services /usr/local/etc/service-bundles/targets /var/local/service-bundles/services /var/local/service-bundles/targets /var/local/sv /etc/service-bundles/services /etc/service-bundles/targets /run/service-bundles/services /run/service-bundles/targets /var/service-bundles/services /var/service-bundles/targets /var/sv /var/svc.d /service)
 	_path_files -/ -W dir
 }
 

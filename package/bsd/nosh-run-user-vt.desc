@@ -1,1 +1,1 @@
-Run new-style application-mode virtual terminals
+ This package runs new-style application-mode virtual terminals, rendered via the (first) framebuffer and the input event stream.

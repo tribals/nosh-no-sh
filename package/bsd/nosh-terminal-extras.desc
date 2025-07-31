@@ -1,1 +1,2 @@
-Terminal utilities that require execline.
+ This package provides extra tools for use with terminals, including:
+  * ptybandage, ptyrun

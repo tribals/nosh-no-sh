@@ -14,6 +14,7 @@ cat ${target_lists} |
 while read -r i
 do
 	echo targets/"$i"
+	printf >> "$3" 'targets/%s\n' "$i"
 done 
 
 ) | 

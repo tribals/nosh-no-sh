@@ -1,4 +1,4 @@
-#compdef chvt clear_console resizecons setterm -P console-(terminal-emulator|convert-kbdmap|clear|resize|multiplexor(|-control)|input-method(|-control)|*-realizer|decode-ecma48|flat-table-viewer|control-sequence) 
+#compdef chvt clear_console resizecons setterm -P console-(terminal-emulator|convert-kbdmap|clear|resize|multiplexor(|-control)|input-method(|-control)|*-realizer|decode-ecma48|flat-table-viewer|control-sequence) login-(envuidgid|shell)
 ## **************************************************************************
 ## For copyright and licensing terms, see the file named COPYING.
 ## **************************************************************************

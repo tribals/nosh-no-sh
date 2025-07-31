@@ -26,7 +26,7 @@
 <refsection><title>Note</title>
 
 <para>
-Some operating systems come with a <command>chroot</command> command that does not chain, but that instead spawns its target as a child process.  
+Some operating systems come with a <command>chroot</command> command that does not chain, but that instead spawns its target as a child process.
 This command does not fork a child process, and so is suitable for use in supervised command chains run under control of a d&#xe6;mon supervisor.
 </para>
 
@@ -47,7 +47,7 @@ The functionality of the GNU <command>chroot</command> command can be achieved b
 </refsection><refsection><title>Security</title>
 
 <para>
-On most systems, only the superuser is permitted to execute the underlying system call.  
+On most systems, only the superuser is permitted to execute the underlying system call.
 </para>
 
 </refsection><refsection><title>Author</title>

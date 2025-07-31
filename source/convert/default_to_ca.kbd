@@ -1,0 +1,30 @@
+# This is an overlay keymap that just contains the differences between the default built-in keyboard map and Canadian English keyboards.
+#
+#                                                        option
+# scan                       cntrl         option option cntrl lock
+# code  base   shift  cntrl  shift  option shift  cntrl  shift state
+# ------------------------------------------------------------------
+  002   '1'    '!'    nop    nop    0xb1   '!'    nop    nop     O
+  003   '2'    '@'    nul    nul    '@'    '"'    nul    nul     O
+  004   '3'    '#'    nop    nop    0xa3   '/'    nop    nop     O
+  005   '4'    '$'    nop    nop    0xa2   '$'    nop    nop     O
+  006   '5'    '%'    nop    nop    0xa4   '%'    nop    nop     O
+  007   '6'    '^'    nop    nop    0xac   '?'    nop    nop     O
+  008   '7'    '&'    nop    nop    '|'    '&'    nop    nop     O
+  009   '8'    '*'    nop    nop    0xb2   '*'    nop    nop     O
+  010   '9'    '('    nop    nop    0xb3   '('    nop    nop     O
+  011   '0'    ')'    nop    nop    0xbc   ')'    nop    nop     O
+  012   '-'    '_'    nop    nop    0xbd   '_'    nop    nop     O
+  013   '='    '+'    nop    nop    0xbe   '+'    nop    nop     O
+  018   'e'    'E'    enq    enq    0x20ac 'E'    enq    enq     C
+  024   'o'    'O'    si     si     0xa7   'O'    si     si      C
+  025   'p'    'P'    dle    dle    0xb6   'P'    dle    dle     C
+  026   '['    '{'    nop    nop    dcir   dcir   nop    nop     O
+  027   ']'    '}'    nop    nop    dced   duml   gs     gs      O
+  039   ';'    ':'    nop    nop    '~'    ':'    nop    nop     O
+  040   '''    '"'    nop    nop    dgra   dgra   nop    nop     O
+  043   '\'    '|'    fs     fs     '<'    '>'    nop    nop     O
+  051   ','    '<'    nop    nop    '<'    '''    nop    nop     O
+  052   '.'    '>'    nop    nop    '>'    '.'    nop    nop     O
+  053   '/'    '?'    nop    nop    dacu   0xc9   nop    nop     C
+  086   '\'    '|'    nop    nop    0xab   0xbb   nop    nop     O

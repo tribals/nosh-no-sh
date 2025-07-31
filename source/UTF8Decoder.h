@@ -8,13 +8,23 @@ For copyright and licensing terms, see the file named COPYING.
 
 #include <stdint.h>
 
-class UTF8Decoder 
+/// \brief Decode UTF-8 character sequences.
+///
+/// Characters are sent to the Process() function and the decoder outputs the decoded results to a "sink".
+class UTF8Decoder
 {
 public:
+	/// \brief The abstract base class for sinking decoded UTF-8 character sequences.
 	class UCS32CharacterSink
 	{
 	public:
-		virtual void ProcessDecodedUTF8(uint32_t character, bool decoder_error, bool overlong) = 0;
+		/// \name Abstract API
+		/// sink API called by the decoder, to be implemented by a derived class
+		/// @{
+		virtual void ProcessDecodedUTF8(char32_t character, bool decoder_error, bool overlong) = 0;
+		/// @}
+	protected:
+		~UCS32CharacterSink() {}
 	};
 	UTF8Decoder(UCS32CharacterSink &);
 	void Process(uint_fast8_t);

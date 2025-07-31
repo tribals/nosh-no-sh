@@ -9,6 +9,9 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cerrno>
 #include <cstring>
 #include <unistd.h>
+#if defined(__LINUX__) || defined(__linux__)
+#include <sched.h>
+#endif
 #include "utils.h"
 #include "popt.h"
 
@@ -21,10 +24,10 @@ static inline int unshare ( int ) { return 0 ; }
 */
 
 void
-unshare ( 
+unshare (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool network(false), mount(false), ipc(false), uts(false), process(false), user(false);
@@ -46,14 +49,13 @@ unshare (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	const int flags (
@@ -69,8 +71,6 @@ unshare (
 	);
 	const pid_t rc(unshare(flags));
 	if (-1 == rc) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, prog);
 	}
 }

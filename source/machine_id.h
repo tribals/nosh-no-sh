@@ -43,10 +43,11 @@ read_non_volatile () ;
 
 void
 write_non_volatile (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment &
 ) ;
 
-bool 
+bool
 validate () ;
 
 bool
@@ -56,7 +57,8 @@ read_fallbacks (
 
 void
 write_fallbacks (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment &
 ) ;
 
 }

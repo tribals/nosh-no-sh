@@ -6,7 +6,7 @@
 Description=SANE incoming socket
 
 [Socket]
-ListenStream=6566
+ListenStream=sane-port
 BindIPv6Only=both
 MaxConnections=2
 Accept=true

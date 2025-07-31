@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=utmps wtmp daemon
+Documentation=https://skarnet.org/software/utmps/utmps-wtmpd.html
+After=utmps.service
+Wants=utmps.service
+
+[Service]
+User=utmp
+SessionLeader=yes
+ExecStart=%p
+
+[Install]
+WantedBy=workstation.target

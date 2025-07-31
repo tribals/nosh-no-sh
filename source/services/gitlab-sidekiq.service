@@ -5,13 +5,15 @@
 [Unit]
 Description=GitLab Sidekiq Worker
 Requires=redis.service
-Wants=mysqld.service postgresql.service
-After=redis.service mysqld.service postgresql.service
+Wants=databases.target
+After=databases.target
+After=redis.service
 
 [Service]
 # FIXME: Is this really needed?
 systemdUserEnvironment=true
 User=git
+SessionLeader=yes
 WorkingDirectory=/home/git/gitlab
 Environment=RAILS_ENV=production
 ExecStart=bindle exec "sidekiq -d -q post_receive -q mailer -q system_hook -q project_web_hook -q gitlab_shell -q common -q default -e production"

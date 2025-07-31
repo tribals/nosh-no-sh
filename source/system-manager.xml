@@ -24,11 +24,11 @@
 <refsynopsisdiv>
 <cmdsynopsis>
 <command>system-manager</command>
-<arg rep='repeat'><replaceable>args</replaceable></arg> 
+<arg rep='repeat'><replaceable>args</replaceable></arg>
 </cmdsynopsis>
 <cmdsynopsis>
 <command>init</command>
-<arg rep='repeat'><replaceable>args</replaceable></arg> 
+<arg rep='repeat'><replaceable>args</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -74,7 +74,7 @@ That's done by a separate program running as another process.
 </itemizedlist>
 
 <para>
-The operation of <command>system-manager</command> falls into four parts: 
+The operation of <command>system-manager</command> falls into four parts:
 process setup, system setup, reaping, and responding to system events.
 </para>
 
@@ -90,7 +90,7 @@ It does very little to its process state, which is inherited by the service mana
 <listitem>
 <para>
 It sets itself as a session leader, as if by <citerefentry><refentrytitle>setsid</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-If, as is the case on FreeBSD/TrueOS, the session already has a controlling TTY device, the association from the session to that device is removed.
+If, as is the case on FreeBSD, the session already has a controlling TTY device, the association from the session to that device is removed.
 </para>
 </listitem>
 
@@ -116,21 +116,34 @@ It resets the file/directory creation mask to 0000 as if by <citerefentry><refen
 <para>
 It sets the hardwired default environment:
 </para>
+<variablelist>
+<varlistentry>
+<term><envar>PATH</envar></term>
+<listitem>
+<para>
+<filename>/usr/local/bin</filename>:<filename>/usr/local/sbin</filename>:<filename>/usr/pkg/sbin</filename>:<filename>/usr/pkg/bin</filename>:<filename>/usr/sbin</filename>:<filename>/usr/bin</filename>:<filename>/sbin</filename>:<filename>/bin</filename>
+</para>
+<note>
+Everyone gains <filename>/usr/pkg/{bin,sbin}</filename> which are the conventional <filename><replaceable>$LOCALBASE</replaceable>/{bin,sbin}</filename> from NetBSD pkgsrc.
+</note>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term><envar>LANG</envar></term>
+<listitem>
 <itemizedlist>
 <listitem>
-<para><envar>PATH</envar>=<filename>/usr/local/bin</filename>:<filename>/usr/local/sbin</filename>:<filename>/usr/bin</filename>:<filename>/usr/sbin</filename>:<filename>/bin</filename>:<filename>/sbin</filename></para>
+<para><code>C.UTF-8</code>
+(Everyone else, per <ulink url="https://sourceware.org/glibc/wiki/Proposals/C.UTF-8">the GNU C library project</ulink> and consequent initiatives in Gentoo, Fedora, Debian, and others)
+</para>
 </listitem>
 <listitem>
-<itemizedlist>
-<listitem>
-<para><envar>LANG</envar>=<code>C.UTF-8</code> (Linux operating systems, per <ulink url="https://sourceware.org/glibc/wiki/Proposals/C.UTF-8">the GNU C library project</ulink> and consequent initiatives in Gentoo, Fedora, Debian, and others)</para> 
-</listitem>
-<listitem>
-<para><envar>LANG</envar>=<code>C</code> (others)</para> 
+<para><code>C</code> (OpenBSD)</para>
 </listitem>
 </itemizedlist>
 </listitem>
-</itemizedlist>
+</varlistentry>
+</variablelist>
 </listitem>
 
 <listitem>
@@ -156,8 +169,7 @@ As the names indicate, this default environment is only expected to comprise loc
 </refsection><refsection><title>System setup</title>
 
 <para>
-<command>system-manager</command> performs various setup actions so that the
-full kernel "API" is visible to itself and its descendents:
+<command>system-manager</command> performs various setup actions so that the full kernel "API" is visible to itself and its descendents:
 </para>
 
 <itemizedlist>
@@ -231,8 +243,8 @@ Only one instance is spawned at a time.
 <para>
 It spawns an instance of <citerefentry><refentrytitle>cyclog</refentrytitle><manvolnum>1</manvolnum></citerefentry> with its input connected to the read end of a pipe.
 If control groups are available, it is run in its own dedicated <filename>system-manager-log.slice</filename> subordinate control group below the system-manager's original own.
-This process is expected to only terminate when the pipe is closed.
-If it terminates otherwise, <command>system-manager</command> simply re-spawns it.
+This process is expected to only terminate when the pipe is closed, or the manager explicitly terminates it.
+If it terminates and management is not stopping, <command>system-manager</command> simply re-spawns it.
 </para>
 </listitem>
 
@@ -247,7 +259,9 @@ The write end of the aforementioned pipe is connected to the the standard output
 <para>
 The logger is intended to be just for the system manager, the service manager, and the service controllers.
 Actual services should be plumbed to their own logging services.
-The logger is told to write its logfiles to <filename>/run/system-manager/log</filename>, which will by default be in a tmpfs filesystem, and to cap their maximum total size at 1MiB.
+The logger is told to write its logfiles to <filename>/var/log/system-manager</filename>, or failing that <filename>/run/system-manager/log</filename> (which will by default be in a tmpfs filesystem), and to cap their maximum total size at 1MiB.
+<filename>/var/log/system-manager</filename> normally will not be mounted when the logger first starts up, and so will not be used until the system manager is told to restart logging.
+Be aware that this makes it necessary to restart logging <emphasis>again</emphasis> at shutdown in order to then unmount that volume.
 </para>
 
 </refsection><refsection><title>System event response</title>
@@ -272,7 +286,7 @@ System-wide events are flagged, by the kernel and by other programs, by sending 
 <code>SIGUSR2</code>,
 <code>SIGINT</code>, and
 <code>SIGWINCH</code>
-on BSD) 
+on BSD)
 </term>
 <listitem><para>
 Spawn (respectively)
@@ -280,7 +294,7 @@ Spawn (respectively)
 <command>system-control</command> <arg choice="plain">start</arg> <arg choice="plain">poweroff</arg>,
 <command>system-control</command> <arg choice="plain">start</arg> <arg choice="plain">reboot</arg>, or
 <command>system-control</command> <arg choice="plain">start</arg> <arg choice="plain">powercycle</arg>.
-This will activate the 
+This will activate the
 <code>halt</code>,
 <code>poweroff</code>,
 <code>reboot</code>, or
@@ -360,8 +374,10 @@ Otherwise, if the system manager is running in a container/jail, just exit.
 <para>
 When the <code>reboot</code>, <code>halt</code>, <code>powercycle</code>, and <code>poweroff</code> targets are fully active, they are expected to send the <code>SIGRTMIN + 15</code>, <code>SIGRTMIN + 13</code>, <code>SIGRTMIN + 17</code>, and <code>SIGRTMIN + 14</code> signals (respectively) to process #1.
 In the packaged target definitions, they use the <arg choice='plain'>--force</arg> option to the <command>reboot</command>, <command>halt</command>, <command>poweroff</command>, and <command>powercycle</command> subcommands of <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>8</manvolnum></citerefentry> to do this.
-Do not send these signals directly, as this does not shut down services in order.
 </para>
+<caution>
+Do not send these signals directly, as this does not shut down services in order.
+</caution>
 </listitem>
 </varlistentry>
 
@@ -372,6 +388,19 @@ Spawn <command>system-control</command> <arg choice="plain">activate</arg> <arg 
 This will activate the <code>sysinit</code> target.
 </para>
 </listitem>
+</varlistentry>
+
+<varlistentry>
+<term><code>SIGRTMIN + 26</code></term>
+<term><code>SIGRTMIN + 27</code></term>
+<term><code>SIGRTMIN + 28</code></term>
+<listitem><para>
+Terminate the logger process with <code>SIGTERM</code>.
+Normally it will be automatically restarted after it terminates.
+This is used to make the logger start up in a different directory, after (for example) <filename>/var/log/system-manager</filename> has been mounted, or before it is about to be unmounted.
+<code>SIGRTMIN + 26</code> forces the use of the <filename>/run/system-manager/log</filename> directory.
+<code>SIGRTMIN + 27</code> and <code>SIGRTMIN + 28</code> allow the use of (the first successfully accessible of) all potential log directories.
+</para></listitem>
 </varlistentry>
 
 </variablelist>
@@ -403,6 +432,11 @@ In response this "event" <command>system-manager</command> spawns <command>syste
 In a container/jail, they are supplied by the container/jail configuration.)
 This calculates what to initialize, deduced from those arguments, and sends appropriate signals back to the system manager process.
 </para>
+<note>
+<command>system-manager</command> does not read the kernel's command line.
+It only reads <emphasis>its own</emphasis> command line, which is whatever the kernel (or the "Initial RAM disc" system) chose to give to it.
+Usually this is related to the kernel's command line and whatever options were set by the operating system boot loader.
+</note>
 
 </refsection></refsection><refsection><title>API filesystems and early devices</title>
 
@@ -575,6 +609,14 @@ This is symbolically linked to <filename>/run/shm</filename> for compatibility w
 <para>
 When the system starts process #1, the operating system kernel's system clock will have been initialized from a hardware real-time clock.
 On an all-BSD/Linux system, that hardware real-time clock will be running in UTC, and the system clock will thus be initially set to a proper UTC value.
+</para>
+
+<caution>
+Configure your system to run the hardware real-time clock in UTC and your FAT filesystems to have timestamps in UTC wherever possible.
+The problems and gyrations about to be described no longer exist.
+</caution>
+
+<para>
 On a more heterogenous system, the hardware real-time clock may be mistakenly running in a local time.
 This usually leads to some program or other, during the bootstrap process, having to determine the offset between RTC local time and UTC and correct the system clock.
 A consequence of this is that the system clock jumps by hours partway through the system bootstrap.
@@ -602,12 +644,12 @@ This means that the FAT local time offset must be provided to the kernel before 
 
 <para>
 When the hardware clock is mistakenly runing in local time, the system clock is initialized to the wrong value, since the kernel is always expecting to read UTC from the hardware clock at that point.
-The shifting back to UTC is done using a special once-only variant of the <citerefentry><refentrytitle>settimeofday</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call.
-The FAT time offset is set by the normal variant of <citerefentry><refentrytitle>settimeofday</refentrytitle><manvolnum>2</manvolnum></citerefentry>.
+A special once-only variant of the <citerefentry><refentrytitle>settimeofday</refentrytitle><manvolnum>2</manvolnum></citerefentry> system call both shifts back to UTC and sets the FAT time offset.
+Normally <citerefentry><refentrytitle>settimeofday</refentrytitle><manvolnum>2</manvolnum></citerefentry> just sets the FAT time offset.
 </para>
 
 <para>
-So as part of system initialization, <command>system-manager</command> calls the once-only special variant of <citerefentry><refentrytitle>settimeofday</refentrytitle><manvolnum>2</manvolnum></citerefentry> to set the system time back to UTC and calls the normal variant of the same function to provide the RTC-local-time-to-UTC and FAT-local-time-to-UTC offsets.
+So as part of system initialization, <command>system-manager</command> calls the once-only special variant of <citerefentry><refentrytitle>settimeofday</refentrytitle><manvolnum>2</manvolnum></citerefentry> to set the system time back to UTC and to provide the RTC-local-time-to-UTC and FAT-local-time-to-UTC offsets.
 </para>
 
 </refsection>

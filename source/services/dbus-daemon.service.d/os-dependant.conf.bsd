@@ -1,6 +1,7 @@
 ## **************************************************************************
 ## For copyright and licensing terms, see the file named COPYING.
 ## **************************************************************************
+# vim: set filetype=conf:
 
 [Unit]
 Description=System-wide "Desktop" bus service on the BSDs

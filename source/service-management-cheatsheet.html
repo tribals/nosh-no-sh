@@ -1,14 +1,15 @@
-<title>Service management cheatsheet</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
 <link rel="Next" href="chain-loading-cheatsheet.html" title="Logging cheatsheet" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Service management cheatsheet</title>
+<h1 class="Ruled">
 Service management cheatsheet
 </h1>
 
 <p>
 These are a few commonly used commands.
 For more, see the manual pages of the <a href="commands/service-control.xml"><code>service-control</code></a>, <a href="commands/system-control.xml"><code>system-control</code></a>, <a href="commands/shutdown.xml"><code>shutdown</code></a>, and <a href="commands/rcctl.xml"><code>rcctl</code></a> programs.
-For exposition, we here assume that the cron service has its service bundle directory at, or accessible via a symbolic link at, <code>/service/cron</code>.
+For exposition, we here assume that the cron service has its service bundle directory at, or accessible via a symbolic link at, <code>/var/service-bundles/services/gcron</code>.
 </p>
 
 <p>
@@ -25,276 +26,321 @@ Associated log services are conventionally denominated <code>cyclog@</code><i>se
 A service and its associated log service may, where such convention is adhered to, be named together using shell brace expansion: <code>{cyclog@,}</code><i>service-name</i>.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Daemontools-style
 </h2>
 
-<ul>
+<dl>
 
-<li>
-<pre>svstat /service/cron</pre>
+<dt><pre>chkservice /{run,var,etc}/service-bundles/{services,targets}/* /var/local/service-bundles/{services,targets}/*</pre></dt>
+<dd>
+<p>
+Display the statuses of all (standard location) service bundles, in a full screen TUI scrollable table.
+</p>
+</dd> 
+
+<dt><pre>svstat /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Print the status of the cron service, in human readable short form.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svstat --long /service/cron</pre>
+<dt><pre>svstat --long /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Print the status of the cron service, in human readable long form.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -u /service/cron</pre>
+<dt><pre>svc -u /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Start the cron service, ignoring dependency and conflict information.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -d /service/cron</pre>
+<dt><pre>svc -d /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Stop the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -o /service/cron</pre>
+<dt><pre>svc -o /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Run the service at least once, starting it if it is not already started.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -O /service/cron</pre>
+<dt><pre>svc -O /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Run the service at most once, not starting it if it is not already started.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -a /service/cron</pre>
+<dt><pre>svc -a /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send an <code>ALRM</code> signal to the cron service.
 This is used, for example, to tell logging services to cycle to a new log file.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -t /service/cron</pre>
+<dt><pre>svc -t /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send a <code>TERM</code> signal to the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -T /service/cron</pre>
+<dt><pre>svc -T /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send a <code>TERM</code> signal to only the "main" process of the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -k /service/cron</pre>
+<dt><pre>svc -k /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send a <code>KILL</code> signal to the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -K /service/cron</pre>
+<dt><pre>svc -K /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send a <code>KILL</code> signal to only the "main" process of the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -h /service/cron</pre>
+<dt><pre>svc -h /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send a <code>HUP</code> signal to the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svc -H /service/cron</pre>
+<dt><pre>svc -H /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Send a <code>HUP</code> signal to only the "main" process of the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>svshow /service/cron</pre>
+<dt><pre>svshow /var/service-bundles/services/gcron</pre></dt>
+<dd>
 <p>
 Emit a machine-parseable status of the cron service.
 Use the <code>--json</code> option for an alternative machine-parseable form.
-</p></li>
+</p>
+</dd>
 
-</ul>
+</dl>
 
-<h2>
+<h2 class="Ruled">
 OpenBSD-style
 </h2>
 
-<ul>
+<dl> 
 
-<li>
-<pre>rcctl get cron</pre>
+<dt><pre>rcctl get cron</pre></dt>
+<dd>
 <p>
 Print the variables set by the conventional <code>env/</code> environment directory for the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>rcctl set cron flags --wibble</pre>
+<dt><pre>rcctl set cron flags --wibble</pre></dt>
+<dd>
 <p>
 Set the <code>flags</code> variable, set by the conventional <tt>env/</tt> environment directory for the cron service, to <code>--wibble</code>.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>rcctl status cron</pre>
+<dt><pre>rcctl status cron</pre></dt>
+<dd>
 <p>
 Print long form human-readable status of the cron service.
 This also prints the tail of any associated log, if it is in the conventional place.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>rcctl start cron</pre>
+<dt><pre>rcctl start cron</pre></dt>
+<dd>
 <p>
 Start the cron service, following any dependencies.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>rcctl stop cron</pre>
+<dt><pre>rcctl stop cron</pre></dt>
+<dd>
 <p>
 Stop the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>rcctl enable cron</pre>
+<dt><pre>rcctl enable cron</pre></dt>
+<dd>
 <p>
 Set the cron service to auto-start at bootstrap.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>rcctl disable cron</pre>
+<dt><pre>rcctl disable cron</pre></dt>
+<dd>
 <p>
 Set the cron service to not auto-start at bootstrap.
-</p></li>
+</p>
+</dd>
 
-</ul>
+</dl>
 
-<h2>
+<h2 class="Ruled">
 systemd-style
 </h2>
 
-<ul>
+<dl> 
 
-<li>
-<pre>system-control status cron</pre>
+<dt><pre>system-control status cron</pre></dt>
+<dd>
 <p>
 Print long form human-readable status of the cron service.
 This also prints the tail of any associated log, if it is in the conventional place.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control start cron</pre>
+<dt><pre>system-control start cron</pre></dt>
+<dd>
 <p>
 Start the cron service, following any dependencies.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control stop cron</pre>
+<dt><pre>system-control stop cron</pre></dt>
+<dd>
 <p>
 Stop the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control preset cron</pre>
+<dt><pre>system-control preset cron</pre></dt>
+<dd>
 <p>
 Set the cron service to auto-start at bootstrap or not, according to administrator-supplied and package-supplied preset information.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control reset cron</pre>
+<dt><pre>system-control reset cron</pre></dt>
+<dd>
 <p>
 Start or stop the cron service according to its enable/disable state, i.e. reset to the configured bootstrap state.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control enable cron</pre>
+<dt><pre>system-control enable cron</pre></dt>
+<dd>
 <p>
 Set the cron service to auto-start at bootstrap.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control disable cron</pre>
+<dt><pre>system-control disable cron</pre></dt>
+<dd>
 <p>
 Set the cron service to not auto-start at bootstrap.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control condrestart cron</pre>
+<dt><pre>system-control condrestart cron</pre></dt>
+<dd>
 <p>
 Send a <code>TERM</code> signal to restart the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control hangup ttylogin@vc1-tty</pre>
+<dt><pre>system-control hangup ttylogin@vc1-tty</pre></dt>
+<dd>
 <p>
 Send a <code>HUP</code> signal to the session leader/main process of the ttylogin@vc1-tty service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control cat cron</pre>
+<dt><pre>system-control cat cron</pre></dt>
+<dd>
 <p>
 Print the contents of the various <code>run</code>, <code>restart</code>, and so forth programs of the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control poweroff</pre>
+<dt><pre>system-control poweroff</pre></dt>
+<dd>
 <p>
 Immediately run the system power-off procedure, shutting down any services configured to shut down at power off.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control print-service-env cron</pre>
+<dt><pre>system-control print-service-env cron</pre></dt>
+<dd>
 <p>
 Print the variables set by the conventional <code>env/</code> environment directory for the cron service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>system-control set-service-env cron flags --wibble</pre>
+<dt><pre>system-control set-service-env cron flags --wibble</pre></dt>
+<dd>
 <p>
 Set the <code>flags</code> variable, set by the conventional <tt>env/</tt> environment directory for the cron service, to <code>--wibble</code>.
-</p></li>
+</p>
+</dd>
 
-</ul>
+</dl>
 
-<h2>
+<h2 class="Ruled">
 Solaris SMF-style
 </h2>
 
-<ul>
+<dl>
 
-<li>
-<pre>svcadm enable cron</pre>
+<dt><pre>svcadm enable cron</pre></dt></dt>
+<dd>
 <p>
-Set the cron service to auto-start at bootstrap.
-</p></li>
+Start (sic!)  the cron service.
+</p>
+</dd>
 
-<li>
-<pre>svcadm disable cron</pre>
+<dt><pre>svcadm disable cron</pre></dt></dt>
+<dd>
 <p>
-Set the cron service to not auto-start at bootstrap.
-</p></li>
+Stop (sic!) the cron service.
+</p>
+</dd>
 
-</ul>
+</dl>
 
-<h2>
+<h2 class="Ruled">
 Common
 </h2>
 
-<ul>
+<dl> 
 
-<li>
-<pre>setfacl -m u:jim:rx /service/cron{,/log}/supervise
-setfacl -m u:jim:rw /service/cron{,/log}/supervise/ok
-setfacl -m u:jim:r /service/cron{,/log}/supervise/status</pre>
+<dt><pre>setfacl -m u:jim:rx /var/service-bundles/services/gcron{,/log}/supervise
+setfacl -m u:jim:rw /var/service-bundles/services/gcron{,/log}/supervise/ok
+setfacl -m u:jim:r /var/service-bundles/services/gcron{,/log}/supervise/status</pre></dt>
+<dd>
 <p>
 On systems where these are not world-accessible, grant the user <code>jim</code> access to read the status of the cron service and its associated log service.
-</p></li>
+</p>
+</dd> 
 
-<li>
-<pre>shutdown -r -g 30</pre>
+<dt><pre>shutdown -r -g 30</pre></dt>
+<dd>
 <p>
 After a grace period of 30 minutes, during which messages will be broadcast to logged-on users, run the system reboot procedure, shutting down any services configured to shut down at power off.
-</p></li>
+</p>
+</dd>
 
-</ul>
+</dl>

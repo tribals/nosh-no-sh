@@ -1,1 +1,5 @@
-BSD shim service and system management utilities
+ This package provides shims for old-style BSD system management commands.
+ Many of these were in the BSD compatibility package in AT&T Unix System 5 Release 4.
+  * fastboot, fasthalt, fastpoweroff
+ .
+ The shims simply invoke native service management commands.

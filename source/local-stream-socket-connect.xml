@@ -22,10 +22,10 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>local-stream-socket-connect</command> 
-<arg choice='opt'>--verbose</arg> 
-<arg choice='opt'>--local-path <replaceable>path</replaceable></arg> 
-<arg choice='req'><replaceable>host</replaceable></arg> 
+<command>local-stream-socket-connect</command>
+<arg choice='opt'>--verbose</arg>
+<arg choice='opt'>--local-path <replaceable>client-path</replaceable></arg>
+<arg choice='req'><replaceable>server-path</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -33,9 +33,7 @@
 <refsection><title>Description</title>
 
 <para>
-<command>local-stream-socket-connect</command> is a chain-loading utility that opens a local stream socket, connects it to <replaceable>path</replaceable> with <citerefentry><refentrytitle>connect</refentrytitle><manvolnum>3</manvolnum></citerefentry>, sets the socket to file descriptors 6 and 7 (closing whatever those descriptors were), and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
-It sets up various conventional UCSPI environment variables that describe the local and remote ends of the connection.
-By UCSPI convention the chained-to program is expected to use file descriptor 6 for reading from the server and file descriptor 7 for writing to the server.
+<command>local-stream-socket-connect</command> is a chain-loading utility that opens a local stream socket, connects it to <replaceable>server-path</replaceable> with <citerefentry><refentrytitle>connect</refentrytitle><manvolnum>3</manvolnum></citerefentry>, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function, having set up I/O and environment variables per the UCSPI conventions.
 </para>
 
 <para>
@@ -43,31 +41,42 @@ By UCSPI convention the chained-to program is expected to use file descriptor 6 
 </para>
 
 <para>
-Following the UCSPI conventions, <command>local-stream-socket-connect</command> sets up several environment variables containing information about the socket connection.
+If the <arg choice='plain'>--verbose</arg> option is used, <command>local-stream-socket-connect</command> logs information about connections made.
+</para>
+
+<refsection><title>UCSPI (specifically UCSPI-UNIX) conventions</title>
+
+<para>
+<replaceable>next-prog</replaceable> is expected to follow the UCSPI conventions: standard input, output, and error are the same as whatever <command>local-stream-socket-connect</command> inherited; file descriptors 6 and 7 are (respectively) reading from and writing to the connected socket, which it should treat as generic I/O streams and not expect to be a socket; and information about the local and remote ends of the connected socket is in environment variables.
+Whatever <command>local-stream-socket-connect</command> itself inherited as file descriptors 6 and 7 is closed.
+</para>
+
+<para>
+<command>local-stream-socket-connect</command> obtains information about the local socket connection using the <citerefentry><refentrytitle><code>getpeername</code></refentrytitle><manvolnum>2</manvolnum></citerefentry>, <citerefentry><refentrytitle><code>getsockname</code></refentrytitle><manvolnum>2</manvolnum></citerefentry>, and (if available) <code>SO_PEERCRED</code> option of the <citerefentry><refentrytitle><code>getsockopt</code></refentrytitle><manvolnum>2</manvolnum></citerefentry> library functions, and sets up the UCSPI-UNIX conventional environment variables as follows:
 </para>
 
 <variablelist>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>PROTO</envar>
 </term><listitem>
 <para>
-This always has the value <code>UNIX</code>.
+This always has the value <code>UNIX</code>, indicating the prefix to the names of the remaining environment variables.
 </para>
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>UNIXLOCALPATH</envar>
 </term><listitem>
 <para>
 The local (client) path of the connecting socket.
-Normally, the operating system assigns this; but an explicit assignment can be requested with the <arg choice='plain'>--local-path</arg> command-line option, where <replaceable>path</replaceable> is a pathname.
+Normally, the operating system assigns this; but an explicit assignment can be requested with the <arg choice='plain'>--local-path</arg> command-line option, where <replaceable>client-path</replaceable> is a pathname.
 </para>
 </listitem>
 </varlistentry>
 
-<varlistentry><term> 
+<varlistentry><term>
 <envar>UNIXREMOTEPATH</envar>
 </term><listitem>
 <para>
@@ -105,9 +114,7 @@ The effective GID of the remote (server) process.
 
 </variablelist>
 
-<para>
-If the <arg choice='plain'>--verbose</arg> option is used, <command>local-stream-socket-connect</command> logs information about connections made.
-</para>
+</refsection>
 
 </refsection><refsection><title>Author</title>
 <para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>

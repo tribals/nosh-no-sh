@@ -17,6 +17,8 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "fdutils.h"
 #include "ProcessEnvironment.h"
+#include "FileDescriptorOwner.h"
+#include "FileStar.h"
 #include "IPAddress.h"
 
 /* Rules processing *********************************************************
@@ -27,18 +29,49 @@ namespace {
 
 	bool verbose(false);
 
+	inline
+	void
+	read_settings (
+		const char * prog,
+		const char * name,
+		const std::string & subdir,
+		const FileDescriptorOwner & dir_fd,
+		ProcessEnvironment & envs
+	) {
+		FileDescriptorOwner conf_fd(open_read_at(dir_fd.get(), "settings"));
+		if (0 > conf_fd.get()) return;
+		const FileStar conf(fdopen(conf_fd.get(), "r"));
+		if (!conf) return;
+		conf_fd.release();
+		try {
+			std::vector<std::string> env_strings(read_file(prog, envs, "settings", conf));
+			for (std::vector<std::string>::const_iterator i(env_strings.begin()); i != env_strings.end(); ++i) {
+				const std::string & s(*i);
+				const std::string::size_type p(s.find('='));
+				const std::string var(s.substr(0, p));
+				const std::string val(p == std::string::npos ? std::string() : s.substr(p + 1, std::string::npos));
+				envs.set(var, val);
+			}
+		} catch (const char * r) {
+			std::fprintf(stderr, "%s: ERROR: %s: %s/settings: %s\n", prog, name, subdir.c_str(), r);
+		}
+	}
+
 	bool
 	allowed (
 		const char * prog,
 		const char * name,
-		const std::string & subdir
+		const std::string & subdir,
+		ProcessEnvironment & envs
 	) {
-		const int dir_fd(open_dir_at(AT_FDCWD, subdir.c_str()));
-		if (0 > dir_fd) return false;
-		const int allowed(faccessat(dir_fd, "allow", F_OK, AT_EACCESS));
-		const int denied(faccessat(dir_fd, "deny", F_OK, AT_EACCESS));
-		close(dir_fd);
-		if (0 <= allowed) return true;
+		const FileDescriptorOwner dir_fd(open_dir_at(AT_FDCWD, subdir.c_str()));
+		if (0 > dir_fd.get()) return false;
+		const int allowed(faccessat(dir_fd.get(), "allow", F_OK, AT_EACCESS));
+		const int denied(faccessat(dir_fd.get(), "deny", F_OK, AT_EACCESS));
+		if (0 <= allowed) {
+			read_settings(prog, name, subdir, dir_fd, envs);
+			return true;
+		}
 		if (0 <= denied) {
 			if (verbose)
 				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, name, "Access denied.");
@@ -67,7 +100,7 @@ namespace {
 namespace {
 
 	inline
-	in_addr 
+	in_addr
 	make_mask4 (
 		unsigned prefix_length
 	) {
@@ -77,7 +110,7 @@ namespace {
 	}
 
 	inline
-	in6_addr 
+	in6_addr
 	make_mask6 (
 		unsigned prefix_length
 	) {
@@ -93,7 +126,7 @@ namespace {
 */
 
 void
-ucspi_socket_rules_check ( 
+ucspi_socket_rules_check (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -107,52 +140,36 @@ ucspi_socket_rules_check (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 
 	const char * proto(envs.query("PROTO"));
-	if (!proto) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "PROTO", "Missing environment variable.");
-		throw EXIT_FAILURE;
-	}
+	if (!proto) die_missing_environment_variable(prog, envs, "PROTO");
 	if (0 == std::strcmp(proto, "UNIX")) {
 		const char * uid(envs.query("UNIXREMOTEEUID"));
-		if (!uid) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "UNIXREMOTEEUID", "Missing environment variable.");
-			throw EXIT_FAILURE;
-		}
+		if (!uid) die_missing_environment_variable(prog, envs, "UNIXREMOTEEUID");
 		const char * gid(envs.query("UNIXREMOTEEGID"));
-		if (!gid) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "UNIXREMOTEEGID", "Missing environment variable.");
-			throw EXIT_FAILURE;
-		}
-		if (is_self(uid, geteuid()) && allowed(prog, uid, "uid/self/")) return;
-		if (is_self(gid, getegid()) && allowed(prog, gid, "gid/self/")) return;
-		if (allowed(prog, uid, "uid/" + std::string(uid) + "/")) return;
-		if (allowed(prog, gid, "gid/" + std::string(gid) + "/")) return;
-		if (allowed(prog, "default", "uid/default/")) return;
+		if (!gid) die_missing_environment_variable(prog, envs, "UNIXREMOTEEGID");
+		if (is_self(uid, geteuid()) && allowed(prog, uid, "uid/self/", envs)) return;
+		if (is_self(gid, getegid()) && allowed(prog, gid, "gid/self/", envs)) return;
+		if (allowed(prog, uid, "uid/" + std::string(uid) + "/", envs)) return;
+		if (allowed(prog, gid, "gid/" + std::string(gid) + "/", envs)) return;
+		if (allowed(prog, "default", "uid/default/", envs)) return;
 		if (verbose)
 			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, proto, "Access denied.");
 		throw EXIT_FAILURE;
 	} else
 	if (0 == std::strcmp(proto, "TCP")) {
 		const char * ip(envs.query("TCPREMOTEIP"));
-		if (!ip) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "TCPREMOTEIP", "Missing environment variable.");
-			throw EXIT_FAILURE;
-		}
+		if (!ip) die_missing_environment_variable(prog, envs, "TCPREMOTEIP");
 		struct in_addr addr4;
 		struct in6_addr addr6;
 		if (0 < inet_pton(AF_INET, ip, &addr4)) {
@@ -163,9 +180,9 @@ ucspi_socket_rules_check (
 				char buf[INET_ADDRSTRLEN], suffix[32];
 				inet_ntop(AF_INET, &net4, buf, sizeof buf);
 				snprintf(suffix, sizeof suffix, "_%u", prefix_length);
-				if (allowed(prog, ip, (dir + buf) + suffix)) return;
+				if (allowed(prog, ip, (dir + buf) + suffix, envs)) return;
 			}
-		} else 
+		} else
 		if (0 < inet_pton(AF_INET6, ip, &addr6)) {
 			const std::string dir("ip6/");
 			for (unsigned prefix_length(129); prefix_length > 0; ) {
@@ -174,9 +191,9 @@ ucspi_socket_rules_check (
 				char buf[INET6_ADDRSTRLEN], suffix[32];
 				inet_ntop(AF_INET6, &net6, buf, sizeof buf);
 				snprintf(suffix, sizeof suffix, "_%u", prefix_length);
-				if (allowed(prog, ip, (dir + buf) + suffix)) return;
+				if (allowed(prog, ip, (dir + buf) + suffix, envs)) return;
 			}
-		} else 
+		} else
 		{
 			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, ip, "Invalid IP address.");
 			throw EXIT_FAILURE;
@@ -187,10 +204,7 @@ ucspi_socket_rules_check (
 	} else
 	if (0 == std::strcmp(proto, "TCP6")) {
 		const char * ip(envs.query("TCP6REMOTEIP"));
-		if (!ip) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "TCP6REMOTEIP", "Missing environment variable.");
-			throw EXIT_FAILURE;
-		}
+		if (!ip) die_missing_environment_variable(prog, envs, "TCP6REMOTEIP");
 		struct in_addr addr4;
 		struct in6_addr addr6;
 		if (0 < inet_pton(AF_INET, ip, &addr4)) {
@@ -201,9 +215,9 @@ ucspi_socket_rules_check (
 				char buf[INET_ADDRSTRLEN], suffix[32];
 				inet_ntop(AF_INET, &net4, buf, sizeof buf);
 				snprintf(suffix, sizeof suffix, "_%u", prefix_length);
-				if (allowed(prog, ip, (dir + buf) + suffix)) return;
+				if (allowed(prog, ip, (dir + buf) + suffix, envs)) return;
 			}
-		} else 
+		} else
 		if (0 < inet_pton(AF_INET6, ip, &addr6)) {
 			const std::string dir("ip6/");
 			for (unsigned prefix_length(129); prefix_length > 0; ) {
@@ -212,9 +226,9 @@ ucspi_socket_rules_check (
 				char buf[INET6_ADDRSTRLEN], suffix[32];
 				inet_ntop(AF_INET6, &net6, buf, sizeof buf);
 				snprintf(suffix, sizeof suffix, "_%u", prefix_length);
-				if (allowed(prog, ip, (dir + buf) + suffix)) return;
+				if (allowed(prog, ip, (dir + buf) + suffix, envs)) return;
 			}
-		} else 
+		} else
 		{
 			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, ip, "Invalid IP address.");
 			throw EXIT_FAILURE;

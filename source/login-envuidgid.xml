@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="login-envuidgid">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>login-envuidgid</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv>
+<refname>login-envuidgid</refname>
+<refname>login-envuidgid-nopam</refname>
+<refpurpose>set UID, GID, GIDLIST, and LOGNAME environment variables from an interactive login dialogue then chain</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>login-envuidgid</command>
+<arg choice='opt'>--cursor-keypad-application-mode</arg>
+<arg choice='opt'>--calculator-keypad-application-mode</arg>
+<arg choice='opt'>--no-alternate-screen-buffer</arg>
+<arg choice='opt'>--inversescreen <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--tui_level <replaceable>level</replaceable></arg>
+<arg choice='opt'>--verbose</arg>
+<arg choice='req'><replaceable>next-prog</replaceable></arg>
+</cmdsynopsis>
+<cmdsynopsis>
+<command>login-envuidgid-nopam</command>
+<arg choice='opt'>--cursor-keypad-application-mode</arg>
+<arg choice='opt'>--calculator-keypad-application-mode</arg>
+<arg choice='opt'>--no-alternate-screen-buffer</arg>
+<arg choice='opt'>--inversescreen <replaceable>boolean</replaceable></arg>
+<arg choice='opt'>--tui-level <replaceable>level</replaceable></arg>
+<arg choice='opt'>--verbose</arg>
+<arg choice='opt'>--utmpx</arg>
+<arg choice='req'><replaceable>next-prog</replaceable></arg>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Description</title>
+
+<para>
+<command>login-envuidgid</command> is a chain-loading utility that presents an interactive login dialogue, upon successful completion of the dialogue sets the <envar>UID</envar>, <envar>GID</envar>, <envar>GIDLIST</envar>, and <envar>LOGNAME</envar> environment variables to the values for the account chosen, and then forks.
+In the child process it chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
+In the parent process it waits for that child process to terminate and then replicates its exit status.
+</para>
+
+<para>
+<replaceable>next-prog</replaceable> may contain its own command line options, which the utility will ignore.
+</para>
+
+<para>
+<command>login-envuidgid</command> uses PAM, if it was built with PAM support; falling back, if not built with PAM support, to a simple hardwired authentication mechanism and performing direct lookup and password checks against the system account database.
+<command>login-envuidgid-nopam</command> is the same utility but forcibly acting as if built without PAM support.
+</para>
+
+<note>
+Forking is required for both the PAM and non-PAM flavours for the same reasons:
+PAM requires that "user sessions" be opened and closed by a process with a privileged effective user ID; and non-PAM needs write access to the (privileged access) <citerefentry><refentrytitle>utmpx</refentrytitle><manvolnum>3</manvolnum></citerefentry> "active login" table.
+</note>
+
+<para>
+If the login dialogue is cancelled, the login authentication fails, there is a PAM problem, or it cannot set the environment variables, it does not chain and exits with status code 111.
+</para>
+
+<refsection><title>Log-in logs</title>
+
+<para>
+The <arg choice='plain'>--verbose</arg> command-line option instructs the utility to log, to standard error, login attempt failure and success messages.
+Only success messages contain the account name, on the grounds that this is attacker-supplied data and an authentication failure has failed to sanitize it.
+</para>
+
+<para>
+In the non-PAM case, the <arg choice='plain'>--utmpx</arg> command-line option causes <command>login-envuidgid-nopam</command> to explicitly write <code>USER_PROCESS</code> and <code>DEAD_PROCESS</code> records to the <citerefentry><refentrytitle>utmpx</refentrytitle><manvolnum>3</manvolnum></citerefentry> "active login" table for the forked child process.
+(In the PAM case, this is normally handled by a PAM module.)
+</para>
+
+<warning>
+On most systems, the log-in log table is not size-limited and the <arg choice='plain'>--utmpx</arg> option has the potential to generate large files.
+For best results, use <arg choice='plain'>--verbose</arg> instead, and run the output of standard error through a size-limiting logger like <citerefentry><refentrytitle>cyclog</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+</warning>
+
+</refsection>
+
+<refsection><title>User interface</title>
+
+<para>
+The interactive login dialogue is a full-screen TUI.
+In the PAM case, the login dialogue is <emphasis>entirely</emphasis> determined by PAM, which specifies a series of forms (comprising labels, normal entry fields, obscured entry fields, and text fields) to be presented to the user and returned to PAM after the user has pressed <keycap>Enter</keycap>.
+(There is no hard-coded initial prompt for the user name; PAM is even in charge of that, too.)
+In the non-PAM case, the login dialogue is a simple single form prompting for account name and password, using as labels the <code>login_prompt</code> and <code>passwd_prompt</code> string settings configured for the <code>root</code> class in <citerefentry><refentrytitle>login.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> (with hardwired defaults if those settings are not present).
+</para>
+
+<para>
+The utility opens its controlling terminal via <filename>/dev/tty</filename>, or whatever is specified by the <envar>TTY</envar> environment variable, and uses that for its user interface, both input and output.
+</para>
+
+<refsection><title>Input</title>
+
+<para>
+Input is always in insert mode, and (unlike "glass-TTY" login programs) allows editing input fields from elsewhere than only their ends.
+It operates in Unicode, decoding what input it reads from the terminal with the assumption that it is UTF-8, and accepts most non-C0 and non-C1 Unicode characters.
+The results are transformed into UTF-8 before passing back to PAM (or being directly employed against the system account database).
+</para>
+
+<para>
+The user interface responds to some conventional line editing characters and control sequences such as:
+</para>
+<variablelist>
+<varlistentry>
+<term>ETX (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>C</keycap></keycombo>)</term>
+<term>FS (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>\</keycap></keycombo>)</term>
+<term>EOT (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>D</keycap></keycombo>)</term>
+<term>EM (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>Y</keycap></keycombo>)</term>
+<term>SUB (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>Z</keycap></keycombo>)</term>
+<listitem><para>abort the dialogue</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>TAB (<keycap>&#x21e5;&#160;Tab</keycap>/<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>I</keycap></keycombo>)</term>
+<listitem><para>move to the next editable field, if any</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>CBT (<keycap>&#x21e4;&#160;BackTab</keycap>)</term>
+<listitem><para>move to the previous editable field, if any</para><note>The FreeBSD console in "teken" and "cons25" modes, and hence <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> when emulating it, employs a mongrel admixture of DEC VT and SCO function key control sequences, and it is impossible to distinguish the DEC VT Backwards TAB control sequence from the SCO Unix Multiscreen virtual terminal shifted function key 2 control sequence.  (The sequence as retained in FreeBSD, at any rate. <ulink url="http://uw714doc.sco.com/en/man/html.7/keyboard.7.html">The actual SCO Console</ulink> used slightly different encodings to what remains of it in FreeBSD, and thus somewhat ironically did not have FreeBSD's amibiguity over backtab.)</note></listitem>
+</varlistentry>
+<varlistentry>
+<term>CR (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>M</keycap></keycombo>)</term>
+<term>LF (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>J</keycap></keycombo>)</term>
+<listitem><para>complete the dialogue</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>CUD (<keycap>&#x2b63;&#160;Cursor&#160;Down</keycap>)</term>
+<term>CUU (<keycap>&#x2b61;&#160;Cursor&#160;Up</keycap>)</term>
+<listitem><para>Move to the previous/next editable field, if any.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>CUL (<keycap>&#x2b60;&#160;Cursor&#160;Left</keycap>)</term>
+<term>CUR (<keycap>&#x2b62;&#160;Cursor&#160;Right</keycap>)</term>
+<listitem><para>Move left and right along the current field.</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>DEC FNK 7 (<keycap>&#x21f1;&#160;Home</keycap>)</term>
+<term>SOH (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>A</keycap></keycombo>)</term>
+<listitem><para>Move the cursor to the beginning of the editing field.</para><note>The Linux console, and hence <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> when emulating it, uses the wrong DEC FNK number for <keycombo><keycap>&#x21f1;&#160;Home</keycap></keycombo>.  This is recognized as long as <envar>TERM</envar> is set correctly.</note></listitem>
+</varlistentry>
+<varlistentry>
+<term>DEC FNK 8 (<keycap>&#x21f2;&#160;End</keycap>)</term>
+<term>ENQ (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>E</keycap></keycombo>)</term>
+<listitem><para>Move the cursor to the end of the editing field.</para><note>The Linux console, and hence <citerefentry><refentrytitle>console-terminal-emulator</refentrytitle><manvolnum>1</manvolnum></citerefentry> when emulating it, uses the wrong DEC FNK number for <keycombo><keycap>&#x21f2;&#160;End</keycap></keycombo>.  This is recognized as long as <envar>TERM</envar> is set correctly.</note></listitem>
+</varlistentry>
+<varlistentry>
+<term>BS (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>H</keycap></keycombo>)</term>
+<listitem><para>"erase" the character to the left</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>NAK (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>U</keycap></keycombo>)</term>
+<listitem><para>"kill" from the current position back to the beginning of the field</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>DC2 (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>R</keycap></keycombo>)</term>
+<term>FF (<keycombo><keycap>&#x2388;&#160;Control</keycap>+<keycap>L</keycap></keycombo>)</term>
+<listitem><para>repaint the screen</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>DEC FNK 3 (<keycap>&#x2326;&#160;Delete</keycap>)</term>
+<listitem><para>"delete" the character to the right</para></listitem>
+</varlistentry>
+<varlistentry>
+<term>FNK <quote>?</quote> 127 (<keycap>Mute</keycap>)</term>
+<listitem><para>hide/unhide the status bar clock</para></listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection><title>Output</title>
+
+<para>
+Output operates in Unicode, encoded as UTF-8, and employs Unicode box drawing and Apple IIc MouseText characters to draw pseudo-graphic windows around the input fields, to hide password fields, and to draw a banner with an updating digital clock.
+The <arg choice='plain'>--tui-level</arg> command-line option constrains the use of MouseText or Unicode block graphics and line drawing characters in TUI widgets; including the clock and the pseudo-window borders.
+</para>
+
+<para>
+The current input field and its prompt are highlighted in boldface.
+"glass-TTY" login programs render password fields as zero length, and all editing (which can, however, only happen from the end position of the field in such programs) is invisible.
+Unlike them, <command>login-envuidgid-nopam</command> renders all characters in password fields as universally the same glyph, per the convention of GUI password dialogues, because its more flexible editing capabilities that can edit from the middles of fields are visually very difficult to follow otherwise.
+</para>
+
+<para>
+Although its behaviour is controlled by the <citerefentry><refentrytitle><envar>TERM</envar></refentrytitle><manvolnum>7</manvolnum></citerefentry> environment variable, it does not use <citerefentry><refentrytitle>terminfo</refentrytitle><manvolnum>3</manvolnum></citerefentry> or <citerefentry><refentrytitle>termcap</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
+It instead uses <citerefentry><refentrytitle>TerminalCapabilities</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
+The terminal type determines a few terminal capabilities (such as whether the terminal can actually handle DEC private mode control sequences at all, and its degree of ISO 8613-6/ITU T.416 support), but most processing adheres to the ECMA-48 and ISO 8613-6 de jure standard control sequences and the DEC VT, DTTerm, and AIXTerm de facto standard ones.
+</para>
+
+<para>
+The <arg choice='plain'>--cursor-keypad-application-mode</arg> and <arg choice='plain'>--calculator-keypad-application-mode</arg> command-line options instruct the utility to switch, respectively, the cursor keypad and the calculator keypad of the realizing terminal into their "application" modes.
+Otherwise it switches them into their "normal" modes.
+"application" mode is generally not useful to the utility, since it makes cursor and calculator keys indistinguishable from accelerator keys.
+The <arg choice='plain'>--no-alternate-screen-buffer</arg> command-line option instructs the utility to not switch to the alternative screen buffer.
+This has two uses.
+First, it allows one to retain visibility of displayed information after the program has exited (although <citerefentry><refentrytitle>setterm</refentrytitle><manvolnum>1</manvolnum></citerefentry> provides access to the alternative screen buffer).
+Second, it works around problems with some (yet more!) broken terminal emulators that attempt to be and fail at being like XTerm, which forcibly change cursor and editing keys into application mode when the alternative screen buffer is active.
+The <arg choice='plain'>--inversescreen</arg> command-line option instructs <command>login-envuidgid</command> to switch the DECSCNM ("light"/"dark" screen mode) private mode on or off.
+</para>
+
+</refsection>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>See also</title>
+
+<itemizedlist>
+<listitem><para>
+<citerefentry><refentrytitle>envuidgid</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</para></listitem>
+<listitem><para>
+<citerefentry><refentrytitle>userenv-fromenv</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</para></listitem>
+<listitem><para>
+<citerefentry><refentrytitle>setuidgid-fromenv</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</para></listitem>
+<listitem><para>
+<citerefentry><refentrytitle>chdir-home</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</para></listitem>
+</itemizedlist>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>
+

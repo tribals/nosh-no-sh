@@ -7,6 +7,7 @@ Description=systemd-compatible %p service for non-systemd operating systems
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.locale1
 ExecStart=%p
 
 [Install]

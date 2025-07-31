@@ -3,8 +3,6 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-#define _XOPEN_SOURCE_EXTENDED
-#include <vector>
 #include <map>
 #include <unordered_map>
 #include <set>
@@ -14,7 +12,6 @@ For copyright and licensing terms, see the file named COPYING.
 #include <cstdlib>
 #include <csignal>
 #include <cstring>
-#include <clocale>
 #include <cerrno>
 #include <sys/stat.h>
 #if defined(__LINUX__) || defined(__linux__)
@@ -43,7 +40,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 struct tm
 convert(
 	const ProcessEnvironment & envs,
@@ -54,6 +53,8 @@ convert(
 	localtime_r(&z.time, &tm);
 	if (z.leap) ++tm.tm_sec;
 	return tm;
+}
+
 }
 
 /* Service bundles **********************************************************
@@ -67,10 +68,8 @@ struct index : public std::pair<dev_t, ino_t> {
 	std::size_t hash() const { return static_cast<std::size_t>(first) + static_cast<std::size_t>(second); }
 };
 
-struct bundle;
-
 struct bundle {
-	bundle() : 
+	bundle() :
 		bundle_dir_fd(-1),
 		supervise_dir_fd(-1),
 		service_dir_fd(-1),
@@ -134,14 +133,14 @@ bundle::state_of (
 	char c
 ) {
 	switch (c) {
-		case encore_status_stopped:	
+		case encore_status_stopped:
 			if (ready_after_run)
 				return exited_run ? DONE : STOPPED;
 			else
 				return STOPPED;
 		case encore_status_starting:	return STARTING;
 		case encore_status_started:	return STARTED;
-		case encore_status_running:	
+		case encore_status_running:
 			if (ready_after_run)
 				return main_pid ? STARTED : READY;
 			else
@@ -208,9 +207,11 @@ bundle::load_data(
 }
 
 namespace std {
+
 template <> struct hash<struct index> {
 	size_t operator() (const struct index & v) const { return v.hash(); }
 };
+
 }
 
 inline
@@ -228,10 +229,12 @@ bundle::name_of_state (
 }
 
 namespace {
+
 struct bundle_info_map : public std::unordered_map<index, bundle> {
 	bundle & add_bundle(const struct stat &, FileDescriptorOwner &, FileDescriptorOwner &, FileDescriptorOwner &, const std::string &, const std::string &, const std::string &);
 };
 typedef std::list<bundle *> bundle_pointer_list;
+
 }
 
 inline
@@ -270,7 +273,7 @@ struct TUI :
 	public TUIOutputBase,
 	public TUIInputBase
 {
-	TUI(const ProcessEnvironment & e, bundle_info_map & m, TUIDisplayCompositor & comp, bool, bool, bool);
+	TUI(const ProcessEnvironment & e, bundle_info_map & m, TUIDisplayCompositor & comp, const TUIOutputBase::Options &);
 	~TUI();
 
 	bool quit_flagged() const { return pending_quit_event; }
@@ -280,32 +283,42 @@ struct TUI :
 	void handle_sort_needed ();
 
 protected:
+	TUIInputBase::WheelToKeyboard handler0;
+	TUIInputBase::GamingToCursorKeypad handler1;
+	TUIInputBase::EMACSToCursorKeypad handler2;
+	TUIInputBase::CUAToExtendedKeys handler3;
+	TUIInputBase::LessToExtendedKeys handler4;
+	TUIInputBase::ConsumerKeysToExtendedKeys handler5;
+	TUIInputBase::CalculatorToEditingKeypad handler6;
+	class EventHandler : public TUIInputBase::EventHandler {
+	public:
+		EventHandler(TUI & i) : TUIInputBase::EventHandler(i), ui(i) {}
+		~EventHandler();
+	protected:
+		virtual bool ExtendedKey(uint_fast16_t k, uint_fast8_t m);
+		TUI & ui;
+	} handler7;
+	friend class EventHandler;
 	const ProcessEnvironment & envs;
 	sig_atomic_t terminate_signalled, interrupt_signalled, hangup_signalled, usr1_signalled, usr2_signalled;
 	bundle_info_map & bundle_map;
 	bundle_pointer_list bundles;
 	TUIVIO vio;
 	std::size_t current_row;
+	std::size_t top_row;
 	bool sort_needed, pending_quit_event;
 	unsigned sort_mode;
-	TUIDisplayCompositor::coordinate window_y, window_x;
-	const ColourPair normal, name, exception, config, control;
+	TUIDisplayCompositor::coordinate window_x;
+	const ColourPair header, normal, name, exception, config, control;
 
 	virtual void redraw_new();
-
-	virtual void ExtendedKey(uint_fast16_t k, uint_fast8_t m);
-	virtual void FunctionKey(uint_fast16_t k, uint_fast8_t m);
-	virtual void UCS3(uint_fast32_t character);
-	virtual void Accelerator(uint_fast32_t character);
-	virtual void MouseMove(uint_fast16_t, uint_fast16_t, uint8_t);
-	virtual void MouseWheel(uint_fast8_t n, int_fast8_t v, uint_fast8_t m);
-	virtual void MouseButton(uint_fast8_t n, uint_fast8_t v, uint_fast8_t m);
 
 	void sort_bundles();
 	bool less_than (const bundle & a, const bundle & b);
 
+	void write_header(const TUIDisplayCompositor::coordinate & row, long col);
 	void write_one_line(const TUIDisplayCompositor::coordinate & row, long col, const CharacterCell::attribute_type &, const bundle & sb, const uint64_t z);
-	void write_timestamp(const TUIDisplayCompositor::coordinate & row, long & col, const CharacterCell::attribute_type &, const ColourPair &, const uint64_t s);
+	void write_timestamp(const TUIDisplayCompositor::coordinate & row, long & col, const CharacterCell::attribute_type &, const ColourPair &, const uint64_t s, unsigned width);
 
 private:
 	char stdin_buffer[1U * 1024U];
@@ -317,13 +330,19 @@ TUI::TUI(
 	const ProcessEnvironment & e,
 	bundle_info_map & m,
 	TUIDisplayCompositor & comp,
-	bool cursor_application_mode,
-	bool calculator_application_mode,
-	bool alternate_screen_buffer
+	const TUIOutputBase::Options & options
 ) :
 	TerminalCapabilities(e),
-	TUIOutputBase(*this, stdout, false, false, cursor_application_mode, calculator_application_mode, alternate_screen_buffer, comp),
+	TUIOutputBase(*this, stdout, options, comp),
 	TUIInputBase(static_cast<const TerminalCapabilities &>(*this), stdin),
+	handler0(*this),
+	handler1(*this),
+	handler2(*this),
+	handler3(*this),
+	handler4(*this),
+	handler5(*this),
+	handler6(*this),
+	handler7(*this),
 	envs(e),
 	terminate_signalled(false),
 	interrupt_signalled(false),
@@ -332,12 +351,13 @@ TUI::TUI(
 	usr2_signalled(false),
 	bundle_map(m),
 	vio(comp),
-	current_row(0),
+	current_row(0U),
+	top_row(0U),
 	sort_needed(true),
 	pending_quit_event(false),
 	sort_mode(4U),
-	window_y(0U),
 	window_x(0U),
+	header(C(COLOUR_BLUE, COLOUR_YELLOW)),
 	normal(C(COLOUR_WHITE, COLOUR_BLACK)),
 	name(C(COLOUR_YELLOW, COLOUR_BLACK)),
 	exception(C(COLOUR_RED, COLOUR_BLACK)),
@@ -357,12 +377,37 @@ TUI::write_timestamp (
 	long & col,
 	const CharacterCell::attribute_type & attr,
 	const ColourPair & colour,
-	const uint64_t s
+	const uint64_t s,
+	unsigned width
 ) {
 	char buf[64];
 	const struct tm t(convert(envs, s));
-	const std::size_t len(std::strftime(buf, sizeof buf, " %F %T %z", &t));
-	vio.Print(row, col, attr, colour, buf, len);
+	std::size_t len(std::strftime(buf, sizeof buf, "%F %T %z", &t));
+	if (len > width) len = width;
+	if (len < width)
+		vio.PrintNCharsAttr(row, col, attr, normal, ' ', width - len);
+	vio.PrintCharStrAttr7Bit(row, col, attr, colour, buf, len);
+}
+
+inline
+void
+TUI::write_header (
+	const TUIDisplayCompositor::coordinate & row,
+	long col
+) {
+	const CharacterCell::attribute_type normal_attr(CharacterCell::INVERSE);
+	const CharacterCell::attribute_type sorting(CharacterCell::INVERSE|CharacterCell::BOLD);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), 0U == sort_mode || 1U == sort_mode ? sorting : normal_attr, header, "%-8s", "STATE");
+	vio.PrintNCharsAttr(row, col, normal_attr, header, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), normal_attr, header, "%-8s", "ENABLED");
+	vio.PrintNCharsAttr(row, col, normal_attr, header, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), normal_attr, header, "%-2s", "WP");
+	vio.PrintNCharsAttr(row, col, normal_attr, header, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), 2U == sort_mode || 1U == sort_mode ? sorting : normal_attr, header, "%-7s", "PID");
+	vio.PrintNCharsAttr(row, col, normal_attr, header, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), 3U == sort_mode ? sorting : normal_attr, header, "%-25s", "TIME");
+	vio.PrintNCharsAttr(row, col, normal_attr, header, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), sorting, header, "%s", "PATH");
 }
 
 inline
@@ -374,23 +419,25 @@ TUI::write_one_line (
 	const bundle & sb,
 	const uint64_t z
 ) {
-	vio.PrintFormatted(row, col, attr, sb.colour_of_state(), "%-8s", sb.name_of_state());
-	vio.Print(row, col, attr, normal, ' ');
-	vio.PrintFormatted(row, col, attr, config, "%-8s", sb.initially_up ? "enabled" : "disabled");
-	vio.Print(row, col, attr, normal, ' ');
-	vio.PrintFormatted(row, col, attr, control, "%c%c", sb.valid_status() && sb.want_flag ? sb.want_flag : '_', sb.valid_status() && sb.paused ? 'p' : '_');
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), attr, sb.colour_of_state(), "%-8s", sb.name_of_state());
+	vio.PrintNCharsAttr(row, col, attr, normal, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), attr, config, "%-8s", sb.initially_up ? "enabled" : "disabled");
+	vio.PrintNCharsAttr(row, col, attr, normal, ' ', 1U);
+	vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), attr, control, "%c%c", sb.valid_status() && sb.want_flag ? sb.want_flag : '_', sb.valid_status() && sb.paused ? 'p' : '_');
+	vio.PrintNCharsAttr(row, col, attr, normal, ' ', 1U);
 	if (sb.valid_status()) {
 		if (-1 != sb.pid)
-			vio.PrintFormatted(row, col, attr, normal, " %7u", sb.pid);
+			vio.PrintFormatted7Bit(row, col, static_cast<std::size_t>(-1), attr, normal, "%7u", sb.pid);
 		else
-			vio.PrintFormatted(row, col, attr, normal, " %7s", "");
-		write_timestamp(row, col, attr, z < sb.seconds ? exception : normal, sb.seconds);
+			vio.PrintNCharsAttr(row, col, attr, normal, ' ', 7U);
+		vio.PrintNCharsAttr(row, col, attr, normal, ' ', 1U);
+		write_timestamp(row, col, attr, z < sb.seconds ? exception : normal, sb.seconds, 25U);
 	} else {
-		vio.PrintFormatted(row, col, attr, normal, " %7s %25s", "", "");
+		vio.PrintNCharsAttr(row, col, attr, normal, ' ', 7U + 25U + 1U);
 	}
-	vio.Print(row, col, attr, normal, ' ');
-	vio.PrintFormatted(row, col, attr, name, "%s", sb.name.c_str());
-	vio.PrintFormatted(row, col, attr, normal, "\t%s\n", sb.path.c_str());
+	vio.PrintNCharsAttr(row, col, attr, normal, ' ', 1U);
+	vio.PrintCharStrAttrUTF8(row, col, attr, normal, sb.path.data(), sb.path.length());
+	vio.PrintCharStrAttrUTF8(row, col, attr, name, sb.name.data(), sb.name.length());
 }
 
 bool
@@ -502,8 +549,8 @@ TUI::handle_signal (
 		case SIGHUP:	hangup_signalled = true; break;
 		case SIGUSR1:	usr1_signalled = true; break;
 		case SIGUSR2:	usr2_signalled = true; break;
-		case SIGTSTP:	exit_full_screen_mode(); raise(SIGSTOP); break;
-		case SIGCONT:	enter_full_screen_mode(); invalidate_cur(); set_update_needed(); break;
+		case SIGTSTP:	tstp_signal(); break;
+		case SIGCONT:	continued(); break;
 	}
 }
 
@@ -514,7 +561,18 @@ TUI::redraw_new (
 	clock_gettime(CLOCK_REALTIME, &now);
 	const uint64_t z(time_to_tai64(envs, TimeTAndLeap(now.tv_sec, false)));
 
-	TUIDisplayCompositor::coordinate cursor_y(current_row), cursor_x;
+	// Scroll so that the current row is visible.
+	if (top_row > current_row) {
+		optimize_scroll_up(top_row - current_row);
+		top_row = current_row;
+	} else
+	if (current_row + 1U >= top_row + c.query_h()) {
+		optimize_scroll_down(current_row - c.query_h() - top_row + 1);
+		top_row = current_row - c.query_h() + 2U;
+	}
+
+	// Find the x cursor position, sideways scrolling as necessary.
+	TUIDisplayCompositor::coordinate cursor_x;
 	switch (sort_mode) {
 		default:
 		case 0U:	cursor_x = 0; break;
@@ -523,231 +581,134 @@ TUI::redraw_new (
 		case 3U:	cursor_x = 29; break;
 		case 4U:	cursor_x = 55; break;
 	}
-	// The window includes the cursor position.
-	if (window_y > cursor_y) window_y = cursor_y; else if (window_y + c.query_h() <= cursor_y) window_y = cursor_y - c.query_h() + 1;
-	if (window_x > cursor_x) window_x = cursor_x; else if (window_x + c.query_w() <= cursor_x) window_x = cursor_x - c.query_w() + 1;
+	if (window_x > cursor_x) window_x = cursor_x; else if (cursor_x >= window_x + c.query_w()) window_x = cursor_x - c.query_w() + 1U;
 
-	erase_new_to_backdrop();
+	vio.CLSToSpace(ColourPair::def);
 
-	TUIDisplayCompositor::coordinate row(0U);
-	for (bundle_pointer_list::const_iterator b(bundles.begin()), e(bundles.end()), i(b); e != i; ++i, ++row) {
-		if (row < window_y) continue;
-		if (row >= c.query_h() + window_y) break;
+	write_header(0U, -window_x);
+	std::size_t row(0U);
+	for (bundle_pointer_list::const_iterator i(bundles.begin()), e(bundles.end()); e != i; ++i, ++row) {
+		if (row < top_row) continue;
+		if (row + 1U >= top_row + c.query_h()) break;
 		const CharacterCell::attribute_type attr(row == current_row ? CharacterCell::INVERSE : 0U);
-		write_one_line(row - window_y, -window_x, attr, **i, z);
+		write_one_line(row - top_row + 1U, -window_x, attr, **i, z);
 	}
 
-	c.move_cursor(cursor_y - window_y, cursor_x - window_x);
+	c.move_cursor(current_row - top_row + 1U, cursor_x - window_x);
 	c.set_cursor_state(CursorSprite::VISIBLE|CursorSprite::BLINK, CursorSprite::BOX);
 }
 
-void
-TUI::ExtendedKey(
+bool
+TUI::EventHandler::ExtendedKey(
 	uint_fast16_t k,
 	uint_fast8_t m
 ) {
 	switch (k) {
+		default:	return TUIInputBase::EventHandler::ExtendedKey(k, m);
 		case EXTENDED_KEY_LEFT_ARROW:
-		case EXTENDED_KEY_PAD_LEFT:
-			if (sort_mode > 0U) { --sort_mode; sort_needed = true; }
-			break;
+			if (ui.sort_mode > 0U) { --ui.sort_mode; ui.sort_needed = true; }
+			return true;
 		case EXTENDED_KEY_RIGHT_ARROW:
-		case EXTENDED_KEY_PAD_RIGHT:
-			if (sort_mode < 4U) { ++sort_mode; sort_needed = true; }
-			break;
+			if (ui.sort_mode < 4U) { ++ui.sort_mode; ui.sort_needed = true; }
+			return true;
 		case EXTENDED_KEY_DOWN_ARROW:
-		case EXTENDED_KEY_PAD_DOWN:
-			if (current_row + 1 < bundles.size()) { ++current_row; set_refresh_needed(); }
-			break;
+			if (ui.current_row + 1 < ui.bundles.size()) { ++ui.current_row; ui.set_refresh_needed(); }
+			return true;
 		case EXTENDED_KEY_UP_ARROW:
-		case EXTENDED_KEY_PAD_UP:
-			if (current_row > 0) { --current_row; set_refresh_needed(); }
-			break;
+			if (ui.current_row > 0) { --ui.current_row; ui.set_refresh_needed(); }
+			return true;
 		case EXTENDED_KEY_END:
-		case EXTENDED_KEY_PAD_END:
-			if (std::size_t s = bundles.size()) {
-				if (current_row + 1 != s) { current_row = s - 1; set_refresh_needed(); }
-				break;
-			} else 
+			if (std::size_t s = ui.bundles.size()) {
+				if (ui.current_row + 1 != s) { ui.current_row = s - 1; ui.set_refresh_needed(); }
+				return true;
+			} else
 				[[clang::fallthrough]];
 		case EXTENDED_KEY_HOME:
-		case EXTENDED_KEY_PAD_HOME:
-			if (current_row != 0) { current_row = 0; set_refresh_needed(); }
-			break;
+			if (ui.current_row != 0) { ui.current_row = 0; ui.set_refresh_needed(); }
+			return true;
 		case EXTENDED_KEY_PAGE_DOWN:
-		case EXTENDED_KEY_PAD_PAGE_DOWN:
-			if (bundles.size() && current_row + 1 < bundles.size()) {
-				unsigned n(c.query_h());
-				if (current_row + n < bundles.size())
-					current_row += n;
+			if (ui.bundles.size() && ui.current_row + 1 < ui.bundles.size()) {
+				unsigned n(ui.c.query_h() - 1U);
+				if (ui.current_row + n < ui.bundles.size())
+					ui.current_row += n;
 				else
-					current_row = bundles.size() - 1;
-				set_refresh_needed();
+					ui.current_row = ui.bundles.size() - 1;
+				ui.set_refresh_needed();
 			}
-			break;
+			return true;
 		case EXTENDED_KEY_PAGE_UP:
-		case EXTENDED_KEY_PAD_PAGE_UP:
-			if (current_row > 0) {
-				unsigned n(c.query_h());
-				if (current_row > n)
-					current_row -= n;
+			if (ui.current_row > 0) {
+				unsigned n(ui.c.query_h() - 1U);
+				if (ui.current_row > n)
+					ui.current_row -= n;
 				else
-					current_row = 0;
-				set_refresh_needed();
+					ui.current_row = 0;
+				ui.set_refresh_needed();
 			}
-			break;
+			return true;
+		case EXTENDED_KEY_CANCEL:
+		case EXTENDED_KEY_CLOSE:
+		case EXTENDED_KEY_EXIT:
+			ui.pending_quit_event = true;
+			return true;
+		case EXTENDED_KEY_STOP:
+			ui.suspend_self();
+			return true;
+		case EXTENDED_KEY_REFRESH:
+			ui.invalidate_cur();
+			ui.set_update_needed();
+			return true;
 	}
 }
 
-void
-TUI::FunctionKey(
-	uint_fast16_t /*k*/,
-	uint_fast8_t /*m*/
-) {
-}
-
-void
-TUI::UCS3(
-	uint_fast32_t character
-) {
-	switch (character) {
-		case EM:	// Control+Y
-		case SUB:	// Control+Z
-			killpg(0, SIGTSTP);
-			break;
-		case ETX:	// Control+C
-		case EOT:	// Control+D
-		case FS:	// Control+\ .
-		case 'Q': case 'q':
-			pending_quit_event = true;
-			break;
-		case 'W': case 'w': case 'J': case'j':
-			ExtendedKey(EXTENDED_KEY_UP_ARROW, 0U);
-			break;
-		case 'S': case 's': case 'K': case 'k':
-			ExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U);
-			break;
-		case 'A': case 'a': case 'H': case'h':
-			ExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U);
-			break;
-		case 'D': case 'd': case 'L': case 'l':
-			ExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U);
-			break;
-		case SOH:	// Control+A
-			ExtendedKey(EXTENDED_KEY_HOME, 0U);
-			break;
-		case ENQ:	// Control+E
-			ExtendedKey(EXTENDED_KEY_END, 0U);
-			break;
-		case STX:	// Control+B
-		case CAN:	// Control+P
-			ExtendedKey(EXTENDED_KEY_PAGE_UP, 0U);
-			break;
-		case ACK:	// Control+F
-		case SO:	// Control+N
-			ExtendedKey(EXTENDED_KEY_PAGE_DOWN, 0U);
-			break;
-	}
-}
-
-void
-TUI::Accelerator(
-	uint_fast32_t character
-) {
-	switch (character) {
-		case 'W': case 'w':
-		case 'Q': case 'q':
-			pending_quit_event = true;
-			break;
-	}
-}
-
-void 
-TUI::MouseMove(
-	uint_fast16_t /*row*/,
-	uint_fast16_t /*col*/,
-	uint8_t /*modifiers*/
-) {
-}
-
-void 
-TUI::MouseWheel(
-	uint_fast8_t wheel,
-	int_fast8_t value,
-	uint_fast8_t /*modifiers*/
-) {
-	switch (wheel) {
-		case 0U:
-			while (value < 0) {
-				ExtendedKey(EXTENDED_KEY_UP_ARROW, 0U);
-				++value;
-			}
-			while (0 < value) {
-				ExtendedKey(EXTENDED_KEY_DOWN_ARROW, 0U);
-				--value;
-			}
-			break;
-		case 1U:
-			while (value < 0) {
-				ExtendedKey(EXTENDED_KEY_LEFT_ARROW, 0U);
-				++value;
-			}
-			while (0 < value) {
-				ExtendedKey(EXTENDED_KEY_RIGHT_ARROW, 0U);
-				--value;
-			}
-			break;
-	}
-}
-
-void 
-TUI::MouseButton(
-	uint_fast8_t /*button*/,
-	uint_fast8_t /*value*/,
-	uint_fast8_t /*modifiers*/
-) {
-}
+// Seat of the class
+TUI::EventHandler::~EventHandler() {}
 
 /* System control subcommands ***********************************************
 // **************************************************************************
 */
 
 void
-chkservice [[gnu::noreturn]] ( 
+chkservice [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
-	bool cursor_application_mode(false);
-	bool calculator_application_mode(false);
-	bool no_alternate_screen_buffer(false);
+	TUIOutputBase::Options options;
 	try {
-		popt::bool_definition user_option('u', "user", "Communicate with the per-user manager.", per_user_mode);
-		popt::bool_definition cursor_application_mode_option('\0', "cursor-keypad-application-mode", "Set the cursor keypad to application mode instead of normal mode.", cursor_application_mode);
-		popt::bool_definition calculator_application_mode_option('\0', "calculator-keypad-application-mode", "Set the calculator keypad to application mode instead of normal mode.", calculator_application_mode);
-		popt::bool_definition no_alternate_screen_buffer_option('\0', "no-alternate-screen-buffer", "Prevent switching to the XTerm alternate screen buffer.", no_alternate_screen_buffer);
-		popt::definition * main_table[] = {
-			&user_option,
+		popt::bool_definition cursor_application_mode_option('\0', "cursor-keypad-application-mode", "Set the cursor keypad to application mode instead of normal mode.", options.cursor_application_mode);
+		popt::bool_definition calculator_application_mode_option('\0', "calculator-keypad-application-mode", "Set the calculator keypad to application mode instead of normal mode.", options.calculator_application_mode);
+		popt::bool_definition no_alternate_screen_buffer_option('\0', "no-alternate-screen-buffer", "Prevent switching to the XTerm alternate screen buffer.", options.no_alternate_screen_buffer);
+		popt::bool_string_definition scnm_option('\0', "inversescreen", "Switch inverse screen mode on/off.", options.scnm);
+		popt::tui_level_definition tui_level_option('T', "tui-level", "Specify the level of TUI character set.");
+		popt::definition * tui_table[] = {
 			&cursor_application_mode_option,
 			&calculator_application_mode_option,
 			&no_alternate_screen_buffer_option,
+			&scnm_option,
+			&tui_level_option,
+		};
+		popt::bool_definition user_option('u', "user", "Communicate with the per-user manager.", per_user_mode);
+		popt::table_definition tui_table_option(sizeof tui_table/sizeof *tui_table, tui_table, "Terminal quirks options");
+		popt::definition * main_table[] = {
+			&user_option,
+			&tui_table_option,
 		};
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "{service(s)...}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
+		options.tui_level = tui_level_option.value() < options.TUI_LEVELS ? tui_level_option.value() : options.TUI_LEVELS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing service bundle name(s).");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "service bundle name(s)");
 	}
 
 #if defined(__LINUX__) || defined(__linux__)
@@ -792,25 +753,23 @@ chkservice [[gnu::noreturn]] (
 
 	const FileDescriptorOwner queue(kqueue());
 	if (0 > queue.get()) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kqueue");
 	}
 	std::vector<struct kevent> ip;
 
-	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, 0);
+	append_event(ip, STDIN_FILENO, EVFILT_READ, EV_ADD, 0, 0, nullptr);
 	ReserveSignalsForKQueue kqueue_reservation(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, SIGWINCH, SIGTSTP, SIGCONT, 0);
 	PreventDefaultForFatalSignals ignored_signals(SIGTERM, SIGINT, SIGHUP, SIGPIPE, SIGUSR1, SIGUSR2, 0);
-	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
+	append_event(ip, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGTSTP, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGCONT, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	TUIDisplayCompositor compositor(false /* no software cursor */, 24, 80);
-	TUI ui(envs, bundle_map, compositor, cursor_application_mode, calculator_application_mode, !no_alternate_screen_buffer);
+	TUI ui(envs, bundle_map, compositor, options);
 
 	while (true) {
 		if (ui.exit_signalled() || ui.quit_flagged())
@@ -821,14 +780,12 @@ chkservice [[gnu::noreturn]] (
 		ui.handle_update_event();
 
 		struct kevent p[128];
-		const int rc(kevent(queue.get(), ip.data(), ip.size(), p, sizeof p/sizeof *p, 0));
+		const int rc(kevent(queue.get(), ip.data(), ip.size(), p, sizeof p/sizeof *p, nullptr));
 		ip.clear();
 
 		if (0 > rc) {
-			const int error(errno);
-			if (EINTR == error) continue;
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-			throw EXIT_FAILURE;
+			if (EINTR == errno) continue;
+			die_errno(prog, envs, "kevent");
 		}
 
 		for (std::size_t i(0); i < static_cast<std::size_t>(rc); ++i) {

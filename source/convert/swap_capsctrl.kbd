@@ -1,9 +1,9 @@
-# This is an overlay keymap that swaps the normal placement of
-# Caps Lock and Control.
+# This is an overlay keymap that swaps the normal placement of Caps Lock and Control.
+# It also extends Caps Lock with Level 2 Shift Lock and Level 3 Shift Lock.
 #
 #                                                        option
 # scan                       cntrl         option option cntrl lock
 # code  base   shift  cntrl  shift  option shift  cntrl  shift state
 # ------------------------------------------------------------------
-  029   clock  clock  clock  clock  clock  clock  clock  clock   O
+  029   clock  l2lock nop    nop    l3lock clock  nop    nop     L
   058   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O

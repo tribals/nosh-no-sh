@@ -10,6 +10,7 @@ Description=Multi-platform LCD display driver
 # * write-only non-owner access to the relevant device file(s), and
 # * read-only non-owner access to its configuration file.
 User=%p
+SessionLeader=yes
 ExecStart=%p -f -s 0 ${configfile:+-c "${configfile}"} ${flags}
 ProtectHome=true
 ProtectSystem=true

@@ -6,7 +6,7 @@
 Description=rsync server socket
 
 [Socket]
-ListenStream=873
+ListenStream=rsync
 BindIPv6Only=both
 Accept=true
 

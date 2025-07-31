@@ -95,7 +95,7 @@ If the <filename>service</filename> subdirectory does not exist in a bundle dire
 </para>
 
 <para>
-daemontools' <citerefentry><refentrytitle>svscan</refentrytitle><manvolnum>1</manvolnum></citerefentry>, daemontools-encore's <citerefentry><refentrytitle>svscan</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and runit's <citerefentry><refentrytitle>runsvdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> all wake up every 5 seconds to poll the contents of the scan directory.  
+daemontools' <citerefentry><refentrytitle>svscan</refentrytitle><manvolnum>1</manvolnum></citerefentry>, daemontools-encore's <citerefentry><refentrytitle>svscan</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and runit's <citerefentry><refentrytitle>runsvdir</refentrytitle><manvolnum>1</manvolnum></citerefentry> all wake up every 5 seconds to poll the contents of the scan directory.
 (s6's <citerefentry><refentrytitle>s6-svscan</refentrytitle><manvolnum>1</manvolnum></citerefentry> used to as well, but nowadays does not do timed rescans by default.)
 The first three also have a hardwired limit of 1000 subdirectories, with <citerefentry><refentrytitle>s6-svscan</refentrytitle><manvolnum>1</manvolnum></citerefentry> having a lower limit of 500 subdirectories.
 </para>
@@ -111,7 +111,7 @@ Service management is the remit of <citerefentry><refentrytitle>service-manager<
 <refsection><title>Bugs</title>
 
 <para>
-The Linux <citerefentry><refentrytitle>kevent</refentrytitle><manvolnum>3</manvolnum></citerefentry> mechanism does not correctly report last modification timestamp changes that result from entries being created or deleted in a directory.  
+The Linux <citerefentry><refentrytitle>kevent</refentrytitle><manvolnum>3</manvolnum></citerefentry> mechanism does not correctly report last modification timestamp changes that result from entries being created or deleted in a directory.
 However, it will report timestamp changes caused by the <citerefentry><refentrytitle>touch</refentrytitle><manvolnum>1</manvolnum></citerefentry> command.
 </para>
 

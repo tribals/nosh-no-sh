@@ -7,8 +7,12 @@ Description=%p daemon
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.login1
+RuntimeDirectory=systemd/seats
+RuntimeDirectoryMode=0755
 ExecStart=/lib/systemd/%p
 LimitNOFILE=16384
+TasksMax=10
 
 [Install]
 WantedBy=workstation.target

@@ -14,7 +14,9 @@ get_var1() { read_rc "$1" || true ; }
 
 redo-ifchange general-services rc.conf
 
-if s="`system-control find hostname`"
+hostname="`get_var1 hostname`"
+if s="`system-control find hostname.service`"
 then
-	system-control set-service-env "${s}" hostname "`get_var1 hostname`"
+	system-control set-service-env "${s}" hostname "${hostname}"
 fi
+printf >> "$3" '%s: %s\n' hostname "${hostname}"

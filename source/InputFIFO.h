@@ -15,7 +15,7 @@ class InputFIFO :
 {
 public:
 	InputFIFO(int);
-	void ReadInput();
+	void ReadInput(int n);
 	bool HasMessage() const { return input_read >= sizeof(uint32_t); }
 	uint32_t PullMessage();
 protected:

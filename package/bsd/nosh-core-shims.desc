@@ -1,1 +1,6 @@
-Shims for utilities with names from GNU Coreutils
+ This package provides shims for commands with names from GNU Coreutils.
+  * true, false, chroot, ulimit, umask
+  * setsid
+  * printenv
+ .
+ The shims simply invoke nosh built-in commands.

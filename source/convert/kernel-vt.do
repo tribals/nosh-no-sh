@@ -11,16 +11,15 @@
 # These get us *only* the configuration variables, safely.
 read_rc() { clearenv read-conf rc.conf printenv "$1" ; }
 get_var() { read_rc "$1" || true ; }
+get_var_default() { read_rc "$1" || printf '%s\n' "$2" ; }
 
 redo-ifchange rc.conf general-services
 
-if ! keymap="`read_rc \"keymap\"`"
-then
-	keymap="us"
-fi
+keymap="`get_var_default keymap us`"
 original="${keymap}"
-# There are a whole bunch of old names for keyboard mappings that systems could be using.
-# These the vt names, on the presumption that kbdcontrol is going to be using the vt keymaps.
+# There are a whole bunch of old syscons names for keyboard mappings that rc.conf could be using.
+# Translate to vt names, on the presumption that kbdcontrol is going to be using the vt keymaps.
+# This is the same as the modernizations done by /etc/rc.d/syscons.
 case "${keymap}" in
 hy.armscii-8)			keymap="am";;
 be.iso.acc)			keymap="be.acc";;
@@ -95,10 +94,12 @@ us.iso)				keymap="us";;
 esac
 if ! test _"${original}" = _"${keymap}"
 then
-	echo 1>&2 $0: Please adjust /etc/rc.conf to read keymap="${keymap}".
+	echo 1>&2 $0: Please adjust /etc/rc.conf to read keymap="${keymap}" for the new VT keymap name.
 fi
 
-exec printf "%s\n" "${keymap}" > "$3"
+printf "keymap=%s\n" "${keymap}" > "$3"
+
+# FreeBSD kernel VT configuration services.
 
 if s="`system-control find kernel-vt-kbdcontrol 2>/dev/null`"
 then
@@ -136,6 +137,8 @@ then
 	printf >> "$3" "%s:\n" "${s}"
 	system-control print-service-env "${s}" >> "$3"
 fi
+
+# Linux kernel VT configuration services.
 
 if s="`system-control find kernel-vt-loadkeys 2>/dev/null`"
 then

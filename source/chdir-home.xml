@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="chdir-home">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>chdir-home</refentrytitle>
+<manvolnum>1</manvolnum>
+<refmiscinfo class="manual">user commands</refmiscinfo>
+<refmiscinfo class="source">nosh</refmiscinfo>
+<xi:include href="version.xml" />
+</refmeta>
+
+<refnamediv><refname>chdir-home</refname><refpurpose>change working directory to the home directory then chain</refpurpose></refnamediv>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>chdir-home</command>
+<arg choice='opt'>--oknodir</arg>
+<arg choice='req'><replaceable>next-prog</replaceable></arg>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<refsection><title>Description</title>
+
+<para>
+<command>chdir-home</command> is a chain-loading utility that changes its working directory to the value of the <envar>HOME</envar> environment variable, like the shell built-in <command>chdir</command> command when given no arguments, and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
+</para>
+
+<note>
+<command>chdir-home</command> places no requirement on the value of the <envar>HOME</envar> environment variable and uses that value exactly as it stands.
+It should be an absolute pathname; but a relative pathname is not regarded as an error.
+</note>
+
+<para>
+<replaceable>next-prog</replaceable> may contain its own command line options, which <command>chdir-home</command> will ignore.
+</para>
+
+<para>
+If the home directory cannot be changed to, normally <command>chdir-home</command> exits with a non-zero exit status does not chain.
+Using the <arg choice='plain'>--oknodir</arg> command-line option causes it to change working directory to the <filename>/</filename> directory instead and to carry on, akin to the behaviours of <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry> programs when a user's home directory is unavailable.
+</para>
+
+<note>
+The <filename>/</filename> directory is a "safe" choice for a default home directory inasmuch as it is not expected to contain any "dotfiles" that programs may mistakenly access as if they were in a bona fide home directory.
+Historically, <filename>/</filename> actually was the superuser's own home directory, and this would have not been a "safe" choice; but for security reasons the convention changed to the superuser having a distinct home directory (on the root volume) as <filename>/root</filename> or some such and <filename>/</filename> is nowadays no longer a bona fide home directory.
+</note>
+
+<para>
+Unlike the shell built-in <command>chdir</command> command, <command>chdir-home</command> always operates in "physical" mode, and performs no canonicalization of <quote><code>..</code></quote> or <quote><code>.</code></quote> components.
+For the benefit of the <citerefentry><refentrytitle>pwd</refentrytitle><manvolnum>1</manvolnum></citerefentry> command when its <arg choice='plain'>-L</arg> command-line option is used, if the path of the directory changed to is an absolute one <command>chdir-home</command> sets the <envar>PWD</envar> environment variable to that path, and unsets that environment variable if it is a relative path.
+</para>
+
+<para>
+Also unlike the shell built-in <command>chdir</command> command, <command>chdir-home</command> ignores any <envar>CDPATH</envar> environment variable, and performs no interpolation for leading <quote><code>~</code></quote> characters.
+</para>
+
+</refsection>
+
+<refsection><title>See also</title>
+
+<variablelist>
+<varlistentry>
+<term>
+<citerefentry><refentrytitle>chdir</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+</term>
+<listitem>
+<para>
+a chain-loading command that takes an explicit directory name
+</para>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term><citerefentry><refentrytitle>userenv</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<term><citerefentry><refentrytitle>userenv-fromenv</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<listitem>
+<para>
+chain-loading commands that specifically set the <envar>HOME</envar> environment variable
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para><author><personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname></author></para>
+</refsection>
+
+</refentry>

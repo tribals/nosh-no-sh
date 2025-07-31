@@ -5,6 +5,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #include "nmount.h"
 
+#if !defined(HAS_NMOUNT)
 #if defined(__LINUX__) || defined(__linux__)
 
 #include <unistd.h>
@@ -34,7 +35,7 @@ nmount (
 		else
 		if ("fspath" == var)
 			path = convert(iov[u + 1U]);
-		else 
+		else
 		{
 			hasdata = true;
 			if (!data.empty())
@@ -45,7 +46,7 @@ nmount (
 		}
 	}
 
-	return mount(from.c_str(), path.c_str(), type.c_str(), static_cast<unsigned long>(flags), hasdata ? data.c_str() : 0);
+	return mount(from.c_str(), path.c_str(), type.c_str(), static_cast<unsigned long>(flags), hasdata ? data.c_str() : nullptr);
 }
 
 #elif defined(__OpenBSD__)
@@ -77,7 +78,7 @@ nmount (
 		else
 		if ("fspath" == var)
 			path = convert(iov[u + 1U]);
-		else 
+		else
 		{
 			if (!data.empty())
 				data += ",";
@@ -90,4 +91,19 @@ nmount (
 	return errno = ENOSYS, -1;	/// FIXME \bug This should work out what to do and call the real mount().
 }
 
+#elif defined(__NetBSD__)
+
+#include <cerrno>
+
+extern "C"
+int
+nmount (
+	struct iovec * iov,
+	unsigned int ioc,
+	int flags
+) {
+	return errno = ENOSYS, -1;	/// FIXME \bug This should work out what to do and call the real mount().
+}
+
+#endif
 #endif

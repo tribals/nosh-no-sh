@@ -1,1 +1,12 @@
-Run the freedesktop.org "kits"
+ This package runs the various "kit" programs from freedesktop.org:
+  * Accounts
+  * NetworkManager
+  * ModemManager
+  * ColourManager
+  * PolicyKit
+  * PackageKit
+  * ConsoleKit
+  * RealtimeKit
+  * UDisks
+  * UDisks2
+  * UPower

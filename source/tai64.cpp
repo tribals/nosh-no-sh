@@ -13,12 +13,17 @@ For copyright and licensing terms, see the file named COPYING.
 #include "ProcessEnvironment.h"
 #endif
 
-static const
+namespace {
+
+const
 struct leapsec {
 	uint64_t start;
 	unsigned offset;
 	bool leap;
 } leap_seconds_table[] = {
+	// Official sources:
+	// https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list
+	// https://hpiers.obspm.fr/eop-pc/earthor/utc/UTC.html
 	{ 0x3fffffffe96da18aULL,  0,  true },	// 1958-12-31 00:00:00 -- start of International Atomic Time
 	{ 0x3ffffffffffffff6ULL,  1,  true },	// 1969-12-31 23:59:50 -- fake leap second
 	{ 0x3ffffffffffffff7ULL,  2,  true },	// 1969-12-31 23:59:50 -- fake leap second
@@ -58,14 +63,16 @@ struct leapsec {
 	{ 0x40000000495c07a1ULL, 34,  true },	// 2008-12-31 23:59:60
 	{ 0x400000004fef9322ULL, 35,  true },	// 2012-06-30 23:59:60
 	{ 0x4000000055932da3ULL, 36,  true },	// 2015-06-30 23:59:60
+	// JdeBP 2016-12-02
 	{ 0x40000000586846a4ULL, 37,  true },	// 2016-12-31 23:59:60
+	// No new leap seconds as of 2025-05-28
 };
 
 #if defined(__LINUX__) || defined(__linux__) || defined(__OpenBSD__)
 
-static int checked(-1);
+int checked(-1);
 
-static inline
+inline
 bool
 begins_with (
 	const char * s,
@@ -76,7 +83,7 @@ begins_with (
 	return pl <= sl && 0 == memcmp(s, p, pl);
 }
 
-static inline
+inline
 bool
 ends_with (
 	const char * s,
@@ -87,9 +94,9 @@ ends_with (
 	return pl <= sl && 0 == memcmp(s + sl - pl, p, pl);
 }
 
-static const char zoneinfo[] = "/usr/share/zoneinfo/";
+const char zoneinfo[] = "/usr/share/zoneinfo/";
 
-static inline
+inline
 bool
 time_t_is_tai(const ProcessEnvironment & envs)
 {
@@ -125,7 +132,7 @@ time_t_is_tai(const ProcessEnvironment & envs)
 
 #else
 
-static inline
+inline
 bool
 time_t_is_tai(const ProcessEnvironment &)
 {
@@ -133,6 +140,8 @@ time_t_is_tai(const ProcessEnvironment &)
 }
 
 #endif
+
+}
 
 TimeTAndLeap
 tai64_to_time (

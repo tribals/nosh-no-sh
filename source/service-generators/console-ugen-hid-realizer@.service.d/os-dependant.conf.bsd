@@ -1,0 +1,7 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=conf:
+
+[Service]
+## Many operating systems need no overrides of any sort.

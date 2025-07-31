@@ -1,0 +1,20 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Asterisk PBX and telephony service
+
+[Service]
+Environment=HOME=/var/lib/%p
+WorkingDirectory=/var/lib/%p
+EnvironmentDirectory=env
+User=%p
+SessionLeader=yes
+ExecStart=%p -mqf -C /etc/%p/%p.conf
+LimitCORE=infinity
+Restart=always
+RestartSec=4
+PrivateTmp=true
+
+[Install]

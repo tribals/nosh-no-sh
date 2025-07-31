@@ -1,0 +1,18 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Invoke %p at startup and hourly thereafter
+
+[Timer]
+# The Vixie crontab entry on FreeBSD runs every 11 minutes.
+# The tradeoffs in how often one collects/replaces future seed data are not well documented.
+# Human prejudice sees multiples of 10 as somehow not being random.
+# But to a computer, neither 0x0294 nor 0x0E10 seconds are special values.
+OnBootSec=1m
+OnActiveSec=1h
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=workstation.target

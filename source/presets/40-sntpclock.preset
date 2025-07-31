@@ -1,0 +1,16 @@
+#
+# Enable sntpclock services
+#
+# This is not a systemd preset.
+# It goes in a special nosh system-manager preset directory.
+# It is used by the nosh-run-sntpclock package in order to enable the services themselves.
+#
+
+enable	sntpclock.service
+enable	cyclog@sntpclock.service
+
+# These services are incompatible.
+disable	taiclock.service
+disable	cyclog@taiclock.service
+
+# fake-hwclock is not considered incompatible, as it is ordered before persistent-clock-loaded.target.

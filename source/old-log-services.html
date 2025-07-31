@@ -1,7 +1,8 @@
-<title>Handling old log mechanisms</title>
 <link rel="Up" href="logging.html" title="Logging" />
 <link rel="Prev" href="log-service-security.html" title="Security of logging" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Handling old log mechanisms</title>
+<h1 class="Ruled">
 Handling old log mechanisms
 </h1>
 
@@ -12,7 +13,7 @@ Many services can thus have their logging handled independently of that of other
 But there remain some diehards that cannot be configured this way.  
 </p>
 
-<h2>
+<h2 class="Ruled">
 Component commands
 </h2>
 
@@ -38,7 +39,7 @@ They also build upon service management mechanisms.
 Not providing (for example) UDP log service is a simple matter of stopping and disabling the <code>udp-syslog-read</code> service with service management tools, just like any other service.
 </p>
 
-<h2>
+<h2 class="Ruled">
 Kernel logging
 </h2>
 
@@ -48,7 +49,7 @@ This service listens to the operating system kernel's log device (<code>/dev/kms
 It feeds an ordinary log service, so kernel logs end up in a normal, automatically rotated, strictly size capped, set of log files like any other.
 </p>
 
-<h2>
+<h2 class="Ruled">
 "syslog" logging
 </h2>
 

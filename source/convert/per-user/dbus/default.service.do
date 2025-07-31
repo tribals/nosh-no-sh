@@ -39,7 +39,7 @@ do
 
 	e="`sed -n -e 's/^Exec=//p' \"${f}\"`"
 	test -n "$e" || continue
-	for p in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin
+	for p in /usr/local/sbin /usr/local/bin /usr/pkg/sbin /usr/pkg/bin /usr/sbin /usr/bin /sbin /bin
 	do
 		e="${e#${p}/}"
 	done

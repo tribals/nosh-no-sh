@@ -1,7 +1,9 @@
-<title>Real terminal login</title>
 <link rel="Up" href="terminals.html" title="Terminals" />
-<link rel="Prev" href="terminal resources.html" title="terminal resources" />
-<h1>
+<link rel="Prev" href="virtual-terminal-login.html" title="virtual terminal login" />
+<link rel="Next" href="real-terminal-call-out.html" title="real terminal call-out" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Real terminal login</title>
+<h1 class="Ruled">
 Real terminal login
 </h1>
 
@@ -13,7 +15,8 @@ It also contains pre-written service bundles for such TUI login services.
 
 <p>
 Login on real terminals is done with <code>ttylogin</code> services, configured to use those devices.
-They are always alias names for other services, that are in turn named after the serial-line "getty" programs that they employ (such as <code>getty</code>, <code>mgetty</code>, and <code>agetty</code>).
+In the case of virtual terminals <a href="virtual-terminal-login.html">the <code>ttylogin</code> services</a> are services in their own right, built up entirely from chain-loading tools in the toolset.
+But with real terminals, these services are instead always alias names for other services, that are in turn named after the serial-line programs that they employ (such as <code>getty</code>, <code>mgetty</code>, and <code>agetty</code>).
 </p>
 
 <p>
@@ -21,10 +24,24 @@ Such a TUI login service is a very simple service, which can be managed just lik
 There is one augmentation to ordinary service management: the <a href="commands/preset.xml"><code>preset</code></a> command uses the ordinary preset file mechanism, but can also <a href="ttys.html">read the <code>/etc/ttys</code> file</a>.
 </p>
 
-<ul>
+<p class="note">
+Note:
+Login services for real terminals have to do a lot more than <a href="virtual-terminal-login.html">the login services of virtual terminals</a>; from auto-sensing and auto-changing line speed to handling special login diversions for faxmodems, BBSes, PPP, and suchlike.
+On the one hand, TUI login services for real terminals should not be relying upon any sort of <code>getty</code> program any more.
+<a href="https://jdebp.uk/FGA/inittab-getty-is-history.html">The use of <code>getty</code> in terminal login has in fact been obsolete since 1988</a>, when one of the earliest service management systems for Unix superseded it with its own mechanisms.
+On the other hand, the nosh toolset does not provide chain-loading utilities for these extra mechanisms, and current TUI login services for real terminals hence <em>do</em> still employ various <code>getty</code> programs.
+On the gripping hand, the use of faxmodems, BBS "doors", variable speed serial lines to local terminals or to modems, PPP, chat scripts, and suchlike is uncommon in the 21st century.
+Theoretically, in the future a lot of this could simplify to assuming a hardwired fixed high BPS rate, default line discipline settings, and no special login diversions; and thus even these residual <code>getty</code> uses could finally be removed.
+</p>
 
-<li><p>
-For FreeBSD, TrueOS, DragonFly BSD, and similar: the services are <code>ttylogin@ttyu0</code> through to <code>ttylogin@ttyuf</code>, matching the operating system's real terminal devices <code>/dev/ttyu0</code> to <code>/dev/ttyuf</code>.
+<h2 class="Ruled">
+What the service bundle <code>run</code> scripts look like
+</h2>
+
+<h3 class="Ruled">FreeBSD, DragonFly BSD, and similar</h3>
+
+<p>
+The services are <code>ttylogin@ttyu0</code> through to <code>ttylogin@ttyuf</code>, matching the operating system's real terminal devices <code>/dev/ttyu0</code> to <code>/dev/ttyuf</code>.
 These are aliases for <code>getty@ttyu0</code> through to <code>getty@ttyuf</code>.
 </p><p>
 These services invoke the FreeBSD <code>/usr/libexec/getty</code> program, with the <i>getty class</i> of <code>std.9600</code>.
@@ -33,10 +50,11 @@ The <code>run</code> script for such services is basically this (using <code>get
 <blockquote><pre>#!/bin/nosh
 setsid
 /usr/libexec/getty std.9600 ttyu1</pre></blockquote>
-</li>
 
-<li><p>
-For OpenBSD: the services are <code>ttylogin@tty00</code> through to <code>ttylogin@tty07</code> and <code>ttylogin@ttyU0</code> through to <code>ttylogin@ttyU3</code>, matching the operating system's real terminal devices <code>/dev/tty00</code> to <code>/dev/tty07</code> and <code>/dev/ttyU0</code> to <code>/dev/ttyU3</code>.
+<h3 class="Ruled">OpenBSD</h3>
+
+<p>
+The services are <code>ttylogin@tty00</code> through to <code>ttylogin@tty07</code> and <code>ttylogin@ttyU0</code> through to <code>ttylogin@ttyU3</code>, matching the operating system's real terminal devices <code>/dev/tty00</code> to <code>/dev/tty07</code> and <code>/dev/ttyU0</code> to <code>/dev/ttyU3</code>.
 These are aliases for <code>getty@tty00</code> through to <code>getty@tty07</code> and <code>getty@ttyU0</code> through to <code>getty@ttyU3</code>.
 </p><p>
 These services invoke the OpenBSD <code>/usr/libexec/getty</code> program, with the <i>getty class</i> of <code>std.9600</code>.
@@ -45,10 +63,11 @@ The <code>run</code> script for such services is basically this (using <code>get
 <blockquote><pre>#!/bin/nosh
 setsid
 /usr/libexec/getty std.9600 tty03</pre></blockquote>
-</li>
 
-<li><p>
-For Linux: the services are <code>ttylogin@ttyS0</code> through to <code>ttylogin@ttyS3</code>, matching the operating system's real terminal devices <code>/dev/ttyS0</code> to <code>/dev/ttyS3</code>.
+<h3 class="Ruled">Linux-based operating systems</h3>
+
+<p>
+The services are <code>ttylogin@ttyS0</code> through to <code>ttylogin@ttyS3</code>, matching the operating system's real terminal devices <code>/dev/ttyS0</code> to <code>/dev/ttyS3</code>.
 By default, these are aliases for <code>agetty@ttyS0</code> through to <code>agetty@ttyS3</code>.
 But they can if one wishes instead be aliased to <code>mgetty@ttyS0</code> through to <code>mgetty@ttyS3</code>.
 </p><p>
@@ -65,8 +84,7 @@ The <code>run</code> script for such services is basically this (using <code>mge
 <blockquote><pre>#!/bin/nosh
 mgetty ttyS0</pre></blockquote>
 <p>
-Note that Florian La Roche's <code>mingetty</code> program and Felix von Leitner's <code>fgetty</code> program are not suitable for use with real terminals attached to serial devices.
+<p class="note">
+Note:
+Florian La Roche's <code>mingetty</code> program and Felix von Leitner's <code>fgetty</code> program are not suitable for use with real terminals attached to serial devices.
 </p>
-</li>
-
-</ul>

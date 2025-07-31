@@ -8,3 +8,4 @@
 
 disable	*.service
 disable	*.socket
+disable	*.timer

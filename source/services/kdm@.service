@@ -4,12 +4,11 @@
 
 [Unit]
 Description=KDE display manager using virtual terminal %i
-After=hald.service genkdmconf.service
+After=hald genkdmconf
 
 [Service]
 EnvironmentDirectory=env
 ExecStart=%p -nodaemon %i
 
 [Install]
-# TODO: This might be better as graphical.
 WantedBy=workstation.target

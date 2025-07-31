@@ -1,4 +1,5 @@
 debian:syst
+bsd:syst
 build:syst
 command:syst
 manual:syst

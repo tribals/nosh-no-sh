@@ -17,7 +17,11 @@ make_raw (
 			|IUTF8
 #endif
 			);
-	t.c_oflag &= ~(OPOST|ONLCR);
+	t.c_oflag &= ~(OPOST|ONLCR|OCRNL
+#if defined(ONOEOT)
+			|ONOEOT
+#endif
+			|ONOCR|ONLRET);
 	t.c_cflag &= ~(CSIZE|PARENB);
 	t.c_cflag |= CS8;
 	t.c_lflag &= ~(ISIG|ICANON|IEXTEN|ECHO|ECHOE|ECHOK|ECHOCTL|ECHOKE|ECHONL);

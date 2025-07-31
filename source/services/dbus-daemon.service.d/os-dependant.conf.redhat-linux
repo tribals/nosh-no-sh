@@ -1,11 +1,13 @@
 ## **************************************************************************
 ## For copyright and licensing terms, see the file named COPYING.
 ## **************************************************************************
+# vim: set filetype=conf:
 
 [Unit]
 Description=System-wide "Desktop" bus service on RedHat Linux
 
 [Service]
+LocalReaper=true
 ExecStartPre=setfacl -m 'u:dbus:rw' "%t/service-manager/control"
 # The --address=systemd: option is the closest to our UCSPI-LOCAL.
 # --systemd-activation bypasses the launch helper, which we do not want.
@@ -13,4 +15,4 @@ ExecStart=%p --config-file ./system-wide.conf --nofork --nopidfile --address=sys
 # Tell Linux not to account for 4/5 of its memory score.
 OOMScoreAdjust=-800
 # All servers are run through the launch helper, and so there shouldn't be a need for lots of child processes and threads.
-TasksMax=20
+TasksMax=10

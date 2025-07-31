@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- **************************************************************************
+.... For copyright and licensing terms, see the file named COPYING.
+.... **************************************************************************
+.-->
+<?xml-stylesheet href="docbook-xml.css" type="text/css"?>
+
+<refentry id="console">
+
+<refmeta xmlns:xi="http://www.w3.org/2001/XInclude">
+<refentrytitle>console</refentrytitle>
+<manvolnum>4</manvolnum>
+<refmiscinfo class="manual">devices</refmiscinfo>
+<refmiscinfo class="source">FreeBSD</refmiscinfo>
+</refmeta>
+
+<refnamediv>
+<refname>freebsd-console</refname>
+<refpurpose>system console device</refpurpose>
+</refnamediv>
+
+<refsection><title>Description</title>
+
+<para>
+The <filename>/dev/console</filename> device provides access to the FreeBSD console.
+What the console actually is can vary.
+The kernel maintains a list of console devices.
+The <filename>/dev/console</filename> device maps to the first device in the list.
+(Thus application output via <filename>/dev/console</filename> differs from kernel console message output, which goes to all devices listed.)
+</para>
+
+<para>
+The kernel's list of console devices is in the <code>kern.console</code> kernel state variable, supplied to it by the bootstrap kernel <citerefentry><refentrytitle>loader</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+This variable lists one or more serial port devices (see <citerefentry><refentrytitle>uart</refentrytitle><manvolnum>4</manvolnum></citerefentry> and <citerefentry><refentrytitle>sio</refentrytitle><manvolnum>4</manvolnum></citerefentry>) or kernel virtual terminal devices (see <citerefentry><refentrytitle>syscons</refentrytitle><manvolnum>4</manvolnum></citerefentry> and <citerefentry><refentrytitle>vt</refentrytitle><manvolnum>4</manvolnum></citerefentry>).
+</para>
+
+<para>
+<filename>/dev/console</filename> is a fully functional terminal device, with a line discipline.
+Its input and output are routed via the underlying device by the kernel.
+</para>
+
+<para>
+Process 1 commences execution with its standard input, output, and error file descriptors open to the console device, and the console device as the controlling terminal of its session.
+</para>
+
+<para>
+A <citerefentry><refentrytitle>devfs</refentrytitle><manvolnum>5</manvolnum></citerefentry> filesystem automatically gains a node named <filename>console</filename> that denotes this device.
+</para>
+
+</refsection>
+<refsection id="STANDARDS" xreflabel="STANDARDS"><title>Standards conformance</title>
+
+<para>
+The <filename>/dev/console</filename> device filename for the system console is required in order to conform with the Single Unix Specification (per "Directory Structure and Devices").
+This explicitly permits it to be a link to another device.
+FreeBSD does not implement it as a link, however.
+</para>
+
+</refsection>
+<refsection><title>See also</title>
+
+<variablelist>
+<varlistentry>
+<term><citerefentry><refentrytitle>conscontrol</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<listitem><para>
+A convenience tool for manipulating the kernel's console device list.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><citerefentry><refentrytitle>sysctl</refentrytitle><manvolnum>1</manvolnum></citerefentry></term>
+<listitem><para>
+Lower level access to kernel variables.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><citerefentry><refentrytitle>syslog</refentrytitle><manvolnum>3</manvolnum></citerefentry></term>
+<listitem><para>
+Opening <filename>/dev/console</filename> and writing messages there is an optional functionality of the syslog library.
+</para></listitem>
+</varlistentry>
+</variablelist>
+
+</refsection>
+
+<refsection><title>Author</title>
+<para>
+Documentation by
+<author>
+<personname><firstname>Jonathan</firstname> <surname>de Boyne Pollard</surname></personname>
+</author>
+</para>
+</refsection>
+
+</refentry>

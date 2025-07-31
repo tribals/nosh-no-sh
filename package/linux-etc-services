@@ -10,6 +10,7 @@ lvm
 suckless-mdev
 suckless-mdev-log
 suckless-mdev-rescan
+systemd-tmpfiles-setup-dev
 systemd-udev
 systemd-udev-log
 systemd-udev-trigger-add@devices

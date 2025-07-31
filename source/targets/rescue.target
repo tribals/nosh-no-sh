@@ -10,15 +10,29 @@ Before=shutdown.target
 
 [Service]
 SessionLeader=true
-TTYReset=true
-TTYPath=console
-BannerLine=Rescue mode log-in.
+LocalReaper=yes
 StandardInput=tty
-ExecStart=login
+RestartSec=0
+TTYPath=console
 # This otherwise defaults to true for targets.
 RemainAfterExit=no
+# Always-on terminals such as KVTs and remote/local serial terminals need this.
+TTYReset=true
+# Open file descriptors from old login sessions need to be revoked, on KVTs and remote/local serial terminals.
+TTYVHangup=yes
 # Some job control shells ignore SIGTERM and need an explicit SIGHUP.
 SendSIGHUP=on
+# The login(1) program uses a very dumb "glass TTY" approach and doesn't even make use of cursor addressing.
+# On the BSDs, it even has a daft compiled-in timeout, totally unnecessary on always-up local terminals.
+# This service knows that it is not providing serial-port login that has to assume a lack of even basic 1980s terminal functionality.
+# Use a login program that presents a full-screen TUI using cursor addressing instead.
+InteractiveLogin=on
+# If the login shell process UID does not own the terminal device, job control and signals go wrong.
+TTYOwner=true
+ExecStart=login-shell
+# Rescue mode does not, yet, demand Unicode version 13.
+# But this is the 21st century; if you plug in a serial console or parallel console, the other end of it needs to speak UTF-8
+TUILevel=old-unicode
 
 [Install]
 StoppedBy=shutdown.target

@@ -15,6 +15,7 @@ For copyright and licensing terms, see the file named COPYING.
 #else
 #include <sys/event.h>
 #endif
+#include "kqueue_common.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
@@ -76,14 +77,14 @@ reap (
 */
 
 void
-local_stream_socket_accept ( 
+local_stream_socket_accept (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	unsigned long connection_limit = 40U;
-	const char * localname = 0;
+	const char * localname(nullptr);
 	bool verbose(false);
 	try {
 		popt::bool_definition verbose_option('v', "verbose", "Print status information.", verbose);
@@ -97,26 +98,20 @@ local_stream_socket_accept (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 
 	const unsigned listen_fds(query_listen_fds_or_daemontools(envs));
 	if (1U > listen_fds) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "LISTEN_FDS", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "LISTEN_FDS");
 	}
 
 	ReserveSignalsForKQueue kqueue_reservation(SIGCHLD, 0);
@@ -124,21 +119,14 @@ local_stream_socket_accept (
 
 	const int queue(kqueue());
 	if (0 > queue) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kqueue", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, prog, "kqueue");
 	}
 
-	std::vector<struct kevent> p(listen_fds + 2);
+	std::vector<struct kevent> ip;
 	for (unsigned i(0U); i < listen_fds; ++i)
-		EV_SET(&p[i], LISTEN_SOCKET_FILENO + i, EVFILT_READ, EV_ADD, 0, 0, 0);
-	EV_SET(&p[listen_fds + 0], SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	EV_SET(&p[listen_fds + 1], SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, 0);
-	if (0 > kevent(queue, p.data(), listen_fds + 2, 0, 0, 0)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kevent", std::strerror(error));
-		throw EXIT_FAILURE;
-	}
+		append_event(ip, LISTEN_SOCKET_FILENO + i, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
+	append_event(ip, SIGPIPE, EVFILT_SIGNAL, EV_ADD, 0, 0, nullptr);
 
 	unsigned long connections(0);
 
@@ -148,14 +136,14 @@ local_stream_socket_accept (
 			child_signalled = false;
 		}
 		for (unsigned i(0U); i < listen_fds; ++i)
-			EV_SET(&p[i], LISTEN_SOCKET_FILENO + i, EVFILT_READ, connections < connection_limit ? EV_ENABLE : EV_DISABLE, 0, 0, 0);
-		const int rc(kevent(queue, p.data(), listen_fds, p.data(), listen_fds + 2, 0));
+			append_event(ip, LISTEN_SOCKET_FILENO + i, EVFILT_READ, connections < connection_limit ? EV_ENABLE : EV_DISABLE, 0, 0, nullptr);
+		struct kevent p[128];
+		const int rc(kevent(queue, ip.data(), ip.size(), p, sizeof p/sizeof *p, nullptr));
+		ip.clear();
 		if (0 > rc) {
 			if (EINTR == errno) continue;
 exit_error:
-			const int error(errno);
-			std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-			throw EXIT_FAILURE;
+			die_errno(prog, envs, prog);
 		}
 		for (size_t i(0); i < static_cast<std::size_t>(rc); ++i) {
 			const struct kevent & e(p[i]);
@@ -163,7 +151,7 @@ exit_error:
 				handle_signal (e.ident);
 				continue;
 			} else
-			if (EVFILT_READ != e.filter) 
+			if (EVFILT_READ != e.filter)
 				continue;
 			const int l(static_cast<int>(e.ident));
 
@@ -183,7 +171,7 @@ exit_error:
 				goto exit_error;
 			}
 
-			const int child(fork());
+			const pid_t child(fork());
 			if (0 > child) {
 				const int error(errno);
 				std::fprintf(stderr, "%s: ERROR: %s\n", prog, std::strerror(error));
@@ -222,16 +210,16 @@ exit_error:
 					break;
 			}
 			envs.set("UNIXLOCALPATH", localname);
-			envs.set("UNIXLOCALUID", 0);
-			envs.set("UNIXLOCALGID", 0);
-			envs.set("UNIXLOCALPID", 0);
+			envs.set("UNIXLOCALUID", nullptr);
+			envs.set("UNIXLOCALGID", nullptr);
+			envs.set("UNIXLOCALPID", nullptr);
 			switch (remoteaddr.u.sun_family) {
 				case AF_LOCAL:
 				{
 					if (remoteaddrsz > offsetof(sockaddr_un, sun_path) && remoteaddr.u.sun_path[0])
 						envs.set("UNIXREMOTEPATH", remoteaddr.u.sun_path);
 					else
-						envs.set("UNIXREMOTEPATH", 0);
+						envs.set("UNIXREMOTEPATH", nullptr);
 #if defined(SO_PEERCRED)
 #if defined(__LINUX__) || defined(__linux__)
 					struct ucred u;
@@ -250,17 +238,17 @@ exit_error:
 					snprintf(buf, sizeof buf, "%u", u.uid);
 					envs.set("UNIXREMOTEEUID", buf);
 #else
-					envs.set("UNIXREMOTEPID", 0);
-					envs.set("UNIXREMOTEEGID", 0);
-					envs.set("UNIXREMOTEEUID", 0);
+					envs.set("UNIXREMOTEPID", nullptr);
+					envs.set("UNIXREMOTEEGID", nullptr);
+					envs.set("UNIXREMOTEEUID", nullptr);
 #endif
 					break;
 				}
 				default:
-					envs.set("UNIXREMOTEPATH", 0);
-					envs.set("UNIXREMOTEPID", 0);
-					envs.set("UNIXREMOTEEGID", 0);
-					envs.set("UNIXREMOTEEUID", 0);
+					envs.set("UNIXREMOTEPATH", nullptr);
+					envs.set("UNIXREMOTEPID", nullptr);
+					envs.set("UNIXREMOTEEGID", nullptr);
+					envs.set("UNIXREMOTEEUID", nullptr);
 					break;
 			}
 

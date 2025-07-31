@@ -1,9 +1,14 @@
 #!/command/execlineb -S0
 
 
-vc-get-tty -- "$1"
-open-controlling-tty
-vc-reset-tty --hard-reset
-
-login-banner /etc/issue
-login
+vc-get-terminal -- "$1"
+setsid
+open-controlling-terminal
+vc-reset-terminal
+login-envuidgid
+local-reaper yes
+login-giveown-controlling-terminal
+setuidgid-fromenv
+userenv-fromenv --default-locale --default-path --default-tools --default-timezone --set-xdg --set-dbus --set-other --toolkit-pager
+chdir-home
+login-shell

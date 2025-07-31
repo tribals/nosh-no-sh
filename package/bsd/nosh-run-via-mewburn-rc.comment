@@ -1,0 +1,2 @@
+This package provides rc.d scripts for running the nosh service manager under Mewburn rc, instead of running the nosh system manager.
+It disables the nosh sysinit.target, on the basis that Mewburn rc is doing that part of the work.

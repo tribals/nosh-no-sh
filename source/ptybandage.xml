@@ -43,7 +43,7 @@ It reflects all "window size" changes from its input terminal to the pseudo-term
 </para>
 
 <para>
-<command>ptybandage</command> combines <citerefentry><refentrytitle>pty-get-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>pty-run</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>open-controlling-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry> to run <replaceable>next-prog</replaceable> with its standard input, output, and error routed through a pseudo-terminal.
+<command>ptybandage</command> combines <citerefentry><refentrytitle>pty-allocate</refentrytitle><manvolnum>1</manvolnum></citerefentry>, <citerefentry><refentrytitle>pty-run</refentrytitle><manvolnum>1</manvolnum></citerefentry>, and <citerefentry><refentrytitle>open-controlling-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry> to run <replaceable>next-prog</replaceable> with its standard input, output, and error routed through a pseudo-terminal.
 It is a script that needs <citerefentry><refentrytitle>execlineb</refentrytitle><manvolnum>1</manvolnum></citerefentry> as its script interpreter.
 </para>
 
@@ -52,7 +52,7 @@ It is a script that needs <citerefentry><refentrytitle>execlineb</refentrytitle>
 </para>
 
 <para>
-See <citerefentry><refentrytitle>open-controlling-tty</refentrytitle><manvolnum>1</manvolnum></citerefentry> for the environment and open file descriptors inherited by <replaceable>next-prog</replaceable>.
+See <citerefentry><refentrytitle>open-controlling-terminal</refentrytitle><manvolnum>1</manvolnum></citerefentry> for the environment and open file descriptors inherited by <replaceable>next-prog</replaceable>.
 </para>
 
 </refsection>

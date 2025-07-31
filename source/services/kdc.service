@@ -7,7 +7,7 @@ Description=BSD Kerberos version 5 Authentication Service and Key Distribution C
 
 [Service]
 EnvironmentDirectory=env
-ExecStart=%p ${flags}
+ExecStart=/usr/libexec/%p ${flags}
 
 [Install]
 WantedBy=server.target

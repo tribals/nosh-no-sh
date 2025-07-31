@@ -1,6 +1,7 @@
-<title>Limiting services</title>
 <link rel="Up" href="index.html" title="nosh Guide" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Limiting services</title>
+<h1 class="Ruled">
 Limiting services
 </h1>
 
@@ -8,7 +9,7 @@ Limiting services
 It is a common requirement to place limits on what services can do.
 </p>
 
-<h2 id="users">
+<h2 class="Ruled" id="users">
 Running under the aegises of unprivileged user accounts
 </h2>
 
@@ -53,7 +54,7 @@ In such cases, one can use <a href="commands/setuidgid.xml"><code>setuidgid</cod
 <a href="log-service-security.html#users">This is heavily used in logging services.</a>
 </p>
 
-<h2 id="limits">
+<h2 class="Ruled" id="limits">
 Resource limits
 </h2>
 
@@ -61,7 +62,7 @@ Resource limits
 Operating systems provide one or two mechanisms for setting resource limits for services.
 </p>
 
-<h3 id="Unix-limits">
+<h3 class="Ruled" id="Unix-limits">
 Using the original Unix resource limit mechanism
 </h3>
 
@@ -79,7 +80,7 @@ The <code>run</code> program for the MongoDB service bundle implements them as f
 <blockquote><pre>hardlimit -o 64000 -p 64000
 softlimit -o hard -p hard</pre></blockquote>
 
-<h3 id="control-groups">
+<h3 class="Ruled" id="control-groups">
 Using the Linux control groups
 </h3>
 
@@ -187,7 +188,7 @@ Control groups do not require a central "manager", and were designed to be used 
 The distributed operation here, where individual services create and configure control groups, separate to the system manager and service manager which also create and configure other control groups, is demonstration of that.
 </p>
 
-<h4 id="control-groups-example">
+<h4 class="Ruled" id="control-groups-example">
 An example of what this results in
 </h4>
 
@@ -260,7 +261,7 @@ The instances of <code>/sbin/init</code> are the system manager (PID 1), its log
 &#x2514;&#x2501;system-manager-log.slice
   &#x2514;&#x2501;204 /sbin/init</pre></blockquote>
 
-<h2 id="other">
+<h2 class="Ruled" id="other">
 Other toolsets and other settings
 </h2>
 
@@ -275,7 +276,7 @@ Other toolsets include various useful chain loading tools relating to resource u
 <dd>Change NUMA settings.</dd>
 </dl>
 
-<h2 id="linux-namespaces">
+<h2 class="Ruled" id="linux-namespaces">
 Mounts and namespaces
 </h2>
 

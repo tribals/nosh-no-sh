@@ -1,6 +1,8 @@
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
 <busconfig>
+  <!-- This moved in Debian 8. -->
   <include>/etc/dbus-1/session.conf</include>
   <!-- This is a helper that is used to launch per-user services -->
   <servicehelper>/usr/local/bin/dbus-daemon-launch-helper</servicehelper>
 </busconfig>
+<!-- vim: set filetype=xml: -->

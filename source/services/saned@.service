@@ -7,6 +7,7 @@ Description=Scanner service
 
 [Service]
 User=saned
+SessionLeader=yes
 ExecStart=%p
 
 [Install]

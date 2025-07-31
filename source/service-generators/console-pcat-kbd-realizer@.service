@@ -1,0 +1,25 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+# This is both a statically installed service (against kbdmux0) and a dynamically instantiated set of services (against atkbd/ukbd/vkbd/wskbd devices).
+Description=User-space virtual terminal realizer on BSD PC/AT keyboard device %I
+#After=console-input-method@.service
+
+[Service]
+PermissionsStartOnly=yes
+EnvironmentDirectory=env/
+User=user-vt-pcat-realizer
+SessionLeader=yes
+Group=user-vt-realizer
+ExecStartPre=chmod g+rw '/dev/%I'
+ExecStartPre=chown :user-vt-realizer '/dev/%I'
+ExecStart=%p ${flags} '/dev/%I'
+# When a USB ukbd device detaches, the daemon exits success.
+# There is a window of opportunity of several seconds where devd/devpubd has not yet stopped the service during which re-opening the device and restarting the daemon will continually fail.
+# We don't want the daemon auto-restarting in that case.
+# But we do want a SIGTERM to auto-restart it.
+Restart=on-signal
+
+[Install]

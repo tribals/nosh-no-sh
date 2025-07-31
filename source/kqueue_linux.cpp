@@ -22,6 +22,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <fcntl.h>	// Needed for fstatat(), contrary to the manual
 #include <unistd.h>
 #include "kqueue_linux.h"
+#include "kqueue_common.h"
 #include "FileDescriptorOwner.h"
 
 // This is "good enough" for the needs of the nosh toolset.
@@ -101,9 +102,9 @@ typedef std::map<int, Queue *> QueueMap;
 QueueMap queues;
 
 inline
-int 
+int
 get_path_from_procfs(
-	int fd, 
+	int fd,
 	char * & path
 ) {
 	if (0 > fd) return errno = EINVAL, fd;
@@ -113,11 +114,19 @@ get_path_from_procfs(
 	struct stat s;
 	if (0 > fstatat(AT_FDCWD, procfs_path, &s, AT_SYMLINK_NOFOLLOW))
 		return -1;
-	path = static_cast<char *>(std::malloc(s.st_size + 1));
+	off_t size(s.st_size);
+try_again:	// We have to retry because Linux can report totally bogus symbolic link lengths on a procfs.
+	path = static_cast<char *>(std::malloc(size + 1));
 	if (!path) return errno = ENOMEM, -1;
-	const int n(readlink(procfs_path, path, s.st_size + 1));
+	const int n(readlink(procfs_path, path, size + 1));
 	if (0 > n)
 		return -1;
+	if (size + 1 == n) {
+		// This is the buffer full case.
+		free(path);
+		size += s.st_size + 1U;	// procfs reports all sorts of stupid sizes; even 0.
+		goto try_again;
+	}
 	path[n] = '\0';
 	return 0;
 }
@@ -132,11 +141,11 @@ Watch::Watch(
 	fd(pfd),
 	s(ps),
 	wanted_notes(wn),
-	path(0)
+	path(nullptr)
 {
 }
 
-int 
+int
 Watch::notes_for(
 	uint32_t mask
 ) {
@@ -168,9 +177,9 @@ Watch::notes_for(
 	return n & wanted_notes;
 }
 
-uint32_t 
+uint32_t
 Watch::mask_for(
-	struct stat & s, 
+	struct stat & s,
 	unsigned int notes
 ) {
 	uint32_t m(0U);
@@ -193,7 +202,7 @@ Watch::mask_for(
 
 Queue::Queue(
 	FileDescriptorOwner & e
-) : 
+) :
 	epoll(e.release()),
 	notify(-1),
 	signals(-1),
@@ -207,9 +216,9 @@ Queue::Queue(
 }
 
 inline
-bool 
+bool
 Queue::legal_changes(
-	const struct kevent * pchanges, 
+	const struct kevent * pchanges,
 	int nchanges
 ) {
 	if (nchanges < 0) return false;
@@ -246,9 +255,9 @@ Queue::legal_changes(
 
 // This routine assumes that all illegal combinations have been eliminated.
 inline
-bool 
+bool
 Queue::apply_changes(
-	const struct kevent * pchanges, 
+	const struct kevent * pchanges,
 	int nchanges
 ) {
 	// Ensure that the singleton file descriptors are opened by any additions.
@@ -259,7 +268,7 @@ Queue::apply_changes(
 		switch (c.filter) {
 			case EVFILT_VNODE:
 			{
-				if (-1 != notify.get()) 
+				if (-1 != notify.get())
 					break;
 				notify.reset(inotify_init1(IN_CLOEXEC|IN_NONBLOCK));
 				if (-1 == notify.get())
@@ -280,7 +289,7 @@ Queue::apply_changes(
 #endif
 			case EVFILT_SIGNAL:
 			{
-				if (-1 != signals.get()) 
+				if (-1 != signals.get())
 					break;
 				sigemptyset(&added_signals);
 				sigemptyset(&enabled_signals);
@@ -310,7 +319,7 @@ Queue::apply_changes(
 			continue;
 		switch (c.filter) {
 			case EVFILT_VNODE:
-				if (-1 == notify.get()) 
+				if (-1 == notify.get())
 					return errno = EINVAL, false;
 				break;
 #if 0 // Not implemented.  Yet.
@@ -325,9 +334,9 @@ Queue::apply_changes(
 
 	// Perform changes.
 	// The various EV_xxx flags are action triggers, not states.
-	// The underlying mechanisms have three states: 
-	//	* present and enabled, 
-	//	* present but disabled, and 
+	// The underlying mechanisms have three states:
+	//	* present and enabled,
+	//	* present but disabled, and
 	//	* absent.
 	bool mask_changed(false);
 	for (int i(0); i < nchanges; ++i) {
@@ -336,7 +345,7 @@ Queue::apply_changes(
 			case EVFILT_READ:
 			case EVFILT_WRITE:
 			{
-				epoll_event e;
+				epoll_event e = {};
 				e.data.fd = c.ident;
 				const uint32_t mask(EVFILT_READ == c.filter ? EPOLLIN|EPOLLHUP|EPOLLRDHUP : EPOLLOUT);
 				if (c.flags & EV_ADD) {
@@ -404,7 +413,7 @@ Queue::apply_changes(
 						return false;
 					if (!S_ISDIR(s.st_mode) && !S_ISREG(s.st_mode))
 						return errno = EBADF, false;
-					char * path(0);
+					char * path(nullptr);
 					if (0 > get_path_from_procfs(fd, path))
 						return false;
 					const uint32_t mask(c.flags & EV_DISABLE ? IN_OPEN : Watch::mask_for(s, c.fflags));
@@ -418,7 +427,7 @@ Queue::apply_changes(
 					std::pair<WatchMap::iterator, bool> r(watches.insert(WatchMap::value_type(wd, Watch(fd, s, c.fflags))));
 					if (!r.second)
 						r.first->second.wanted_notes = c.fflags;
-					free(r.first->second.path), r.first->second.path = path;
+					std::free(r.first->second.path); r.first->second.path = path;
 				} else
 				if (c.flags & EV_DELETE) {
 					for (WatchMap::iterator j(watches.begin()); watches.end() != j; ) {
@@ -428,7 +437,7 @@ Queue::apply_changes(
 						}
 						if (0 > inotify_rm_watch(notify.get(), j->first))
 							return false;
-						free(j->second.path), j->second.path = 0;
+						std::free(j->second.path); j->second.path = nullptr;
 						j = watches.erase(j);
 					}
 				} else
@@ -491,11 +500,11 @@ Queue::apply_changes(
 }
 
 inline
-void 
+void
 Queue::return_event(
-	int & n, 
-	struct kevent * pevents, 
-	int nevents, 
+	int & n,
+	struct kevent * pevents,
+	int nevents,
 	const struct kevent & k
 ) {
 	if (n < nevents)
@@ -505,13 +514,13 @@ Queue::return_event(
 }
 
 inline
-int 
+int
 Queue::wait(
 	struct kevent * pevents,
 	int nevents,
 	const struct timespec* timeout
 ) {
-	if (nevents < 0) 
+	if (nevents < 0)
 		return errno = EINVAL, -1;
 	if (nevents == 0)
 		return 0;
@@ -533,7 +542,7 @@ Queue::wait(
 		p[0].events = POLLIN;
 #if 0 // This code seems unnecessary for a signalfd.
 		sigset_t masked_signals_during_poll;
-		sigprocmask(SIG_SETMASK, 0, &masked_signals_during_poll);
+		sigprocmask(SIG_SETMASK, nullptr, &masked_signals_during_poll);
 		sigset_t signals_for_signalfd;
 		sigandset(&signals_for_signalfd, &enabled_signals, &added_signals);
 		for (int signo(1); signo < _NSIG; ++signo) {
@@ -542,7 +551,7 @@ Queue::wait(
 		}
 		const int rc(ppoll(p, sizeof p/sizeof *p, timeout, &masked_signals_during_poll));
 #else
-		const int rc(ppoll(p, sizeof p/sizeof *p, timeout, 0));
+		const int rc(ppoll(p, sizeof p/sizeof *p, timeout, nullptr));
 #endif
 		if (0 >= rc) return rc;
 	}
@@ -564,7 +573,7 @@ Queue::wait(
 				while (signal_off >= sizeof signal_info) {
 					struct kevent k;
 					// The signal count is not available on Linux.
-					EV_SET(&k, signal_info.ssi_signo, EVFILT_SIGNAL, 0, 0, 1, 0);
+					set_event(k, signal_info.ssi_signo, EVFILT_SIGNAL, 0, 0, 1, nullptr);
 					return_event(nreturn, pevents, nevents, k);
 					signal_off -= sizeof signal_info;
 					std::memmove(signal_buf, signal_buf + sizeof signal_info, signal_off);
@@ -584,7 +593,7 @@ Queue::wait(
 						Watch & w(wi->second);
 						if (IN_OPEN != notify_event.mask) {
 							struct kevent k;
-							EV_SET(&k, w.fd, EVFILT_VNODE, 0, w.notes_for(notify_event.mask), 0, 0);
+							set_event(k, w.fd, EVFILT_VNODE, 0, w.notes_for(notify_event.mask), 0, nullptr);
 							return_event(nreturn, pevents, nevents, k);
 						}
 					}
@@ -596,13 +605,13 @@ Queue::wait(
 		{
 			if (e.events & EPOLLOUT) {
 				struct kevent k;
-				EV_SET(&k, e.data.fd, EVFILT_WRITE, 0, 0, 0, 0);
+				set_event(k, e.data.fd, EVFILT_WRITE, 0, 0, 0, nullptr);
 				return_event(nreturn, pevents, nevents, k);
 			}
 			if (e.events & (EPOLLIN|EPOLLRDHUP|EPOLLHUP)) {
 				struct kevent k;
 				const int n(e.events & (EPOLLHUP|EPOLLRDHUP) ? EV_EOF : 0);
-				EV_SET(&k, e.data.fd, EVFILT_READ, n, 0, 0, 0);
+				set_event(k, e.data.fd, EVFILT_READ, n, 0, 0, nullptr);
 				return_event(nreturn, pevents, nevents, k);
 			}
 		}
@@ -612,24 +621,24 @@ Queue::wait(
 }
 
 extern "C"
-int 
+int
 kqueue_linux()
 {
 	FileDescriptorOwner fd(epoll_create1(EPOLL_CLOEXEC));
 	if (0 > fd.get()) return fd.release();
 
 	Queue * & pq(queues[fd.get()]);
-	if (pq) 
+	if (pq)
 		delete pq;
 	pq = new (std::nothrow) Queue(fd);
-	if (!pq) 
+	if (!pq)
 		return -1;
 
 	return pq->epoll.get();
 }
 
-extern "C" 
-int 
+extern "C"
+int
 kevent_linux(
 	int fd,
 	const struct kevent * pchanges,

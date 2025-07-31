@@ -14,26 +14,26 @@ For copyright and licensing terms, see the file named COPYING.
 #include <unistd.h>
 
 extern
-int 
+int
 open_exec_at (
-	int dir_fd, 
+	int dir_fd,
 	const char * name
 );
 
 extern
-int 
+int
 open_non_interpreted_exec_at (
-	int dir_fd, 
+	int dir_fd,
 	const char * name
 );
 
 extern inline
-int 
+int
 open_dir_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
-	return openat(fd, name, 
+	return openat(fd, name,
 			O_NOCTTY|O_CLOEXEC
 #if defined(O_DIRECTORY)
 			|O_DIRECTORY
@@ -43,9 +43,9 @@ open_dir_at (
 }
 
 extern inline
-int 
+int
 open_appendcreate_at (
-	int fd, 
+	int fd,
 	const char * name,
 	int mode
 ) {
@@ -53,27 +53,27 @@ open_appendcreate_at (
 }
 
 extern inline
-int 
+int
 open_appendexisting_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
 	return openat(fd, name, O_NOCTTY|O_CLOEXEC|O_WRONLY|O_APPEND|O_NONBLOCK);
 }
 
 extern inline
-int 
+int
 open_read_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
 	return openat(fd, name, O_NOCTTY|O_CLOEXEC|O_RDONLY|O_NONBLOCK);
 }
 
 extern inline
-int 
+int
 open_writecreate_at (
-	int fd, 
+	int fd,
 	const char * name,
 	int mode
 ) {
@@ -81,9 +81,9 @@ open_writecreate_at (
 }
 
 extern inline
-int 
+int
 open_writetrunc_at (
-	int fd, 
+	int fd,
 	const char * name,
 	int mode
 ) {
@@ -91,36 +91,36 @@ open_writetrunc_at (
 }
 
 extern inline
-int 
+int
 open_writetruncexisting_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
 	return openat(fd, name, O_NOCTTY|O_CLOEXEC|O_WRONLY|O_TRUNC|O_NONBLOCK);
 }
 
 extern inline
-int 
+int
 open_writeexisting_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
 	return openat(fd, name, O_NOCTTY|O_CLOEXEC|O_WRONLY|O_NONBLOCK);
 }
 
 extern inline
-int 
+int
 open_writeexisting_or_wait_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
 	return openat(fd, name, O_NOCTTY|O_CLOEXEC|O_WRONLY);
 }
 
 extern inline
-int 
+int
 open_readwritecreate_at (
-	int fd, 
+	int fd,
 	const char * name,
 	int mode
 ) {
@@ -128,9 +128,9 @@ open_readwritecreate_at (
 }
 
 extern inline
-int 
+int
 open_readwriteexisting_at (
-	int fd, 
+	int fd,
 	const char * name
 ) {
 	return openat(fd, name, O_NOCTTY|O_CLOEXEC|O_RDWR|O_NONBLOCK);
@@ -143,14 +143,6 @@ open_lockfile_at (
 	const char * name
 );
 
-extern inline
-int 
-lock_exclusive (
-	int fd 
-) {
-	return flock(fd, LOCK_EX|LOCK_NB);
-}
-
 extern
 int
 open_lockfile_or_wait_at (
@@ -159,11 +151,43 @@ open_lockfile_or_wait_at (
 );
 
 extern inline
-int 
+int
+lock_exclusive (
+	int fd
+) {
+	return flock(fd, LOCK_EX|LOCK_NB);
+}
+
+extern inline
+int
 lock_exclusive_or_wait (
-	int fd 
+	int fd
 ) {
 	return flock(fd, LOCK_EX);
+}
+
+extern inline
+int
+lock_shared (
+	int fd
+) {
+	return flock(fd, LOCK_SH|LOCK_NB);
+}
+
+extern inline
+int
+lock_shared_or_wait (
+	int fd
+) {
+	return flock(fd, LOCK_SH);
+}
+
+extern inline
+int
+unlock_file (
+	int fd
+) {
+	return flock(fd, LOCK_UN);
 }
 
 extern inline

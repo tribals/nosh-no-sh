@@ -7,6 +7,8 @@ VBoxBalloonCtrl
 accounts-daemon
 apache2
 apacheds
+apache-htcacheclean
+asterisk
 ataidle-log
 autobridge-log
 avahi-dnsconfd
@@ -26,12 +28,11 @@ cleanX
 cleantmp
 cleanuucp
 clickhouse-server
+collectd
 colord
-console-fb-realizer@head0
 console-input-method@head0
 console-kit-daemon
 console-multiplexor@head0
-convert_varrun
 cups-browsed
 darkice
 dbus
@@ -48,6 +49,7 @@ elasticsearch
 entropy
 exim4-queue
 fail2ban
+fake-hwclock
 fam
 fancontrol
 fcron
@@ -70,6 +72,7 @@ hald
 hostapd
 hostnamed
 hue
+iodined
 isnsd
 isnsdd
 ifconfig-log
@@ -86,8 +89,10 @@ kmod@vboxpci
 kmod@vboxsf
 kmod@vboxvideo
 libvirtd
+lightdm
 lm-sensors
 localed
+login-monitor-active
 lxdm
 mailcatcher
 minissdpd
@@ -99,7 +104,6 @@ mongodb
 monit
 motd-dynamic
 mountd
-moused
 nagios
 ncftpspooler
 natd-log
@@ -154,6 +158,7 @@ redis-server
 rfcomm_pppd-log
 rpcbind
 rtadvd
+rtsold
 rtkit-daemon
 s6-fdholder
 salt-api
@@ -174,9 +179,10 @@ slurmctld
 smartd
 smbd
 snort-log
+sntpclock
 sppp-log
 speech-dispatcher
-sshdgenkeys
+ssh-keygen
 stunnel
 swift@account
 swift@account-auditor
@@ -193,6 +199,7 @@ swift@object-updater
 sysctl
 system-installer-log
 taiclock
+taiclockd
 tcsd
 terminal-emulator@vc1
 terminal-emulator@vc2
@@ -208,10 +215,12 @@ usbmux
 unbound
 upmpdcli
 upower
+utmps
 utx
 virecover
 vnstat
 volmand
+walldns
 webcamd-log
 wicd
 winbindd

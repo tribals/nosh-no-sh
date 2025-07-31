@@ -7,6 +7,7 @@ Description=Combined logger for rfcomm_pppd@ services
 
 [Service]
 User=%p
+SessionLeader=yes
 WorkingDirectory=/var/log/sv
 ExecStart=cyclog rfcomm_pppd/
 RestartSec=1

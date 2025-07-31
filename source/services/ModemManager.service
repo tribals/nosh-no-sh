@@ -3,12 +3,13 @@
 ## **************************************************************************
 
 [Unit]
-Description=ModemManager daemon
+Description=%p daemon
 Before=NetworkManager.service
 After=local-syslog.target
 
 [Service]
 Type=dbus
+BusName=org.freedesktop.%p
 ExecStart=%p --debug
 # Older versions of NetworkManager have an unfortunate interaction with ModemManager services.
 # So we only restart on failure, rather than always.

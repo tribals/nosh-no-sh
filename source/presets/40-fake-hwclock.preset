@@ -1,0 +1,12 @@
+#
+# Enable fake-hwclock services
+#
+# This is not a systemd preset.
+# It goes in a special nosh system-manager preset directory.
+# It is used by the nosh-run-fake-hwclock package in order to enable the services themselves.
+#
+# This does not disable anything that orders after persistent-clock-loaded.target .
+#
+
+enable	fake-hwclock.service
+enable	cyclog@fake-hwclock.service

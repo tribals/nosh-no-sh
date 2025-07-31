@@ -107,7 +107,11 @@ namespace IPAddress {
 	) {
 		if (l == sizeof(uint32_t)) {
 			uint32_t & v32(*reinterpret_cast<uint32_t *>(v));
-			v32 = htobe32(-uint32_t(1) << (32U - prefixlen));
+			v32 = htobe32(
+				prefixlen >= 32U ? -uint32_t(1) :
+				prefixlen <= 0U ? uint32_t(0U) :
+				-uint32_t(1) << (32U - prefixlen)
+			);
 			return;
 		}
 		std::memset(v, '\0', l);

@@ -7,6 +7,7 @@ Description=collector for RFC 5426
 
 [Service]
 User=syslogd
+SessionLeader=yes
 # Don't use %p; this unit is also accessed via a symbolic link.
 ExecStart=syslog-read
 # syslog-read understands the LISTEN protocol, so does not need StandardInput=socket.

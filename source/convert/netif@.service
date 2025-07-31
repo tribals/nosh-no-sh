@@ -4,6 +4,8 @@
 
 [Unit]
 Description=Network interface services umbrella for interface %I
+Wants=ifconfig-log.service
+After=ifconfig-log.service
 
 [Service]
 # This is a pseudo-daemon that does not have a running process.

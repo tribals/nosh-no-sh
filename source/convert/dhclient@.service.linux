@@ -9,9 +9,10 @@ After=%p-log.service wpa_supplicant@%i hostapd@%i
 PartOf=netif@%i
 
 [Service]
+LocalReaper=True
 EnvironmentDirectory=env
 ExecStart=%p -d '%I' -pf %t/%p.%i.pid -lf /var/lib/dhcp/%p.%i.leases
-RestartSec=10
+RestartSec=4
 
 [Install]
 WantedBy=netif@%i

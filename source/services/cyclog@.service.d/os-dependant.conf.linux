@@ -3,7 +3,8 @@
 ## **************************************************************************
 
 [Service]
-TasksMax=1
+# We need an extra process to set up the control group in the start script.
+TasksMax=2
 CPUAccounting=true
 IOAccounting=true
 MemoryAccounting=true

@@ -4,6 +4,7 @@
 
 [Unit]
 Description=Set up kernel virtual terminals font
+Description=The setfont program is part of the kbd package.
 # The point of this service is to set up the kernel VTs really early, so that one can interact with fsck.
 # Unfortunately, the keys and font utilities on Linux require that /usr/share already be checked and mounted.
 # And on the gripping hand, fsck is run non-interactively anyway.
@@ -17,7 +18,6 @@ StandardError=log
 EnvironmentDirectory=env
 ExecStart=setfont ${font8x16:+"${font8x16}"} ${font8x14:+"${font8x14}"} ${font8x8:+"${font8x8}"} ${fontmap:+-m "${fontmap}"} ${scrnmap:+-u "${scrnmap}"} ${flags}
 # This is a one-shot service that can be re-triggered by starting it again.
-#RemainAfterExit=1
 Restart=no
 
 [Install]

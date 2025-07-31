@@ -1,6 +1,7 @@
-<title>Per-user user services</title>
 <link rel="Up" href="per-user-stuff.html" title="Stuff converted for each user" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>Per-user user services</title>
+<h1 class="Ruled">
 Per-user user services
 </h1>
 
@@ -9,7 +10,7 @@ In addition to setting up <a href="per-user-system-services.html">system-level s
 These service bundles live in <a href="gazetteer.html#user-service-bundles">the user's service bundles directory</a> in the user's home directory.
 </p>
 
-<h2 id="types">
+<h2 class="Ruled" id="types">
 The types of services
 </h2>
 
@@ -17,7 +18,7 @@ The types of services
 The services fall into one of three main groups: logging, non-Desktop Bus, and Desktop Bus.
 </p>
 
-<h3 id="logging">
+<h3 class="Ruled" id="logging">
 Logging services
 </h3>
 
@@ -42,7 +43,7 @@ This takes the log outputs of most Desktop Bus servers, and writes it to <code>/
 
 </dl>
 
-<h3 id="non-dbus">
+<h3 class="Ruled" id="non-dbus">
 Non-Desktop Bus services
 </h3>
 
@@ -73,7 +74,7 @@ The GPG Agent, listening on <code>/run/user/</code><i>username</i><code>/gnupg/S
 These services are not set up with a <code>DBUS_SESSION_BUS_ADDRESS</code> environment variable.
 </p>
 
-<h3 id="dbus">
+<h3 class="Ruled" id="dbus">
 Desktop Bus services
 </h3>
 
@@ -93,13 +94,13 @@ By convention, a Desktop Bus service is named by a common name by which users re
 The alias is used by the Desktop Bus broker when <a href="per-user-dbus-demand-start.html">demand-starting the service</a>, because the Desktop Bus broker only knows the formal names of services.
 </p>
 
-<h2 id="environment">
+<h2 class="Ruled" id="environment">
 Environment variables
 </h2>
 
 <p>
 Processes run under per-user service management execute in a d&aelig;mon-style context.
-They don't have controlling terminals, and (initially) they only have the environment variables set up by the <code>user-services@</code><i>username</i> service itself, which just runs <a href="commands/userenv.xml"><code>userenv</code></a>.
+They don't have controlling terminals, and (initially) they only have the environment variables set up by the <code>user-services@</code><i>username</i> service itself, which just runs <a href="commands/userenv.xml"><code>userenv</code></a> (which runs <a href="commands/userenv-fromenv.xml"><code>userenv-fromenv</code></a>).
 In particular:
 </p>
 
@@ -119,7 +120,7 @@ Every user-level service is afforded an environment directory in its service def
 Environment variable for services should be configured there.
 </p>
 
-<h3 id="faulty-programs">
+<h3 class="Ruled" id="faulty-programs">
 Faulty programs that require login session environment variables in their d&aelig;mon mode
 </h3>
 

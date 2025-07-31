@@ -6,7 +6,7 @@ For copyright and licensing terms, see the file named COPYING.
 #include <vector>
 #include "common-manager.h"
 
-const static struct api_symlink data[] = 
+const static struct api_symlink data[] =
 {
 #if defined(__LINUX__) || defined(__linux__)
 	{	1,	"/dev/ptmx",	"pts/ptmx"		},

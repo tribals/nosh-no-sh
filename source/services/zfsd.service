@@ -4,7 +4,7 @@
 
 [Unit]
 Description=ZFS plug and play
-After=zfs.service devd.service
+After=zfs.service devd.service devpubd.service
 
 [Service]
 EnvironmentDirectory=env

@@ -19,6 +19,9 @@
 <refname>time-env-set</refname>
 <refname>time-env-set-if-earlier</refname>
 <refname>time-env-set-if-later</refname>
+<refname>time-env-unset-if-earlier</refname>
+<refname>time-env-unset-if-later</refname>
+<refname>time-env-unset-if-null-or-later</refname>
 <refpurpose>set environment variables to external TAI64N timestamps</refpurpose>
 </refnamediv>
 
@@ -36,7 +39,25 @@
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 <cmdsynopsis>
+<command>time-env-set-if-later</command>
+<arg choice='req'><replaceable>var</replaceable></arg>
+<arg choice='req'><replaceable>timestamp</replaceable></arg>
+<arg choice='req'><replaceable>next-prog</replaceable></arg>
+</cmdsynopsis>
+<cmdsynopsis>
+<command>time-env-unset-if-earlier</command>
+<arg choice='req'><replaceable>var</replaceable></arg>
+<arg choice='req'><replaceable>timestamp</replaceable></arg>
+<arg choice='req'><replaceable>next-prog</replaceable></arg>
+</cmdsynopsis>
+<cmdsynopsis>
 <command>time-env-unset-if-later</command>
+<arg choice='req'><replaceable>var</replaceable></arg>
+<arg choice='req'><replaceable>timestamp</replaceable></arg>
+<arg choice='req'><replaceable>next-prog</replaceable></arg>
+</cmdsynopsis>
+<cmdsynopsis>
+<command>time-env-unset-if-null-or-later</command>
 <arg choice='req'><replaceable>var</replaceable></arg>
 <arg choice='req'><replaceable>timestamp</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
@@ -46,8 +67,14 @@
 <refsection><title>Description</title>
 
 <para>
-<command>time-env-set</command>, <command>time-env-set-if-earlier</command>, and <command>time-env-unset-if-later</command> parse <arg choice='plain'><replaceable>timestamp</replaceable></arg> to yield a TAI64N time.
-They then set or unset the environment variable <envar><replaceable>var</replaceable></envar>, and then chain load to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<command>time-env-set</command>,
+<command>time-env-set-if-earlier</command>,
+<command>time-env-set-if-later</command>,
+<command>time-env-unset-if-earlier</command>,
+<command>time-env-unset-if-later</command>, and
+<command>time-env-unset-if-null-or-later</command>
+parse <arg choice='plain'><replaceable>timestamp</replaceable></arg> to yield a TAI64N time.
+They then set or unset the environment variable <envar><replaceable>var</replaceable></envar>, and then chain load to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <itemizedlist>
@@ -58,7 +85,16 @@ They then set or unset the environment variable <envar><replaceable>var</replace
 <command>time-env-set-if-earlier</command> sets the variable to the timestamp for that time if, after parsing the variable's existing value as a timestamp, the <replaceable>timestamp</replaceable> time is earlier than the existing value or the existing value is null.
 </para></listitem>
 <listitem><para>
-<command>time-env-unset-if-later</command> unsets the variable if, after parsing the variables existing value as a timestamp, the <replaceable>timestamp</replaceable> time is null or is later than the existing value.
+<command>time-env-set-if-later</command> sets the variable to the timestamp for that time if, after parsing the variable's existing value as a timestamp, the <replaceable>timestamp</replaceable> time is later than the existing value or the existing value is null.
+</para></listitem>
+<listitem><para>
+<command>time-env-unset-if-earlier</command> unsets the variable if, after parsing the variable's existing value as a timestamp, the <replaceable>timestamp</replaceable> time is non-null and is earlier than the existing value.
+</para></listitem>
+<listitem><para>
+<command>time-env-unset-if-later</command> unsets the variable if, after parsing the variable's existing value as a timestamp, the <replaceable>timestamp</replaceable> time is non-null and is later than the existing value.
+</para></listitem>
+<listitem><para>
+<command>time-env-unset-if-null-or-later</command> unsets the variable if, after parsing the variable's existing value as a timestamp, the <replaceable>timestamp</replaceable> time is null or is later than the existing value.
 </para></listitem>
 </itemizedlist>
 

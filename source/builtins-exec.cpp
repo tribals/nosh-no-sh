@@ -5,7 +5,7 @@ For copyright and licensing terms, see the file named COPYING.
 
 #include <vector>
 #include <cstddef>
-#include "utils.h"
+#include "builtins.h"
 
 /* Table of commands ********************************************************
 // **************************************************************************
@@ -15,12 +15,15 @@ For copyright and licensing terms, see the file named COPYING.
 
 extern void appendpath ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void background ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void builtins ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void chdir ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void chdir_home ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void chroot ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void clearenv ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void command_exec ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void console_flat_table_viewer ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void console_docbook_xml_viewer ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void console_tty37_viewer ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void create_control_group ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void cyclog ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void delegate_control_group_to ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
@@ -86,7 +89,10 @@ extern void tcpserver ( const char * &, std::vector<const char *> &, ProcessEnvi
 extern void time_env_add ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void time_env_set ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void time_env_set_if_earlier ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void time_env_set_if_later ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void time_env_unset_if_earlier ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void time_env_unset_if_later ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void time_env_unset_if_null_or_later ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void time_pause_until ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void time_print_tai64n ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void true_command ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
@@ -97,22 +103,26 @@ extern void ulimit ( const char * &, std::vector<const char *> &, ProcessEnviron
 extern void umask ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void unsetenv ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void unshare ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
+extern void unvis ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void userenv ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void userenv_fromenv ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 extern void ifconfig ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 #if defined(__LINUX__) || defined(__linux__)
 extern void netlink_datagram_socket_listen ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
 #endif
+extern void system_version ( const char * & , std::vector<const char *> &, ProcessEnvironment & );
 
-extern const
-struct command 
+const
+struct command
 commands[] = {
 	{	"exec",					command_exec			},
 	{	"nosh",					nosh				},
 
 	// Chain-loading non-terminals
 	{	"cd",					chdir				},
+	{	"cd-home",				chdir_home			},
 	{	"chdir",				chdir				},
+	{	"chdir-home",				chdir_home			},
 	{	"chroot",				chroot				},
 	{	"umask",				umask				},
 	{	"setsid",				setsid				},
@@ -181,11 +191,16 @@ commands[] = {
 	{	"find-matching-jvm",		        find_matching_jvm		},
 	{	"time-env-set",				time_env_set			},
 	{	"time-env-set-if-earlier",		time_env_set_if_earlier		},
+	{	"time-env-set-if-later",		time_env_set_if_later		},
+	{	"time-env-unset-if-earlier",		time_env_unset_if_earlier 	},
 	{	"time-env-unset-if-later",		time_env_unset_if_later 	},
+	{	"time-env-unset-if-null-or-later",	time_env_unset_if_null_or_later },
 	{	"time-env-add",				time_env_add			},
 	{	"time-pause-until",			time_pause_until		},
 
 	// Terminals
+	{	"builtins",				builtins			},
+	{	"version",				system_version			},
 	{	"pause",				pause				},
 	{	"tai64n",				tai64n				},
 	{	"tai64nlocal",				tai64nlocal			},
@@ -200,13 +215,17 @@ commands[] = {
 	{	"monitor-fsck-progress",		monitor_fsck_progress		},
 	{	"console-flat-table-viewer",		console_flat_table_viewer	},
 	{	"console-docbook-xml-viewer",		console_docbook_xml_viewer	},
+	{	"console-tty37-viewer",			console_tty37_viewer		},
 	{	"time-print-tai64n",			time_print_tai64n		},
 	{	"ifconfig",				ifconfig			},
+	{	"unvis",				unvis				},
 };
 const std::size_t num_commands = sizeof commands/sizeof *commands;
 
-extern const
-struct command 
+const
+struct command
 personalities[] = {
+	{	"less",					console_tty37_viewer		},
+	{	"more",					console_tty37_viewer		},
 };
 const std::size_t num_personalities = sizeof personalities/sizeof *personalities;

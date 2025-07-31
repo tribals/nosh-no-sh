@@ -7,7 +7,7 @@ Description=BSD FTP daemon
 
 [Service]
 EnvironmentDirectory=env
-ExecStart="${program:-%p}" -d ${flags}
+ExecStart=/usr/libexec/%p -d ${flags}
 
 [Install]
 WantedBy=workstation.target

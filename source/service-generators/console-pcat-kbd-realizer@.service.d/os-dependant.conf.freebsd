@@ -1,0 +1,10 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=ini:
+
+[Service]
+# There's no kbdd to disable, akin to moused; it's done inside the kernel.
+# So we disable the old keyboard concentration this way instead.
+ExecStartPre=sh -c 'for mux in /dev/kbdmux* ; do kbdcontrol -A '"'/dev/%I'"' < $mux ; done'
+ExecStopPost=sh -c 'for mux in /dev/kbdmux* ; do kbdcontrol -a '"'/dev/%I'"' < $mux ; done'

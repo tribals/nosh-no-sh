@@ -19,7 +19,7 @@ multi_line_comment (
 	bool bol(true);
 	for (std::string::const_iterator p(s.begin()); s.end() != p; ++p) {
 		const char c(*p);
-		if ('\n' == c) 
+		if ('\n' == c)
 			bol = true;
 		else if (bol) {
 			r += '#';

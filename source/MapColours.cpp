@@ -6,6 +6,20 @@ For copyright and licensing terms, see the file named COPYING.
 #include <stdint.h>
 #include "CharacterCell.h"
 
+const CharacterCell::colour_type ColourPair::colour_type::erased_foreground(ALPHA_FOR_ERASED,0xC0,0xC0,0xC0);
+const CharacterCell::colour_type ColourPair::colour_type::erased_background(ALPHA_FOR_ERASED,0U,0U,0U);
+namespace {
+const CharacterCell::colour_type dim_erased_foreground(ALPHA_FOR_ERASED,0x80,0x80,0x80);
+const CharacterCell::colour_type bright_erased_background(ALPHA_FOR_ERASED,0x40,0x40,0x40);
+}
+const CharacterCell::colour_type ColourPair::colour_type::default_foreground(ALPHA_FOR_DEFAULT,0xC0,0xC0,0xC0);
+const CharacterCell::colour_type ColourPair::colour_type::default_background(ALPHA_FOR_DEFAULT,0U,0U,0U);
+const CharacterCell::colour_type ColourPair::colour_type::impossible(-1U,0,0,0);
+const ColourPair ColourPair::impossible(ColourPair::colour_type::impossible, ColourPair::colour_type::impossible);
+const ColourPair ColourPair::def(ColourPair::colour_type::default_foreground, ColourPair::colour_type::default_background);
+const ColourPair ColourPair::erased(dim_erased_foreground, bright_erased_background);
+const ColourPair ColourPair::white_on_black(Map256Colour(COLOUR_WHITE), Map256Colour(COLOUR_BLACK));
+
 CharacterCell::colour_type
 Map16Colour (
 	uint8_t c

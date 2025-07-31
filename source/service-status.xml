@@ -23,7 +23,7 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>service-status</command> 
+<command>service-status</command>
 <arg choice='opt'>--long</arg>
 <arg choice='opt'>--colour</arg>
 <arg choice='opt'>--log-lines <replaceable>lines</replaceable></arg>

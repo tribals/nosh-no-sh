@@ -14,57 +14,60 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "ProcessEnvironment.h"
 
-/* Main function ************************************************************
+/* Internal helper function *************************************************
+// **************************************************************************
+*/
+
+namespace {
+
+void
+drop_privileges (
+	const char * prog,
+	const uid_t uid,
+	const gid_t gid,
+	const std::vector<gid_t> & groups
+) {
+	if (0 > setgroups(groups.size(), groups.data())
+	||  0 > setgid(gid)
+	||  0 > setuid(uid)
+	) {
+		const int error(errno);
+		std::fprintf(stderr, "%s: FATAL: drop_privileges: %s\n", prog, std::strerror(error));
+		throw static_cast<int>(EXIT_TEMPORARY_FAILURE);	// Bernstein daemontools compatibility
+	}
+}
+
+}
+
+/* API used elsewhere as well ***********************************************
 // **************************************************************************
 */
 
 void
-setuidgid_fromenv ( 
-	const char * & next_prog,
-	std::vector<const char *> & args,
-	ProcessEnvironment & envs
+drop_privileges (
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
-	const char * prog(basename_of(args[0]));
-	try {
-		popt::top_table_definition main_option(0, 0, "Main options", "{prog}");
-
-		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
-		p.process(true /* strictly options before arguments */);
-		args = new_args;
-		next_prog = arg0_of(args);
-		if (p.stopped()) throw EXIT_SUCCESS;
-	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
-	}
-
 	std::vector<gid_t> groups;
 	gid_t gid(-1);
 	uid_t uid(-1);
 	if (const char * text = envs.query("GID")) {
 		const char * old(text);
 		gid = std::strtoul(text, const_cast<char **>(&text), 0);
-		if (text == old || *text) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, old, "Not a number.");
-			throw EXIT_FAILURE;
-		}
-	} else {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "GID", "Missing environment variable.");
-		throw EXIT_FAILURE;
-	}
+		if (text == old || *text)
+			die_invalid(prog, envs, "GID", old, "Not a number.");
+	} else
+		die_missing_environment_variable(prog, envs, "GID");
 	if (const char * p = envs.query("GIDLIST")) {
-		for ( const char * e(0); *p; p = e) {
+		for ( const char * e(nullptr); *p; p = e) {
 			e = std::strchr(p, ',');
 			if (!e) e = std::strchr(p, '\0');
 			const std::string v(p, e);
 			if (*e) ++e;
 			const char * text(v.c_str()), * old(text);
 			const gid_t g(std::strtoul(text, const_cast<char **>(&text), 0));
-			if (text == old || *text) {
-				std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, old, "Not a number.");
-				throw EXIT_FAILURE;
-			}
+			if (text == old || *text)
+				die_invalid(prog, envs, "GIDLIST", old, "Not a number.");
 			groups.push_back(g);
 		}
 	}
@@ -73,20 +76,36 @@ setuidgid_fromenv (
 	if (const char * text = envs.query("UID")) {
 		const char * old(text);
 		uid = std::strtoul(text, const_cast<char **>(&text), 0);
-		if (text == old || *text) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, old, "Not a number.");
-			throw EXIT_FAILURE;
-		}
-	} else {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "UID", "Missing environment variable.");
-		throw EXIT_FAILURE;
+		if (text == old || *text)
+			die_invalid(prog, envs, "UID", old, "Not a number.");
+	} else
+		die_missing_environment_variable(prog, envs, "UID");
+	drop_privileges(prog, uid, gid, groups);
+}
+
+/* Main function ************************************************************
+// **************************************************************************
+*/
+
+void
+setuidgid_fromenv (
+	const char * & next_prog,
+	std::vector<const char *> & args,
+	ProcessEnvironment & envs
+) {
+	const char * prog(basename_of(args[0]));
+	try {
+		popt::top_table_definition main_option(0, nullptr, "Main options", "{prog}");
+
+		std::vector<const char *> new_args;
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
+		p.process(true /* strictly options before arguments */);
+		args = new_args;
+		next_prog = arg0_of(args);
+		if (p.stopped()) throw EXIT_SUCCESS;
+	} catch (const popt::error & e) {
+		die(prog, envs, e);
 	}
-	if (0 > setgroups(groups.size(), groups.data())) {
-exit_error:
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, std::strerror(error));
-		throw static_cast<int>(EXIT_TEMPORARY_FAILURE);	// Bernstein daemontools compatibility
-	}
-	if (0 > setgid(gid)) goto exit_error;
-	if (0 > setuid(uid)) goto exit_error;
+
+	drop_privileges(prog, envs);
 }

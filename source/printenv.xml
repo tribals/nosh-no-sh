@@ -22,12 +22,12 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>printenv</command> 
-<arg choice='opt'>--print0</arg> 
-<arg choice='opt'>--envdir</arg> 
-<arg choice='opt'>--conf</arg> 
-<arg choice='opt'>--full</arg> 
-<arg choice='opt' rep='repeat'><replaceable>var</replaceable></arg> 
+<command>printenv</command>
+<arg choice='opt'>--print0</arg>
+<arg choice='opt'>--envdir</arg>
+<arg choice='opt'>--conf</arg>
+<arg choice='opt'>--full</arg>
+<arg choice='opt' rep='repeat'><replaceable>var</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -44,8 +44,10 @@ See the manual for each individual shell for its built-in command.
 <para>
 <command>printenv</command> either prints to standard output the entire environment, or the specific environment variable(s) <replaceable>var</replaceable>.
 If there is no environment variable by the name of any particular <replaceable>var</replaceable> in the environment, that argument is ignored.
-(Note that an environment variable that does not exist is distinct from an environment variable that does exist but that simply has an empty string for its value.)
 </para>
+<note>
+An environment variable that does not exist is distinct from an environment variable that does exist but that simply has an empty string for its value.
+</note>
 
 <para>
 If printing the entire environment, both the environment variable names and values are printed, separated by an equals sign.

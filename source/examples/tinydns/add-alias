@@ -1,0 +1,3 @@
+#!/command/execlineb -S0
+tinydns-edit main main.new
+add alias $@

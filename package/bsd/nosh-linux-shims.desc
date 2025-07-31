@@ -1,1 +1,4 @@
-Shims for utilities with names from util-linux
+ This package provides shims for commands with names from util-linux.
+  * unshare, setterm, getty
+ .
+ The shims simply invoke nosh built-in commands.

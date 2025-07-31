@@ -5,7 +5,7 @@
 [Unit]
 
 [Socket]
-ListenStream=3690
+ListenStream=svn
 BindIPv6Only=both
 Accept=true
 

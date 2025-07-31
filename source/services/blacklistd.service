@@ -4,7 +4,8 @@
 
 [Unit]
 Description=Blacklisting service
-After=pf.service devd.service
+After=pf.service plug-and-play-manager.target
+Wants=plug-and-play-manager.target
 
 [Service]
 EnvironmentDirectory=env

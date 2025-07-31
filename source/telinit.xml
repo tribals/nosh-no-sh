@@ -18,6 +18,7 @@
 <refnamediv>
 <refname>telinit</refname>
 <refname>chkconfig</refname>
+<refname>deb-systemd-invoke</refname>
 <refname>emergency</refname>
 <refname>fastboot</refname>
 <refname>fasthalt</refname>
@@ -40,7 +41,7 @@
 <refname>service</refname>
 <refname>svcadm</refname>
 <refname>update-rc.d</refname>
-<refpurpose>BSD/System 5 compatibility utilities for system and service control</refpurpose>
+<refpurpose>BSD, System 5, and SunOS compatibility utilities for system and service control</refpurpose>
 </refnamediv>
 
 <refsection><title>Description</title>
@@ -49,10 +50,10 @@
 <command>telinit</command> is a multiple personality program, whose function varies according to what name it is invoked as.
 </para>
 
-<para>
+<caution>
 The various commands that it provides are compatibility shims only; they do not support the full capabilities of the original commands, only a common-use subset for providing an easy migration path for old BSD and System 5 habits and scripts.
 Avoid using them if possible.
-</para>
+</caution>
 
 <para>
 Or one can just use the <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> command directly.
@@ -89,23 +90,26 @@ No attempt is made to validate <arg choice="plain"><replaceable>args</replaceabl
 See the <command>init</command> subcommand of <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> for details.
 </para>
 
-<para>
+<warning>
 It is a mistake to run this as process #1, thinking that it is an alias for <citerefentry><refentrytitle>system-manager</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
 It is not, and on some systems the executable is dynamically linked to libraries in <filename>/usr/lib</filename> which isn't present at boot time.
 Configure the system to invoke <citerefentry><refentrytitle>system-manager</refentrytitle><manvolnum>8</manvolnum></citerefentry> directly, optionally under the name <command>init</command>, instead.
-</para>
+</warning>
 
-<para>
+<warning>
 It is likewise a mistake to run this thinking that it is an alias for <citerefentry><refentrytitle>per-user-manager</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
 Again, invoke that directly, optionally under the name <command>init</command>.
-</para>
+</warning>
 
 <para>
 Invoked as <command>runlevel</command>, this simply prints "N" twice, to indicate that runlevels do not exist.
+</para>
+
+<caution>
 This command exists for compatibility with some badly-written package installation/uninstallation scripts.
 It doesn't print "unknown", because those scripts are so badly written that they cannot even cope with <command>runlevel</command> not emitting two words.
 Do not use this obsolete command.
-</para>
+</caution>
 
 </refsection>
 
@@ -199,7 +203,7 @@ It does not support their <arg choice='plain'>-d</arg> option, whose behaviour i
 These commands are all shims around <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 As such, they all operate on native nosh services, not on old BSD or System 5 shell scripts.
 Their actions are defined in terms of service management actions, not in terms of running shell scripts.
-For example: 
+For example:
 <command>service</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain">start</arg> has the meaning of starting a named service, not of invoking a shell script with an argument.
 </para>
 
@@ -208,80 +212,6 @@ These commands and will enforce correct service dependencies and start/stop orde
 For individual control of services without orderings or dependencies, use <citerefentry><refentrytitle>service-control</refentrytitle><manvolnum>1</manvolnum></citerefentry> or <citerefentry><refentrytitle>service-status</refentrytitle><manvolnum>1</manvolnum></citerefentry> directly instead.
 </para>
 
-<refsection><title>Debian maintainer script utilities</title>
-
-<refsynopsisdiv>
-<cmdsynopsis>
-<command>invoke-rc.d</command>
-<arg choice="req"><replaceable>name</replaceable></arg>
-<group choice="opt">
-<arg choice="plain">-q</arg>
-<arg choice="plain">--quiet</arg>
-</group>
-<group choice="req">
-<arg choice="plain">start</arg>
-<arg choice="plain">stop</arg>
-</group>
-</cmdsynopsis>
-<cmdsynopsis>
-<command>update-rc.d</command>
-<arg choice="req"><replaceable>name</replaceable></arg>
-<group choice="opt">
-<arg choice="plain">-f</arg>
-<arg choice="plain">--force</arg>
-</group>
-<group choice="req">
-<arg choice="plain">enable</arg>
-<arg choice="plain">disable</arg>
-<arg choice="plain">remove</arg>
-<arg choice="plain">defaults</arg>
-</group>
-</cmdsynopsis>
-</refsynopsisdiv>
-
-<para>
-Avoid using these commands outwith package installation/uninstallation scripts.
-They are tailored for such use in particular.
-</para>
-
-<para>
-Invoked as <command>invoke-rc.d</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>.
-<replaceable>command1</replaceable> may only be one of <arg choice="plain">start</arg> or <arg choice="plain">stop</arg>, which are translated to <arg choice="plain">reset</arg> and <arg choice="plain">stop</arg> (respectively) for <replaceable>command2</replaceable>.
-The behaviour that it is designed to be backwards compatible with only starts a service in response to the <arg choice="plain">start</arg> subcommand if the administrator has configured the service to auto-start.
-Hence the replacement of <arg choice="plain">start</arg> by <arg choice="plain">reset</arg>.
-</para>
-
-<para>
-The <arg choice='plain'>--quiet</arg> option has no translatable meaning, does nothing, and is present for compatibility only.
-</para>
-
-<para>
-Invoked as <command>update-rc.d</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, translating as in the following table.
-Again, the behaviour that it is designed to be backwards compatible with only enables a service in response to the <arg choice="plain">enable</arg> subcommand if the administrator has configured the service to auto-start.
-Hence the use of <arg choice="plain">preset</arg>.
-</para>
-<table>
-<title>Sub-command translation:</title>
-<thead>
-<tr><td><replaceable>command1</replaceable></td><td><replaceable>command2</replaceable></td></tr>
-</thead>
-<tbody>
-<tr><td><arg choice='plain'>defaults</arg></td><td rowspan='4'><arg choice='plain'>preset</arg></td></tr>
-<tr><td><arg choice='plain'>start</arg></td></tr>
-<tr><td><arg choice='plain'>stop</arg></td></tr>
-<tr><td><arg choice='plain'>enable</arg></td></tr>
-<tr><td><arg choice='plain'>disable</arg></td><td rowspan='2'><arg choice='plain'>disable</arg></td></tr>
-<tr><td><arg choice='plain'>remove</arg></td></tr>
-</tbody>
-</table>
-
-<para>
-The <arg choice='plain'>--force</arg> option has no translatable meaning, does nothing, and is present for compatibility only.
-Note also that <ulink url="http://anonscm.debian.org/cgit/collab-maint/sysvinit.git/commit/?id=6323a1e4eb39ed1c050b1e74b6baef92dcfde4b1">the original <command>update-rc.d</command> tool eliminated all support for non-LSB-header-based System 5 <command>rc</command>, in July 2013.</ulink>
-The <arg choice="plain">defaults</arg>, <arg choice="plain">start</arg>, and <arg choice="plain">stop</arg> subcommands do not take arguments even in the original tool; and uses of the latter two subcommands should be replaced by the former.
-</para>
-
-</refsection>
 <refsection><title>Generic</title>
 
 <refsynopsisdiv>
@@ -299,11 +229,12 @@ It makes no attempt itself to validate <replaceable>command</replaceable>, which
 However, for best results restrict <replaceable>command</replaceable> to one of <arg choice="plain">start</arg>, <arg choice="plain">stop</arg>, or <arg choice="plain">status</arg>.
 </para>
 
-<para>
-Note that, unlike the BSD command, <command>service</command> can manually start and stop disabled services.
-</para>
+<note>
+Unlike the BSD <citerefentry><refentrytitle>service</refentrytitle><manvolnum>8</manvolnum></citerefentry> command, <command>service</command> can manually start and stop disabled services.
+</note>
 
 </refsection>
+
 <refsection><title>OpenBSD rc</title>
 
 <refsynopsisdiv>
@@ -321,14 +252,15 @@ It makes no attempt itself to validate <replaceable>command</replaceable>, which
 <arg choice="plain">get</arg> is replaced with <arg choice="plain">print-service-env</arg>.
 </para>
 
-<para>
+<caution>
 Do not use <command>rcctl</command> <arg choice="plain">set</arg> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain">status</arg> to enable or disable services.
 This is not even correct for the original tool, as only OpenBSD uses variables named <replaceable>name</replaceable><code>_status</code> in the first place.
 Other BSDs have different names which won't work with this OpenBSD-specific syntax.
 In contrast, <command>rcctl</command> <arg choice="plain">enable</arg> <arg choice="plain"><replaceable>name</replaceable></arg> and <command>rcctl</command> <arg choice="plain">disable</arg> <arg choice="plain"><replaceable>name</replaceable></arg>, defined as equivalents in the original OpenBSD tool, will work portably.
-</para>
+</caution>
 
 </refsection>
+
 <refsection><title>OpenRC</title>
 
 <refsynopsisdiv>
@@ -370,7 +302,6 @@ Invoked as <command>rc-update</command> <arg choice="plain"><replaceable>command
 <arg choice="plain">version</arg>
 <arg choice="plain">start</arg>
 <arg choice="plain">stop</arg>
-<arg choice="plain">stop</arg>
 <arg choice="plain">status</arg>
 <arg choice="plain">show-config</arg>
 </group>
@@ -379,9 +310,21 @@ Invoked as <command>rc-update</command> <arg choice="plain"><replaceable>command
 </refsynopsisdiv>
 
 <para>
-Invoked as <command>initctl</command> <arg choice="plain"><replaceable>command1</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>.
-<replaceable>command1</replaceable> may only be one of <arg choice="plain">show-config</arg>, <arg choice="plain">start</arg>, <arg choice="plain">status</arg>, <arg choice="plain">stop</arg>, or <arg choice="plain">version</arg>, which are translated to <arg choice="plain">show</arg>, <arg choice="plain">start</arg>, <arg choice="plain">status</arg>, <arg choice="plain">stop</arg>, <arg choice="plain">reset</arg>, and <arg choice="plain">version</arg> (respectively) for <replaceable>command2</replaceable>.
+Invoked as <command>initctl</command> <arg choice="plain"><replaceable>command1</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, translating as in the following table.
 </para>
+<table>
+<title>Sub-command translation:</title>
+<thead>
+<tr><td><replaceable>command1</replaceable></td><td><replaceable>command2</replaceable></td></tr>
+</thead>
+<tbody>
+<tr><td><arg choice='plain'>show-config</arg></td><td><arg choice='plain'>show-json</arg></td></tr>
+<tr><td><arg choice='plain'>start</arg></td><td><arg choice='plain'>start</arg></td></tr>
+<tr><td><arg choice='plain'>status</arg></td><td><arg choice='plain'>status</arg></td></tr>
+<tr><td><arg choice='plain'>stop</arg></td><td><arg choice='plain'>stop</arg></td></tr>
+<tr><td><arg choice='plain'>version</arg></td><td><arg choice='plain'>version</arg></td></tr>
+</tbody>
+</table>
 
 <para>
 No other functionality of the original <command>initctl</command> tool is supported.
@@ -404,17 +347,29 @@ No other functionality of the original <command>initctl</command> tool is suppor
 </refsynopsisdiv>
 
 <para>
-Invoked as <command>svcadm</command> <arg choice="plain"><replaceable>command1</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>.
-<replaceable>command1</replaceable> may only be one of <arg choice="plain">enable</arg>, <arg choice="plain">disable</arg>, or <arg choice="plain">version</arg>, which are translated to <arg choice="plain">start</arg>, <arg choice="plain">stop</arg>, and <arg choice="plain">version</arg> (respectively) for <replaceable>command2</replaceable>.
+Invoked as <command>svcadm</command> <arg choice="plain"><replaceable>command1</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, translating as in the following table.
 </para>
+<table>
+<title>Sub-command translation:</title>
+<thead>
+<tr><td><replaceable>command1</replaceable></td><td><replaceable>command2</replaceable></td></tr>
+</thead>
+<tbody>
+<tr><td><arg choice='plain'>disable</arg></td><td><arg choice='plain'>stop</arg></td></tr>
+<tr><td><arg choice='plain'>enable</arg></td><td><arg choice='plain'>start</arg></td></tr>
+<tr><td><arg choice='plain'>version</arg></td><td><arg choice='plain'>version</arg></td></tr>
+</tbody>
+</table>
 
 <para>
 No other functionality of the original <command>svcadm</command> tool is supported.
+For the <command>milestone</command> subcommand, start the appropriate combination of standard targets.
+There is no simple 1:1 correspondence between standard targets and SMF milestone names.
 </para>
 
 </refsection>
 
-<refsection><title>van Smoorenburg</title>
+<refsection><title>IRIX</title>
 
 <refsynopsisdiv>
 <cmdsynopsis>
@@ -423,6 +378,10 @@ No other functionality of the original <command>svcadm</command> tool is support
 </cmdsynopsis>
 <cmdsynopsis>
 <command>chkconfig</command>
+<group choice="opt">
+<arg choice="plain">-f</arg>
+<arg choice="plain">--force</arg>
+</group>
 <arg choice="req"><replaceable>name</replaceable></arg>
 <group choice="req">
 <arg choice="plain">reset</arg>
@@ -437,12 +396,155 @@ Invoked as <command>chkconfig</command> <arg choice="plain"><replaceable>name</r
 </para>
 
 <para>
-Invoked as <command>chkconfig</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>.
-<replaceable>command1</replaceable> may only be one of <arg choice="plain">reset</arg>, <arg choice="plain">on</arg>, or <arg choice="plain">off</arg>, which are translated to <arg choice="plain">preset</arg>, <arg choice="plain">enable</arg>, and <arg choice="plain">disable</arg> (respectively) for <replaceable>command2</replaceable>.
+Invoked as <command>chkconfig</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, translating as in the following table.
+</para>
+<table>
+<title>Sub-command translation:</title>
+<thead>
+<tr><td><replaceable>command1</replaceable></td><td><replaceable>command2</replaceable></td></tr>
+</thead>
+<tbody>
+<tr><td><arg choice='plain'>reset</arg></td><td><arg choice='plain'>preset</arg></td></tr>
+<tr><td><arg choice='plain'>on</arg></td><td><arg choice='plain'>enable</arg></td></tr>
+<tr><td><arg choice='plain'>off</arg></td><td><arg choice='plain'>disable</arg></td></tr>
+</tbody>
+</table>
+
+<para>
+The <arg choice='plain'>--force</arg> option has no translatable meaning, does nothing, and is present for compatibility only.
+The IRIX <citerefentry><refentrytitle>chkconfig</refentrytitle><manvolnum>1M</manvolnum></citerefentry> tool manipulated (possibly non-existent) flag files in <filename>/var/config</filename> and required a flag to force the creation of non-existent files.
+This has no meaning with <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+Conversely, <arg choice="plain">reset</arg> has no meaning for the IRIX original, where flag files had no "preset" information to be initialized from.
 </para>
 
 <para>
-No other functionality of the original <command>chkconfig</command> tool (whose operation varies incompatibly from platform to platform outwith these two subcommands) is supported.
+The remaining functionality of the IRIX <citerefentry><refentrytitle>chkconfig</refentrytitle><manvolnum>1M</manvolnum></citerefentry> tool, without any <arg choice="plain"><replaceable>name</replaceable></arg> argument and with an optional <arg choice="plain">-s</arg> option, is not supported at all.
+There is no one big central state directory used by <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>8</manvolnum></citerefentry> to list.
+Rather, enable/disable states are distributed around the service bundle directories, and are relative to one or more targets.
+</para>
+
+<refsection><title>History</title>
+
+<para>
+This is a shim for <ulink url="https://nixdoc.net/man-pages/IRIX/man1/chkconfig.1.html">the IRIX command by this name</ulink>.
+The IRIX original had no concept of preset information, and was purely an access method for named on/off configuration flag files which theoretically had any use one liked.
+It was conceptually like the flags in the BSD <citerefentry><refentrytitle>rc.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> system, which have arbitrary uses (but which can, however, represent more than on/off boolean data, which the IRIX system was limited to).
+</para>
+
+<para>
+Miquel van Smoorenberg wrote a similar tool, that used and altered completely different configuration information for van Smoorenberg's <citerefentry><refentrytitle>rc</refentrytitle><manvolnum>8</manvolnum></citerefentry> system.
+It was limited to solely service enable/disable states, and no longer supported arbitrary uses for named flags.
+van Smoorenberg's <citerefentry><refentrytitle>chkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry> added a different command-line syntax, not in the IRIX original, which is not supported by this command.
+They have only the original IRIX syntax in common, along with the <arg choice="plain">reset</arg> argument, which is a van Smoorenberg addition to the IRIX original that took preset information held in comments in <citerefentry><refentrytitle>rc</refentrytitle><manvolnum>8</manvolnum></citerefentry> scripts.
+(The added, different, van Smoorenberg syntax was for adding and removing services, rather than enabling and disabling them, which has no translatable meaning.)
+</para>
+
+<para>
+That then in turn inspired Joe Oppegaard's <citerefentry><refentrytitle>sysv-rc-conf</refentrytitle><manvolnum>8</manvolnum></citerefentry>.
+Oppegaard's <citerefentry><refentrytitle>sysv-rc-conf</refentrytitle><manvolnum>8</manvolnum></citerefentry> altered the original IRIX syntax incompatibly, and is thus wholly incompatible with both this command and the IRIX original.
+</para>
+
+<para>
+Erik Troan's <citerefentry><refentrytitle>chkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry> tool for CentOS/RedHat expanded upon van Smoorenberg's added, different, syntax; and again has only the original IRIX syntax (plus the van Smoorenberg <arg choice="plain">reset</arg>) in common with this command.
+Michael Schroeder's <citerefentry><refentrytitle>chkconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry> tool for SuSE discarded all of the original IRIX syntax, leaving the van Smooorenberg added different one, and thus has no common syntax with this command.
+</para>
+
+</refsection>
+
+</refsection>
+
+<refsection><title>Debian maintainer script utilities</title>
+
+<refsynopsisdiv>
+<cmdsynopsis>
+<command>invoke-rc.d</command>
+<arg choice="req"><replaceable>name</replaceable></arg>
+<group choice="opt">
+<arg choice="plain">-q</arg>
+<arg choice="plain">--quiet</arg>
+</group>
+<arg choice="opt">--user</arg>
+<arg choice="opt">--skip-systemd-native</arg>
+<group choice="req">
+<arg choice="plain">start</arg>
+<arg choice="plain">stop</arg>
+</group>
+</cmdsynopsis>
+<cmdsynopsis>
+<command>update-rc.d</command>
+<arg choice="req"><replaceable>name</replaceable></arg>
+<group choice="opt">
+<arg choice="plain">-f</arg>
+<arg choice="plain">--force</arg>
+</group>
+<arg choice="plain">--user</arg>
+<group choice="req">
+<arg choice="plain">enable</arg>
+<arg choice="plain">disable</arg>
+<arg choice="plain">remove</arg>
+<arg choice="plain">defaults</arg>
+</group>
+</cmdsynopsis>
+<cmdsynopsis>
+<command>deb-systemd-invoke</command>
+<arg choice="req"><replaceable>name</replaceable></arg>
+<group choice="opt">
+<arg choice="plain">-q</arg>
+<arg choice="plain">--quiet</arg>
+</group>
+<arg choice="plain">--user</arg>
+<group choice="req">
+<arg choice="plain">start</arg>
+<arg choice="plain">stop</arg>
+</group>
+</cmdsynopsis>
+</refsynopsisdiv>
+
+<caution>
+Avoid using these commands outwith package installation/uninstallation scripts.
+They are tailored for such use in particular.
+</caution>
+
+<para>
+Invoked as either <command>invoke-rc.d</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg> or <command>deb-systemd-invoke</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>.
+<replaceable>command1</replaceable> may only be one of <arg choice="plain">start</arg> or <arg choice="plain">stop</arg>, which are translated to <arg choice="plain">reset</arg> and <arg choice="plain">stop</arg> (respectively) for <replaceable>command2</replaceable>.
+The behaviour that it is designed to be backwards compatible with only starting a service in response to the <arg choice="plain">start</arg> subcommand if the administrator has configured the service to auto-start.
+Hence the replacement of <arg choice="plain">start</arg> by <arg choice="plain">reset</arg>.
+</para>
+
+<para>
+The <arg choice='plain'>--user</arg> option is simply passed through to <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+The <arg choice='plain'>--quiet</arg> option has no translatable meaning, does nothing, and is present for compatibility only.
+The <arg choice='plain'>--skip-systemd-native</arg> option also does nothing, and is present for compatibility only.
+</para>
+
+<para>
+Invoked as <command>update-rc.d</command> <arg choice="plain"><replaceable>name</replaceable></arg> <arg choice="plain"><replaceable>command1</replaceable></arg>, the program chains to <command>system-control</command> <arg choice="plain"><replaceable>command2</replaceable></arg> <arg choice="plain"><replaceable>name</replaceable></arg>, translating as in the following table.
+Again, the behaviour that it is designed to be backwards compatible with only enables a service in response to the <arg choice="plain">enable</arg> subcommand if the administrator has configured the service to auto-start.
+Hence the use of <arg choice="plain">preset</arg>.
+</para>
+<table>
+<title>Sub-command translation:</title>
+<thead>
+<tr><td><replaceable>command1</replaceable></td><td><replaceable>command2</replaceable></td></tr>
+</thead>
+<tbody>
+<tr><td><arg choice='plain'>defaults</arg></td><td><arg choice='plain'>preset</arg></td></tr>
+<tr><td><arg choice='plain'>start</arg></td><td><arg choice='plain'>preset</arg></td></tr>
+<tr><td><arg choice='plain'>stop</arg></td><td><arg choice='plain'>preset</arg></td></tr>
+<tr><td><arg choice='plain'>enable</arg></td><td><arg choice='plain'>preset</arg></td></tr>
+<tr><td><arg choice='plain'>disable</arg></td><td><arg choice='plain'>disable</arg></td></tr>
+<tr><td><arg choice='plain'>remove</arg></td><td><arg choice='plain'>disable</arg></td></tr>
+</tbody>
+</table>
+<note>
+<ulink url="http://anonscm.debian.org/cgit/collab-maint/sysvinit.git/commit/?id=6323a1e4eb39ed1c050b1e74b6baef92dcfde4b1">the original <command>update-rc.d</command> tool eliminated all support for non-LSB-header-based System 5 <command>rc</command>, in July 2013.</ulink>
+The <arg choice="plain">defaults</arg>, <arg choice="plain">start</arg>, and <arg choice="plain">stop</arg> subcommands do not take arguments even in the original tool; and uses of the latter two subcommands should be replaced by the former.
+</note>
+
+<para>
+The <arg choice='plain'>--user</arg> option is simply passed through to <citerefentry><refentrytitle>system-control</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+The <arg choice='plain'>--force</arg> option has no translatable meaning, does nothing, and is present for compatibility only.
 </para>
 
 </refsection>
@@ -453,25 +555,31 @@ No other functionality of the original <command>chkconfig</command> tool (whose 
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>initctl-read</command> 
+<command>initctl-read</command>
 </cmdsynopsis>
 </refsynopsisdiv>
 
 <para>
 <command>initctl-read</command> is a UCSPI telinit server.
-It loops forever, reading telinit request messages and executing the requested <command>telinit</command> commands.
-Almost no programs expect or use this interface, <ulink url="https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=657990#57">which the maintainers of the System 5 init package themselves consider to be private and deprecated</ulink>.
-</para>
-
-<para>
 It expects file descriptor 3 to be a FIFO that has been set up, with <citerefentry><refentrytitle>fifo-listen</refentrytitle><manvolnum>1</manvolnum></citerefentry> or similar, to listen for incoming messages.
 Usually, its standard error will be redirected to an instance of <citerefentry><refentrytitle>cyclog</refentrytitle><manvolnum>1</manvolnum></citerefentry> or similar.
 </para>
 
 <para>
-Although the telinit requests protocol defines a wide range of requests, all are dishonoured except for runlevel changes, which are simply passed over to <command>telinit</command> for enacting.
+It loops forever, reading request messages and executing the requested commands.
+Although the van Smoorenburg telinit requests protocol defines a wide range of requests, all are dishonoured except for runlevel changes, which are (in a reversal of the van Smoorenburg system) simply passed over to <command>telinit</command> for enacting, which in turn hands them over to <command>system-control</command> <arg choice="plain">init</arg> as explained in a preceding section.
 No validation is made on the run level requested except that it be a printable character.
 </para>
+
+<caution>
+This program speaks the control protocol of the van Smoorenburg init and telinit programs.
+That protocol is not compatible with <othercredit><firstname>Joachim</firstname> <surname>Wiberg's</surname></othercredit> (formerly <othercredit><surname>Nilsson</surname></othercredit>) finit program, which has a similar FIFO.
+Almost no programs expect or use this interface, <ulink url="https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=657990#57">which the maintainers of the van Smoorenburg init package themselves consider to be private and deprecated</ulink>.
+</caution>
+<warning>
+Do not use this interface in power monitoring softwares.
+Send <code>SIGPWR</code> to process #1, writing the power event to <filename>/run/powerstatus</filename> or equivalent (depending from the operating system), instead.
+</warning>
 
 </refsection>
 

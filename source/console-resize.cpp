@@ -14,18 +14,15 @@ For copyright and licensing terms, see the file named COPYING.
 #include "utils.h"
 #include "popt.h"
 
-// This must have static storage duration as we are using it in args.
-static std::string columns_arg;
-
 /* Main function ************************************************************
 // **************************************************************************
 */
 
 void
-console_resize ( 
+console_resize (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool lines_only(false);
@@ -43,24 +40,21 @@ console_resize (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "[COLS×]{ROWS}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing size.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "size");
 	}
 	const char * p(args.front());
 	args.erase(args.begin());
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
+	// This must have static storage duration as we are using it in args.
+	static std::string columns_arg;
 	// We don't duplicate the numerical argument checking that console-control-sequence will do.
 	// Rather, we just split the string at the × character.
 	if (!lines_only) {
@@ -71,20 +65,19 @@ console_resize (
 				times = std::strrchr(p, 'x');
 		}
 		if (!times) {
-			std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, p, "Missing ×.");
-			throw static_cast<int>(EXIT_USAGE);
+			die_invalid_argument(prog, envs, p, "Missing ×.");
 		}
 		columns_arg = std::string(p, times);
 		p = ++times;
 	}
-	args.insert(args.end(), "console-control-sequence");
-	if (c1_7bit) args.insert(args.end(), "--7bit");
-	if (c1_8bit) args.insert(args.end(), "--8bit");
+	args.push_back("console-control-sequence");
+	if (c1_7bit) args.push_back("--7bit");
+	if (c1_8bit) args.push_back("--8bit");
 	if (!lines_only) {
-		args.insert(args.end(), "--columns");
-		args.insert(args.end(), columns_arg.c_str());
+		args.push_back("--columns");
+		args.push_back(columns_arg.c_str());
 	}
-	args.insert(args.end(), "--rows");
-	args.insert(args.end(), p);
+	args.push_back("--rows");
+	args.push_back(p);
 	next_prog = arg0_of(args);
 }

@@ -11,13 +11,14 @@ Linux)
 	redo-ifchange os_version
 	read -r os_version < os_version
 	case "${os_version}" in
-	arch:*) 	ext=linux ;;
-	debian:[78]) 	ext=debian7-linux ;;
-	debian:*) 	ext=linux ;;
-	gentoo:*) 	ext=linux ;;
-	centos:*) 	ext=linux ;;
-	rhel:*) 	ext=linux ;;
-	*)      	ext=who ;;
+	arch:*) 		ext=linux ;;
+	debian:*) 		ext=linux ;;
+	debian:[1234567]) 	ext=debian7-linux ;;
+	debian:*) 		ext=linux ;;
+	gentoo:*)	 	ext=linux ;;
+	centos:*) 		ext=linux ;;
+	rhel:*) 		ext=linux ;;
+	*)      		ext=who ;;
 	esac
 	;;
 *BSD)	ext=bsd ;;

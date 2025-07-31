@@ -1,4 +1,5 @@
 # vim: set filetype=sh:
+# user-mode TTYs
 user_tty "vc1-tty"
 user_tty "vc2-tty"
 user_tty "vc3-tty"
@@ -10,4 +11,20 @@ login_service_with_dedicated_logger "vc2-tty"
 login_service_with_dedicated_logger "vc3-tty"
 service_with_dedicated_logger "console-input-method@head0"
 service_with_dedicated_logger "console-multiplexor@head0"
-service_with_dedicated_logger "console-fb-realizer@head0"
+
+# Realizers and HID support
+kvt_realizer_service_with_dedicated_logger "1"
+kvt_realizer_service_with_dedicated_logger "2"
+kvt_realizer_service_with_dedicated_logger "3"
+kvt_realizer_service_with_dedicated_logger "4"
+kvt_realizer_service_with_dedicated_logger "5"
+kvt_realizer_service_with_dedicated_logger "6"
+kvt_realizer_service_with_dedicated_logger "7"
+kvt_realizer_service_with_dedicated_logger "8"
+kvt_realizer_service_with_dedicated_logger "9"
+kvt_realizer_service_with_dedicated_logger "10"
+kvt_realizer_service_with_dedicated_logger "11"
+kvt_realizer_service_with_dedicated_logger "12"
+fan_in_logger "console-evdev-realizer"
+fan_in_logger "console-fb-realizer"
+fan_in_logger "console-ps2-mouse-realizer"

@@ -1,0 +1,8 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+## vim: set filetype=conf:
+
+[Service]
+## NetBSD bodges for its overconstrained account names.
+User=uvkr-10jtz5t

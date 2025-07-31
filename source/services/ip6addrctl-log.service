@@ -1,0 +1,16 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Combined logger for ip6addrctl@ services
+
+[Service]
+User=%p
+SessionLeader=yes
+WorkingDirectory=/var/log/sv
+ExecStart=cyclog ip6addrctl/
+RestartSec=1
+
+[Install]
+WantedBy=workstation.target

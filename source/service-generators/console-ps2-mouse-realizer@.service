@@ -1,0 +1,24 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=User-space virtual terminal realizer on Linux PS/2 mouse device %I
+#After=console-input-method@.service
+
+[Service]
+EnvironmentDirectory=env/
+User=user-vt-ps2-realizer
+Group=user-vt-realizer
+ExecStart=%p ${flags} '/dev/input/%I'
+# When a device detaches, the daemon exits success.
+# There is a window of opportunity of several seconds where devd/devpubd has not yet stopped the service during which re-opening the device and restarting the daemon will continually fail.
+# We don't want the daemon auto-restarting in that case.
+# But we do want a SIGTERM to auto-restart it.
+RestartSec=10
+Restart=on-signal
+PermissionsStartOnly=yes
+ExecStartPre=sh -c 'test -c "/dev/input/%I" && setfacl -m g:user-vt-realizer:rw "/dev/input/%I"'
+ExecRestartPre=sh -c 'test -c "/dev/input/%I" && setfacl -m g:user-vt-realizer:rw "/dev/input/%I"'
+
+[Install]

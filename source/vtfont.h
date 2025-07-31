@@ -14,11 +14,13 @@ struct bsd_vtfont_header {
 	uint16_t	padding;
 	uint32_t	glyphs, map_lengths[4];
 } __packed;
+static_assert(32 == sizeof(struct bsd_vtfont_header), "Font header structure is the wrong length.");
 
 /// A map entry in a vt(4) font file.
 struct bsd_vtfont_map_entry {
 	uint32_t	character;
 	uint16_t	glyph, count;
 } __packed;
+static_assert(8 == sizeof(struct bsd_vtfont_map_entry), "Font map entry structure is the wrong length.");
 
 #endif

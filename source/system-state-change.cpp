@@ -22,7 +22,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 bool
 stripfast (
 	const char * & prog
@@ -32,27 +34,31 @@ stripfast (
 	return true;
 }
 
+}
+
 /* Signal sending functions *************************************************
 // **************************************************************************
 */
 
-static inline
+namespace {
+
+inline
 void
-send_signal_to_system_manager_process ( 
+send_signal_to_system_manager_process (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	int signo
 ) {
 	if (0 > kill(1, signo)) {
-		const int error(errno);
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, "kill", std::strerror(error));
-		throw EXIT_FAILURE;
+		die_errno(prog, envs, "kill");
 	}
 }
 
-static inline
+inline
 void
-send_command_to_per_user_manager_process ( 
+send_command_to_per_user_manager_process (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	char command
 ) {
 	const std::string name(effective_user_runtime_dir() + "per-user-manager/control");
@@ -70,87 +76,96 @@ send_command_to_per_user_manager_process (
 	}
 }
 
-static
 void
-instruct_manager_process ( 
+instruct_manager_process (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	int signo,
 	char command
 ) {
 	if (per_user_mode)
-		send_command_to_per_user_manager_process(prog, command);
+		send_command_to_per_user_manager_process(prog, envs, command);
 	else
-		send_signal_to_system_manager_process(prog, signo);
+		send_signal_to_system_manager_process(prog, envs, signo);
 }
 
-static inline
+inline
 void
 emergency (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
-	instruct_manager_process(prog, EMERGENCY_SIGNAL, 'b') ;
+	instruct_manager_process(prog, envs, EMERGENCY_SIGNAL, 'b') ;
 }
 
-static inline
+inline
 void
 rescue (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
-	instruct_manager_process(prog, SYSINIT_SIGNAL, 'S');
-	instruct_manager_process(prog, RESCUE_SIGNAL, 's');
+	instruct_manager_process(prog, envs, SYSINIT_SIGNAL, 'S');
+	instruct_manager_process(prog, envs, RESCUE_SIGNAL, 's');
 }
 
-static inline
+inline
 void
 normal (
-	const char * prog
+	const char * prog,
+	const ProcessEnvironment & envs
 ) {
-	instruct_manager_process(prog, SYSINIT_SIGNAL, 'S');
-	instruct_manager_process(prog, NORMAL_SIGNAL, 'n');
+	instruct_manager_process(prog, envs, SYSINIT_SIGNAL, 'S');
+	instruct_manager_process(prog, envs, NORMAL_SIGNAL, 'n');
 }
 
-static inline
+inline
 void
 reboot (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	bool force
 ) {
-	instruct_manager_process(prog, force ? FORCE_REBOOT_SIGNAL : REBOOT_SIGNAL, force ? 'R' : 'r');
-} 
+	instruct_manager_process(prog, envs, force ? FORCE_REBOOT_SIGNAL : REBOOT_SIGNAL, force ? 'R' : 'r');
+}
 
-static inline
+inline
 void
 halt (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	bool force
 ) {
 #if defined(FORCE_HALT_SIGNAL)
-	instruct_manager_process(prog, force ? FORCE_HALT_SIGNAL : HALT_SIGNAL, force ? 'H' : 'h');
+	instruct_manager_process(prog, envs, force ? FORCE_HALT_SIGNAL : HALT_SIGNAL, force ? 'H' : 'h');
 #endif
 }
 
-static inline
+inline
 void
 poweroff (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	bool force
 ) {
 #if defined(FORCE_POWEROFF_SIGNAL)
-	instruct_manager_process(prog, force ? FORCE_POWEROFF_SIGNAL : POWEROFF_SIGNAL, force ? 'P' : 'p');
+	instruct_manager_process(prog, envs, force ? FORCE_POWEROFF_SIGNAL : POWEROFF_SIGNAL, force ? 'P' : 'p');
 #endif
 }
 
-static inline
+inline
 void
 powercycle (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	bool force
 ) {
 #if defined(FORCE_POWERCYCLE_SIGNAL)
-	instruct_manager_process(prog, force ? FORCE_POWERCYCLE_SIGNAL : POWERCYCLE_SIGNAL, force ? 'C' : 'c');
+	instruct_manager_process(prog, envs, force ? FORCE_POWERCYCLE_SIGNAL : POWERCYCLE_SIGNAL, force ? 'C' : 'c');
 #else
 	instruct_manager_process(prog, force ? FORCE_REBOOT_SIGNAL : REBOOT_SIGNAL, force ? 'R' : 'r');
 #endif
+}
+
 }
 
 /* System control commands **************************************************
@@ -162,7 +177,7 @@ void
 reboot_poweroff_halt_command [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool force(stripfast(prog));
@@ -177,29 +192,25 @@ reboot_poweroff_halt_command [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	switch (prog[0]) {
-		case 'r':	reboot(prog, force); break;
-		case 'h':	halt(prog, force); break;
-		case 'p':	
+		case 'r':	reboot(prog, envs, force); break;
+		case 'h':	halt(prog, envs, force); break;
+		case 'p':
 			if ('o' == prog[5]) {
-				poweroff(prog, force); break;
+				poweroff(prog, envs, force); break;
 			}
 			if ('c' == prog[5]) {
-				powercycle(prog, force); break;
+				powercycle(prog, envs, force); break;
 			}
 			// Fall through to:
 			[[clang::fallthrough]];
@@ -212,10 +223,10 @@ reboot_poweroff_halt_command [[gnu::noreturn]] (
 }
 
 void
-emergency_rescue_normal_command [[gnu::noreturn]] ( 
+emergency_rescue_normal_command [[gnu::noreturn]] (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	try {
@@ -226,26 +237,22 @@ emergency_rescue_normal_command [[gnu::noreturn]] (
 		popt::top_table_definition main_option(sizeof main_table/sizeof *main_table, main_table, "Main options", "");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
-	if (!args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, args.front(), "Unexpected argument.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (!args.empty()) die_unexpected_argument(prog, args, envs);
 
 	switch (prog[0]) {
-		case 'e':	emergency(prog); break;
+		case 'e':	emergency(prog, envs); break;
 		case 's':	// single
-		case 'r':	rescue(prog); break;
+		case 'r':	rescue(prog, envs); break;
 		case 'd':	// default
-		case 'n':	normal(prog); break;
+		case 'n':	normal(prog, envs); break;
 		default:
 			std::fprintf(stderr, "%s: FATAL: %c: %s\n", prog, prog[0], "Unknown action");
 			throw EXIT_FAILURE;
@@ -255,10 +262,10 @@ emergency_rescue_normal_command [[gnu::noreturn]] (
 }
 
 void
-init ( 
+init (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	enum Action { ///< in order of lowest to highest precedence
@@ -272,7 +279,7 @@ init (
 		EMERGENCY
 	} action = NORMAL;
 	try {
-		const char * z(0);
+		const char * z(nullptr);
 		bool rescue_mode(false), emergency_mode(false), update_mode(false);
 		bool ignore;
 		popt::bool_definition user_option('u', "user", "Communicate with the per-user manager.", per_user_mode);
@@ -283,9 +290,9 @@ init (
 		popt::bool_definition emergency_option('s', "single", "Start in emergency mode.", emergency_mode);
 #endif
 		popt::bool_definition update_option('o', "update", "Start in update mode.", update_mode);
-		popt::bool_definition autoboot_option('a', 0, "Compatibility option, ignored.", ignore);
-		popt::bool_definition fastboot_option('f', 0, "Compatibility option, ignored.", ignore);
-		popt::string_definition z_option('z', 0, "string", "Compatibility option, ignored.", z);
+		popt::bool_definition autoboot_option('a', nullptr, "Compatibility option, ignored.", ignore);
+		popt::bool_definition fastboot_option('f', nullptr, "Compatibility option, ignored.", ignore);
+		popt::string_definition z_option('z', nullptr, "string", "Compatibility option, ignored.", z);
 		popt::definition * top_table[] = {
 			&user_option,
 #if defined(__LINUX__) || defined(__linux__)
@@ -302,7 +309,7 @@ init (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "[runlevel(s)...]");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(false /* intermix options and arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
@@ -311,8 +318,7 @@ init (
 		if (rescue_mode && action < RESCUE) action = RESCUE;
 		if (update_mode && action < UPDATE) action = UPDATE;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	for (std::vector<const char *>::const_iterator i(args.begin()); args.end() != i; ++i) {
@@ -373,32 +379,33 @@ init (
 
 	switch (action) {
 		case EMERGENCY:
-			emergency(prog);
+			emergency(prog, envs);
 			break;
 		case RESCUE:
-			rescue(prog);
+			rescue(prog, envs);
 			break;
 		case UPDATE:
 			args.clear();
-			args.insert(args.end(), "update");
-			args.insert(args.end(), 0);
+			args.push_back("update");
 			next_prog = arg0_of(args);
 			return;
 		case POWEROFF:
-			poweroff(prog, false);
+			poweroff(prog, envs, false);
 			break;
 		case POWERCYCLE:
-			powercycle(prog, false);
+			powercycle(prog, envs, false);
 			break;
 		case REBOOT:
-			reboot(prog, false);
+			reboot(prog, envs, false);
 			break;
 		case HALT:
-			halt(prog, false);
+			halt(prog, envs, false);
 			break;
-		case NORMAL:
+#if 0	// Actually unreachable, and generates a warning.
 		default:
-			normal(prog);
+#endif
+		case NORMAL:
+			normal(prog, envs);
 			break;
 	}
 	throw EXIT_SUCCESS;

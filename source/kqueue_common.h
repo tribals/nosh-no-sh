@@ -3,6 +3,9 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
+#if !defined(INCLUDE_KQUEUE_COMMON_H)
+#define INCLUDE_KQUEUE_COMMON_H
+
 #include <stdint.h>
 #if defined(__LINUX__) || defined(__linux__)
 #include "kqueue_linux.h"
@@ -13,11 +16,11 @@ For copyright and licensing terms, see the file named COPYING.
 
 /// \brief An inline function that replicates EV_SET.
 /// This does not evaluate its arguments more than once.
-/// On OpenBSD, the macro does; FreeBSD/TrueOS uses a temporary in the macro to avoid doing so.
+/// On OpenBSD, the macro does; FreeBSD uses a temporary in the macro to avoid doing so.
 extern inline
 void
 set_event (
-	struct kevent * const ev,
+	struct kevent & ev,
 	uintptr_t ident,
 	short filter,
 	unsigned short flags,
@@ -25,7 +28,7 @@ set_event (
 	intptr_t data,
 	void *udata
 ) {
-	EV_SET(ev, ident, filter, flags, fflags, data, udata);
+	EV_SET(&ev, ident, filter, flags, fflags, data, udata);
 }
 
 extern inline
@@ -40,6 +43,8 @@ append_event (
 	void *udata
 ) {
 	struct kevent ev;
-	set_event(&ev, ident, filter, flags, fflags, data, udata);
+	set_event(ev, ident, filter, flags, fflags, data, udata);
 	p.push_back(ev);
 }
+
+#endif

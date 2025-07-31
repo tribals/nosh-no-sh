@@ -1,0 +1,16 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Disk Cache Cleaning Daemon for Apache HTTP Server
+After=apache2.service
+
+[Service]
+User=www-data
+SessionLeader=yes
+EnvironmentDirectory=env
+ExecStart=htcacheclean -d "${HTCACHECLEAN_DAEMON_INTERVAL:-120}" -p "${HTCACHECLEAN_PATH:-/var/cache/apache2/mod_cache_disk}" -l "${HTCACHECLEAN_SIZE:-300M} ${HTCACHECLEAN_OPTIONS:--n}
+
+[Install]
+WantedBy=server.target

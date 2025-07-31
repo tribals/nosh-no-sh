@@ -1,0 +1,36 @@
+<link rel="Up" href="terminals.html" title="Terminals" />
+<link rel="Prev" href="kernel-virtual-terminals.html" title="kernel virtual terminals" />
+<link rel="Next" href="user-virtual-terminals.html" title="user-space virtual terminals" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>kernel virtual terminal configuration</title>
+<h1 class="Ruled">
+kernel virtual terminal configuration
+</h1>
+
+<p>
+Detailed documentation for configuring kernel virtual terminals is the realm of the operating system
+</p>
+
+<p>
+For FreeBSD, for example, see the syscons(4), vt(4), kbdcontrol(1), and vidcontrol(1) manual pages.
+There are rudimentary <code>kernel-vt-kbdcontrol</code> and <code>kernel-vt-vidcontrol</code> services that are parameterizable with service environment variables to apply settings using these utilities at boostrap.
+However, it should be noted:
+</p>
+<ul>
+<li><p>
+FreeBSD's framebuffer support is egregiously constrained, being only capable of 800&times;600 resolution at best.
+</p></li>
+<li><p>
+FreeBSD's vt(4) reimplementation of its KVT subsystem broke vidcontrol(1).
+The design <em>seems</em> to be that one nowadays only sets the required display resolution at bootstrap time, via loader variables, and it is immutable via vidcontrol(1) at runtime.
+</p></li>
+<li><p>
+GNU GRUB2 is hardwired in code to force the system into text mode when bootstrapping FreeBSD.
+</p></li>
+</ul>
+
+<p>
+In the case of Linux-based operating systems, the nosh toolset does come with <a href="commands/linux-vt.xml">linux-vt</a> and <a href="commands/linux-console.xml">linux-console</a> documentation to fill in some long-standing holes in existing documentation.
+There are rudimentary <code>kernel-vt-kbdrate</code>, <code>kernel-vt-loadkeys</code>, <code>kernel-vt-setterm</code>, and <code>kernel-vt-setfont</code> services that are parameterizable with service environment variables to apply settings using various <a href="https://kbd-project.org">kbd</a>, <a href="https://lct.sourceforge.net/index.html">console-tools</a>, or <a href="https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git/about/">util-linux</a> utilities at bootstrap.
+(c.f <a href="https://linuxdoc.org/HOWTO/Kernel-HOWTO-7.html">the Linux How-To</a>)
+</p>

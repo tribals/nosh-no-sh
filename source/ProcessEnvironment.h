@@ -21,8 +21,8 @@ public:
 	bool set(const char *, const char *);
 	bool set(const char *, const std::string &);
 	bool set(const std::string &, const std::string &);
-	bool unset(const char * var) { return set(var, 0); }
-	bool unset(const std::string & var) { return set(var, 0); }
+	bool unset(const char * var) { return set(var, nullptr); }
+	bool unset(const std::string & var) { return set(var, nullptr); }
 	const char * query(const char *) const;
 	typedef map::const_iterator const_iterator;
 	const_iterator find(const std::string &);

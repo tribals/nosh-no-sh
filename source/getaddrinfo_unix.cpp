@@ -19,7 +19,7 @@ getaddrinfo (
 	const addrinfo * hints,
 	addrinfo ** info_list
 ) {
-	*info_list = 0;
+	*info_list = nullptr;
 #if !defined(EAI_BADHINTS)
 #define EAI_BADHINTS EAI_BADFLAGS
 #endif
@@ -61,8 +61,8 @@ getaddrinfo (
 	ai->ai_addr = reinterpret_cast<struct sockaddr *>(&addr);
 	ai->ai_addrlen = sizeof addr;
 	ai->ai_family = addr.sun_family;
-	ai->ai_canonname = 0;
-	ai->ai_next = 0;
+	ai->ai_canonname = nullptr;
+	ai->ai_next = nullptr;
 	if (hints) {
 		ai->ai_socktype = hints->ai_socktype;
 		ai->ai_protocol = hints->ai_protocol;

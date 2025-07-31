@@ -1,0 +1,11 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=ini:
+
+[Unit]
+Description=User-space virtual terminal realizer on Linux evdev device input/%I
+
+[Service]
+ExecStartPre=sh -c 'test -c "/dev/input/%I" && setfacl -m g:user-vt-realizer:rw "/dev/input/%I"'
+ExecRestartPre=sh -c 'test -c "/dev/input/%I" && setfacl -m g:user-vt-realizer:rw "/dev/input/%I"'

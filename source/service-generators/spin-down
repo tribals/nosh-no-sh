@@ -1,0 +1,29 @@
+#!/bin/sh -e
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+# vim: set filetype=sh:
+#
+# Start nonce services for various HIDs.
+# This is invoked by a devd rule in uhid-nosh.conf .
+# This is invoked by a devpubd rule in 80-nosh-uhid .
+#
+
+if ! test $# -ge 2
+then
+	echo "Two or more arguments are required." 1>&2 
+	exit 100
+fi
+
+generators="`dirname "$0"`"
+instance="$1"
+shift
+
+for prefix
+do
+	system-control disable "${prefix}"@"${instance}"
+	if system-control is-service-manager-client 2>/dev/null
+	then
+		system-control stop --verbose "${prefix}"@"${instance}"
+	fi
+done

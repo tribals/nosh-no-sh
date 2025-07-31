@@ -1,6 +1,7 @@
-<title>rc.conf amalgamation</title>
 <link rel="Up" href="rcconf.html" title="/etc/rc.conf conversion" />
-<h1>
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>rc.conf amalgamation</title>
+<h1 class="Ruled">
 <code>rc.conf</code> amalgamation
 </h1>
 
@@ -17,17 +18,19 @@ This file incorporates the information from:
 </p></li>
 <li><p>
 All files named in the <code>rc_conf_files</code> setting that is in <code>/etc/default/rc.conf</code>.
-These include <code>/etc/rc.conf</code>, <code>/etc/rc.conf.local</code>, and any further extra files employed by the likes of TrueOS/PC-BSD.
+These include <code>/etc/rc.conf</code>, <code>/etc/rc.conf.local</code>, and any further extra files employed by FreeBSD derivatives.
 </p><p>
-Note that OpenBSD nowadays has the explicit requirement that <code>/etc/rc.conf</code> not employ <em>any</em> shell constructs other than simple variable assignments, and actually be a data file with <code><i>variable</i>=<i>value</i></code> assignments that can be processed without using a shell language interpreter.
+<p class="note">
+Note:
+OpenBSD nowadays has the explicit requirement that <code>/etc/rc.conf</code> not employ <em>any</em> shell constructs other than simple variable assignments, and actually be a data file with <code><i>variable</i>=<i>value</i></code> assignments that can be processed without using a shell language interpreter.
 The amalgamation system enforces this on Linux.
-One can get away, to a small extent, with using shell scripting in these files on FreeBSD and TrueOS/PC-BSD; however it is strongly recommended to follow the lead of OpenBSD here and <em>not</em> do so.
+One can get away, to a small extent, with using shell scripting in these files on FreeBSD and derivatives; however it is strongly recommended to follow the lead of OpenBSD here and <em>not</em> do so.
 </p></li>
 <li><p>
 The FreeNAS <code>/data/freenas-v1.db</code> database, in particular the enabled "system tunables".
 </p></li>
 <li><p>
-The results of converting several Debian settings files into the equivalent FreeBSD/TrueOS <code>rc.conf</code> settings:
+The results of converting several Debian settings files into the equivalent FreeBSD <code>rc.conf</code> settings:
 </p>
 <ul>
 <li><p>
@@ -43,6 +46,15 @@ The results of converting several Debian settings files into the equivalent Free
 </li>
 <li><p>
 <code>/etc/network/interfaces</code>, which is the Debian ifupdown package's network interface settings file.
+</p></li>
+</ul>
+</li>
+<li><p>
+The results of converting OpenBSD settings files into the equivalent FreeBSD <code>rc.conf</code> settings:
+</p>
+<ul>
+<li><p>
+<code>/etc/hostname.<i>interface</i></code>, which is the network settings file for interface <i>interface</i>.
 </p></li>
 </ul>
 </li>
@@ -74,11 +86,16 @@ This amalgam is the unified source of information for the subsequent conversion 
 
 <p>
 The amalgamation process is not designed to be restrictive when it comes to platforms.
-It permits (for examples) a Debian-style <code>/etc/network/interfaces</code> to be used on FreeBSD, or a FreeNAS database to be used on Debian.
+It permits (for examples) a Debian-style <code>/etc/network/interfaces</code> to be used on OpenBSD, or a FreeNAS database to be used on Debian, or an OpenBSD <code>/etc/hostname.<i>interface</i></code> file to be used on FreeBSD.
 </p>
 
 <p>
 The conversion of a Debian-style <code>/etc/network/interfaces</code> can cope with the "new-style" assignments of multiple IP address to a single network interface, where one repeats the same <code>iface &hellip; static</code> "stanza" several times.
 However, it does not convert any <code>post-up</code> or <code>pre-down</code> settings.
 Those do not have <code>rc.conf</code> equivalents; and the conversion of <code>/etc/network/interfaces</code> is constrained to stuff that does not constitute the execution of arbitrary commands and programs.
+</p>
+
+<p>
+The conversion of an OpenBSD <code>/etc/hostname.<i>interface</i></code> file does not convert any embedded shell commands.
+It also marks all interfaces as "AUTO".
 </p>

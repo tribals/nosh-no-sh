@@ -27,7 +27,7 @@
 
 <para>
 Most shells have a built-in <command>umask</command> command that does not chain and has
-additional interactive functionality.  
+additional interactive functionality.
 See the manual for each individual shell for its built-in command.
 This command is more commonly used with <citerefentry><refentrytitle>exec</refentrytitle><manvolnum>1</manvolnum></citerefentry> and <citerefentry><refentrytitle>nosh</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
 </para>
@@ -36,7 +36,7 @@ This command is more commonly used with <citerefentry><refentrytitle>exec</refen
 
 <para>
 <command>umask</command> is a chain-loading utility that changes its permissions mask to
-<replaceable>mask</replaceable> and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.  
+<replaceable>mask</replaceable> and then chain loads to <replaceable>next-prog</replaceable> with the <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry> function.
 </para>
 
 <para>
@@ -44,7 +44,7 @@ This command is more commonly used with <citerefentry><refentrytitle>exec</refen
 </para>
 
 <para>
-The mask is a number, and follows the C language conventions.  
+The mask is a number, and follows the C language conventions.
 Conventionally masks are specified in octal, which in the C language is
 specified by a leading 0.
 </para>

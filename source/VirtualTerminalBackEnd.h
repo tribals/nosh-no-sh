@@ -12,33 +12,41 @@ For copyright and licensing terms, see the file named COPYING.
 #include "FileDescriptorOwner.h"
 #include "CharacterCell.h"
 
-class VirtualTerminalBackEnd 
+class VirtualTerminalBackEnd
 {
 public:
 	typedef unsigned short coordinate;
-	VirtualTerminalBackEnd(const char * dirname, FILE * buffer_file, int input_fd);
+	VirtualTerminalBackEnd(const char * dirname, FILE * buffer_file = nullptr, int input_fd = -1);
+	VirtualTerminalBackEnd();
 	~VirtualTerminalBackEnd();
-
+	struct xy {
+		coordinate x, y;
+		xy(coordinate xp, coordinate yp) : x(xp), y(yp) {}
+		xy() : x(0U), y(0U) {}
+	} ;
+	struct wh {
+		coordinate w, h;
+		wh(coordinate wp, coordinate hp) : w(wp), h(hp) {}
+		wh() : w(0U), h(0U) {}
+	} ;
 	const char * query_dir_name() const { return dir_name; }
-	int query_buffer_fd() const { return fileno(buffer_file.operator FILE *()); }
+	void set_dir_name(const char * n) { dir_name = n; }
+	void set_buffer_file(FILE *);
+	void set_input_fd(int);
+	int query_buffer_fd() const { if (FILE * f = buffer_file.operator FILE *()) return fileno(f); else return -1; }
 	int query_input_fd() const { return input_fd.get(); }
 	FILE * query_buffer_file() const { return buffer_file; }
-	coordinate query_h() const { return h; }
-	coordinate query_w() const { return w; }
-	coordinate query_visible_y() const { return visible_y; }
-	coordinate query_visible_x() const { return visible_x; }
-	coordinate query_visible_h() const { return visible_h; }
-	coordinate query_visible_w() const { return visible_w; }
-	coordinate query_cursor_y() const { return cursor_y; }
-	coordinate query_cursor_x() const { return cursor_x; }
+	const struct wh & query_size() const { return size; }
+	const struct xy & query_cursor() const { return cursor; }
 	CursorSprite::glyph_type query_cursor_glyph() const { return cursor_glyph; }
 	CursorSprite::attribute_type query_cursor_attributes() const { return cursor_attributes; }
 	PointerSprite::attribute_type query_pointer_attributes() const { return pointer_attributes; }
+	ScreenFlags::flag_type query_screen_flags() const { return screen_flags; }
 	bool query_reload_needed() const { return reload_needed; }
 	void set_reload_needed() { reload_needed = true; }
 	void reload();
-	void set_visible_area(coordinate h, coordinate w);
-	CharacterCell & at(coordinate y, coordinate x) { return cells[static_cast<std::size_t>(y) * w + x]; }
+	void calculate_visible_rectangle(const struct wh & area, struct xy & origin, struct wh & margin) const;
+	CharacterCell & at(coordinate y, coordinate x) { return cells[static_cast<std::size_t>(y) * size.w + x]; }
 	void WriteInputMessage(uint32_t);
 	bool MessageAvailable() const { return message_pending > 0U; }
 	void FlushMessages();
@@ -51,8 +59,6 @@ protected:
 
 	void move_cursor(coordinate y, coordinate x);
 	void resize(coordinate, coordinate);
-	void keep_visible_area_in_buffer();
-	void keep_visible_area_around_cursor();
 
 	const char * dir_name;
 	char display_stdio_buffer[128U * 1024U];
@@ -61,10 +67,12 @@ protected:
 	char message_buffer[4096];
 	std::size_t message_pending;
 	bool polling_for_write, reload_needed;
-	unsigned short cursor_y, cursor_x, visible_y, visible_x, visible_h, visible_w, h, w;
+	struct xy cursor;
+	struct wh size;
 	CursorSprite::glyph_type cursor_glyph;
 	CursorSprite::attribute_type cursor_attributes;
 	PointerSprite::attribute_type pointer_attributes;
+	ScreenFlags::flag_type screen_flags;
 	std::vector<CharacterCell> cells;
 };
 

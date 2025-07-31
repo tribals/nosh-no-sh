@@ -27,7 +27,7 @@
 
 <para>
 Some operating systems come with a <command>setsid</command> command that does not chain,
-but that instead (often) spawns its target as a child process.  
+but that instead (often) spawns its target as a child process.
 This command does not ever fork a child process, and so is suitable for use
 in supervised command chains run under control of a d&#xe6;mon supervisor.
 </para>
@@ -39,7 +39,7 @@ in supervised command chains run under control of a d&#xe6;mon supervisor.
 session leader and then chain loads to <replaceable>next-prog</replaceable>
 with the
 <citerefentry><refentrytitle>execvp</refentrytitle><manvolnum>3</manvolnum></citerefentry>
-function.  
+function.
 </para>
 
 <para>
@@ -47,7 +47,7 @@ function.
 </para>
 
 <para>
-<command>setsid</command> does not perform chicanery with 
+<command>setsid</command> does not perform chicanery with
 <citerefentry><refentrytitle>fork</refentrytitle><manvolnum>2</manvolnum></citerefentry>.
 If the process is not permitted to become a session leader, or if the process
 already is a session leader, the program fails.

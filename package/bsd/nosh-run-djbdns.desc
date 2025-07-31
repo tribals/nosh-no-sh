@@ -1,0 +1,5 @@
+ This package causes the various djbdns services to run.
+ .
+ The old-style global services are disabled.
+ .
+ The new-style services are configured with the tinydns_network_addresses, walldns_network_addresses, dnscache_network_addresses, and taiclockd_network_addresses settings in /etc/rc.conf.local or /etc/rc.conf .

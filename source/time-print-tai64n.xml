@@ -104,7 +104,7 @@ The creation timestamp of the file <filename><replaceable>filename</replaceable>
 <varlistentry>
 <term><code>now</code></term>
 <listitem><para>
-The current time from the <code>CLOCK_REALTIME</code> clock read using the <citerefentry><refentrytitle>clock_gettime</refentrytitle><manvolnum>1</manvolnum></citerefentry> library function.
+The current time from the <code>CLOCK_REALTIME</code> clock read using the <citerefentry><refentrytitle>clock_gettime</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
 </para></listitem>
 </varlistentry>
 <varlistentry>
@@ -129,7 +129,31 @@ A null timestamp.
 <term><code>boot</code></term>
 <term><code>startup</code></term>
 <listitem><para>
-The time that the current invocation of the operating system was bootstrapped, calculated as the value of the real-time system clock less the value of the <code>CLOCK_UPTIME</code> (or <code>CLOCK_BOOTTIME</code>) clock read using the <citerefentry><refentrytitle>clock_gettime</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
+The time that the current invocation of the operating system was bootstrapped.
+</para><note>
+<code>boot</code> should be preferred over <code>startup</code> when using this command.
+<code>startup</code> is provided for <citerefentry><refentrytitle>convert-systemd-units</refentrytitle><manvolnum>1</manvolnum></citerefentry> to convert systemd unit files.
+It does not provide any special semantics, merely a visual clue to what the source unit setting being converted was.
+</note><caution>
+This value is not constant over the runtime of the system, counterintuitively.
+FreeBSD and NetBSD calculate this time on the fly in the kernel by subtracting the accumulated uptime from from the current time, in order to avoid problems when there is no hardware clock during the bootstrap.
+(Linux does not even have a saved boot time kept by the kernel, and this same calculation is thus done explicitly in applications code; taking the value of the <code>CLOCK_REALTIME</code> clock less the value of the <code>CLOCK_BOOTTIME</code> clock, both read using the <citerefentry><refentrytitle>clock_gettime</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.)
+Every time that the system clock is changed, the bootstrap time will thus change along with it.
+</caution></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>monotonic</code></term>
+<listitem><para>
+The value of the <code>CLOCK_MONOTONIC</code> clock, read using the <citerefentry><refentrytitle>clock_gettime</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
+Operating systems do not specify when this clock ticks from.
+</para></listitem>
+</varlistentry>
+<varlistentry>
+<term><code>uptime</code></term>
+<listitem><para>
+The value of the <code>CLOCK_UPTIME</code> (a.k.a. <code>CLOCK_BOOTTIME</code>) clock, read using the <citerefentry><refentrytitle>clock_gettime</refentrytitle><manvolnum>3</manvolnum></citerefentry> library function.
+Operating systems do not specify when this clock ticks from.
+(Ridiculously, applications code has to invert the kernel's calculation of <code>boot</code> on NetBSD.)
 </para></listitem>
 </varlistentry>
 </variablelist>

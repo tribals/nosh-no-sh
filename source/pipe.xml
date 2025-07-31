@@ -19,14 +19,14 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>pipe</command> 
-<arg choice='opt'>--inwards</arg> 
-<arg choice='opt'>--error</arg> 
-<arg choice='opt'>--grandchild</arg> 
-<arg choice='opt'>--ignore-children</arg> 
-<arg choice='opt'>--separator <replaceable>alt-sep</replaceable></arg> 
-<arg choice='req'><replaceable>left-prog</replaceable></arg> 
-<arg choice='req'>|</arg> 
+<command>pipe</command>
+<arg choice='opt'>--inwards</arg>
+<arg choice='opt'>--error</arg>
+<arg choice='opt'>--grandchild</arg>
+<arg choice='opt'>--ignore-children</arg>
+<arg choice='opt'>--separator <replaceable>alt-sep</replaceable></arg>
+<arg choice='req'><replaceable>left-prog</replaceable></arg>
+<arg choice='req'>|</arg>
 <arg choice='req'><replaceable>right-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>
@@ -43,7 +43,7 @@ Both are executed with the <citerefentry><refentrytitle>execvp</refentrytitle><m
 <replaceable>left-prog</replaceable> and <replaceable>right-prog</replaceable> may contain their own command line options, which <command>pipe</command> will ignore.
 </para>
 
-<para> 
+<para>
 Normally, in outwards mode, <replaceable>left-prog</replaceable> is chain loaded in the original process and <replaceable>right-prog</replaceable> is forked and run in the new child process.
 If the <arg choice='opt'>--inwards</arg> command line option is used, <replaceable>right-prog</replaceable> is chain loaded in the original process and <replaceable>left-prog</replaceable> is forked and run in the new child process.
 </para>

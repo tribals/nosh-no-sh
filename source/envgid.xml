@@ -22,8 +22,8 @@
 
 <refsynopsisdiv>
 <cmdsynopsis>
-<command>envgid</command> 
-<arg choice='req'><replaceable>groupname</replaceable></arg> 
+<command>envgid</command>
+<arg choice='req'><replaceable>groupname</replaceable></arg>
 <arg choice='req'><replaceable>next-prog</replaceable></arg>
 </cmdsynopsis>
 </refsynopsisdiv>

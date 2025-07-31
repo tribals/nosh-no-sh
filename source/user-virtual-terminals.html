@@ -1,8 +1,9 @@
-<title>user-space virtual terminals</title>
 <link rel="Up" href="terminals.html" title="Terminals" />
-<link rel="Prev" href="kernel-virtual-terminals.html" title="kernel virtual terminals" />
-<link rel="Next" href="terminal resources.html" title="terminal resources" />
-<h1>
+<link rel="Prev" href="kernel-virtual-terminal-configuration.html" title="kernel virtual terminal configuration" />
+<link rel="Next" href="user-virtual-terminal-configuration.html" title="user virtual terminal configuration" />
+<link rel="Stylesheet" type="text/css" href="guide.css" title="Guide default style" />
+<title>user-space virtual terminals</title>
+<h1 class="Ruled">
 user-space virtual terminals
 </h1>
 
@@ -13,7 +14,7 @@ A user-space virtual terminal comprises at minimum four things:
 <ul>
 <li><p>a pseudo-terminal</p></li>
 <li><p><a href="virtual-terminal-login.html">a TUI login service</a> that has the pseudo-terminal as its controlling terminal</p></li>
-<li><p>a console-terminal-emulator process, that conects the pseudo-terminal to a display buffer and an input FIFO</p></li>
+<li><p>a terminal emulator process, that conects the pseudo-terminal to a display buffer and an input FIFO</p></li>
 <li><p>one or more realizer processes, that connect the display buffer and input FIFO to real I/O devices of some kind</p></li>
 </ul>
 <p>
@@ -36,12 +37,12 @@ One simply directs the (external) console multiplexor service to include the con
 With the <code>console-multiplexor@head0</code> service bundle that comes in this package, simply symbolically link the contained user-space virtual terminal directories into the multiplexor's service directory before starting it.
 This is nothing more than an instance of the general-case procedure for adding another user-space virtual terminal to a multiplexor service.
 </p>
-<blockquote><pre>ln -s /var/container/run/dev/vc1 /var/sv/console-multiplexor@head0/service/vc9
-ln -s /var/container/run/dev/vc2 /var/sv/console-multiplexor@head0/service/vc10
-ln -s /var/container/run/dev/vc3 /var/sv/console-multiplexor@head0/service/vc11</pre></blockquote>
+<blockquote><pre>ln -s /var/container/run/dev/vc1 /var/service-bundles/services/console-multiplexor@head0/service/vc9
+ln -s /var/container/run/dev/vc2 /var/service-bundles/services/console-multiplexor@head0/service/vc10
+ln -s /var/container/run/dev/vc3 /var/service-bundles/services/console-multiplexor@head0/service/vc11</pre></blockquote>
 </li>
 
-<h2>
+<h2 class="Ruled">
 terminal emulator services
 </h2>
 
@@ -65,7 +66,7 @@ A <code>console-terminal-emulator@1.service</code> must be ordered before its co
 Terminal emulator services do not require superuser privileges at any stage; and for best security should be run under the aegis of an unprivileged account dedicated to the service(s).
 </p>
 
-<h2>
+<h2 class="Ruled">
 multiplexors
 </h2>
 
@@ -91,7 +92,7 @@ One could create more complex multiplexors to provide, say, a multiple pane inte
 Because the system is composable, this does not require any change to the terminal emulator programs.
 </p>
 
-<h2>
+<h2 class="Ruled">
 input method front-end processors
 </h2>
 
@@ -108,7 +109,7 @@ Active, it injects its user interface near to the underlying display buffer's cu
 <p>
 Front-end processing is driven by files containing data tables, determining how character composition is actually performed by the pre-editing.
 The front-end processor can be loaded with several data tables, switching between them on the fly, allowing input to be composed in several CJKV and romaji (i.e. American/European) modes.
-The data files themselves are in a format that has been around for years, and that is common to several input method softwares.
+The data files themselves are in a format that has been around for years, and that is common to several input method softwares: <a href="commands/cin.xml"><code>CIN</code></a>.
 It is a fairly simple exercise to add and to use one's own data files for custom input methods; and <a href="terminal-resources.html#FEP">a fairly sizeable library of existing methods already exists in the world at large</a>.
 </p>
 
@@ -117,7 +118,7 @@ The <a href="commands/console-multiplexor-control.xml"><code>console-input-metho
 A user with sufficient access to the input FIFO, the security concerns of which you can find discussed in the user manual, can programmatically switch input method modes and toggle the input method on and off.
 </p>
 
-<h2>
+<h2 class="Ruled">
 realizers
 </h2>
 
@@ -136,31 +137,47 @@ This differentiates user-space virtual terminals from, say, X Window System term
 </p>
 
 <p>
+Realizers are configured by setting up symbolic links, files, and directories (c.f. <a href="commands/user-vt-realizer-configuration.xml"><code>user-vt-realizer-configuration</code></a>) in their working directories.
+For realizers run as services, the working directories are the service directories and this configuration sits alongside the other service configuration files.
+See <a href="user-virtual-terminal-configuration.html">user-space virtual terminal configuration</a> for an explanation of configuration policies and the various ways in which one can approach configuring realizers.
+</p>
+
+<p>
 Realizers only require access to the files of the user-space virtual terminals that they are attached to, and to the various I/O devices that they are realizing the virtual terminal with.
 The exact security model depends from the kind of realizer, and there are many possible kinds; one could have:
 </p>
 <ul>
+<li><p>
+<a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> &mdash; 
+a realizer that uses a framebuffer device, realizing the display of one user-space virtual terminal.
+This realizer needs additional privileged access to the device file, in order to open it at startup, but needs no more privileges than that.
+</p></li>
+<li><p>
+<a href="commands/console-ugen-hid-realizer.xml"><code>console-ugen-hid-realizer</code></a> &mdash; 
+a realizer that uses a generic USB human input device, realizing input to one user-space virtual terminal.
+This realizer needs additional privileged access to the device files (there being one per interface), in order to open them at startup, but needs no more privileges than that.
+</p></li>
+<li><p>
+<a href="commands/console-wscons-realizer.xml"><code>console-wscons-realizer</code></a> &mdash; 
+a realizer that uses the display and input of a wscons device, realizing the display of one user-space virtual terminal.
+This realizer needs additional privileged access to the device file, in order to open it at startup, but needs no more privileges than that.
+</p></li>
+<li><p>
+<a href="commands/console-termio-realizer.xml"><code>console-termio-realizer</code></a> &mdash; 
+a realizer that uses straight terminal I/O, hardwiring DEC VT, SCO Console, ISO, and ECMA control sequences, to render one user-space virtual terminal on the terminal that the realizer itself has inherited as its standard I/O.
+This realizer needs no additional privileged access to anything apart from the files of the user-space virtual terminal.
+</p></li>
+<li><p>
+a realizer that realizes one user-space virtual terminal on a Braille device.
+This realizer initially needs additional privileged access to the Braille device file, in order to open it, but can drop privileges afterwards.
+</p></li>
 <li><p>
 <a href="commands/console-ncurses-realizer.xml"><code>console-ncurses-realizer</code></a> &mdash; 
 a realizer that uses wide character ncurses (ncursesw) to render one user-space virtual terminal on the terminal that the realizer itself is attached to.
 This realizer needs no additional privileged access to anything apart from the files of the user-space virtual terminal.
 </p></li>
 <li><p>
-<a href="commands/console-termio-realizer.xml"><code>console-termio-realizer</code></a> &mdash; 
-a realizer that uses straight terminal I/O, hardwiring DEC VT, SCO Console, ISO, and ECMA control sequences, to render one user-space virtual terminal on the terminal that the realizer itself is attached to.
-This realizer needs no additional privileged access to anything apart from the files of the user-space virtual terminal.
-</p></li>
-<li><p>
-<a href="commands/console-fb-realizer.xml"><code>console-fb-realizer</code></a> &mdash; 
-a realizer that uses a framebuffer device, and mouse and keyboard input devices, realizing one user-space virtual terminals.
-This realizer needs additional privileged access to the device files, in order to open them at startup, but needs no more privileges than that.
-</p></li>
-<li><p>
 a realizer that realizes multiple user-space virtual terminals using X Window System windows, and allowing one to switch amongst them using hotkeys and mouse actions.
 This realizer initially needs no additional privileged access.
-</p></li>
-<li><p>
-a realizer that realizes one user-space virtual terminal on a Braille device.
-This realizer initially needs additional privileged access to the Braille device file, in order to open it, but can drop privileges afterwards.
 </p></li>
 </ul>

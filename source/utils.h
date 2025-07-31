@@ -22,62 +22,58 @@ enum {
 };
 
 struct ProcessEnvironment;
+struct FileStar;
 
-struct command {
-	const char * name;
-	void (*func) ( const char * &, std::vector<const char *> &, ProcessEnvironment & );
-} ;
-extern const command commands[], personalities[];
-extern const std::size_t num_commands, num_personalities;
-
-extern 
+extern
 const char *
 basename_of (
 	const char * s
 ) ;
-extern 
+extern
 std::string
 dirname_of (
 	const std::string & s
-) ;
-extern
-void
-exec_terminal (
-	const char * & prog,
-	const char * & next_prog,
-	std::vector<const char *> & args,
-	ProcessEnvironment & envs
-) ;
-extern
-const command *
-find (
-	const char * prog,
-	bool
 ) ;
 extern inline
 const char *
 arg0_of (
 	std::vector<const char *> & args
 ) {
-	return args.empty() ? 0 : args[0];
+	return args.empty() ? nullptr : args[0];
 }
+extern
+std::vector<const char *>
+convert_args_storage (
+	const std::vector<std::string> & args
+) ;
 extern
 std::vector<std::string>
 read_file (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * filename
 ) ;
 extern
 std::vector<std::string>
 read_file (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * filename,
 	FILE *
 ) ;
 extern
 std::vector<std::string>
 read_file (
-	FILE *
+	FILE *,
+	unsigned long &
+) ;
+extern
+std::vector<std::string>
+read_file (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * filename,
+	const FileStar &
 ) ;
 extern
 bool
@@ -135,6 +131,7 @@ extern
 std::string
 read_env_file (
 	const char * prog,
+	const ProcessEnvironment & envs,
 	const char * dir,
 	const char * basename,
 	int fd,
@@ -185,7 +182,7 @@ quote_for_nosh (
 	const std::string & s
 ) ;
 std::string
-quote_for_sh (
+quote_for_conf (
 	const std::string & s
 ) ;
 std::string
@@ -193,23 +190,49 @@ quote_for_sh (
 	const std::string & s
 ) ;
 extern
-std::string 
-systemd_name_unescape ( 
-	bool, 
-	bool, 
-	const std::string & 
+std::string
+systemd_name_unescape (
+	const std::string &
 ) ;
 extern
-std::string 
-systemd_name_escape ( 
-	bool, 
-	bool, 
-	const std::string & 
+std::string
+account_name_unescape (
+	const std::string &
 ) ;
 extern
-unsigned 
-val ( 
-	const std::string & s 
+std::string
+systemd_name_escape (
+	const std::string &
+) ;
+extern
+std::string
+old_alt_name_escape (
+	const std::string &
+) ;
+extern
+std::string
+alt_name_escape (
+	const std::string &
+) ;
+extern
+std::string
+hashed_account_name (
+	const std::string &
+) ;
+extern
+std::string
+account_name_escape (
+	const std::string &
+) ;
+extern
+std::string
+systemd_name_escape (
+	const std::string &
+) ;
+extern
+unsigned
+val (
+	const std::string & s
 ) ;
 extern
 std::list<std::string>
@@ -326,6 +349,213 @@ wait_blocking_for_exit_of (
 	const pid_t child,
 	int & status,
 	int & code
+) ;
+extern
+void
+drop_privileges (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+message_error_errno (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+message_fatal_errno (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+message_fatal_errno (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what0,
+	const char * what1
+) ;
+extern
+void
+message_fatal_errno (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what0,
+	const char * what1,
+	const char * what2
+) ;
+extern
+void
+die_errno [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+die_errno [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	int error,
+	const char * what
+) ;
+extern
+void
+die_errno [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what0,
+	const char * what1
+) ;
+extern
+void
+die_errno [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what0,
+	const char * what1,
+	const char * what2
+) ;
+extern
+void
+die_usage [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * how
+) ;
+extern
+void
+die_missing_argument [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+die_missing_next_program [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_missing_variable_name [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_missing_service_name [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_missing_address [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_missing_expression [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_missing_directory_name [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_missing_environment_variable [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+die_unexpected_argument [[gnu::noreturn]] (
+	const char * prog,
+	std::vector<const char *> & args,
+	const ProcessEnvironment & envs
+) ;
+extern
+void
+die_unsupported_command [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+die_unrecognized_command [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what
+) ;
+extern
+void
+die_unsupported_command [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what0,
+	const char * what1
+) ;
+extern
+void
+die_invalid_argument [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what,
+	const char * how
+) ;
+extern
+void
+die_invalid [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what,
+	const char * how
+) ;
+extern
+void
+die_invalid [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * what0,
+	const char * what1,
+	const char * how
+) ;
+extern
+void
+die_parser_error [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * file,
+	unsigned long line,
+	const char * how
+) ;
+extern
+void
+die_parser_error [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const char * file,
+	unsigned long line,
+	const char * what,
+	const char * how
+) ;
+namespace popt { struct error; }
+extern
+void
+die [[gnu::noreturn]] (
+	const char * prog,
+	const ProcessEnvironment & envs,
+	const popt::error & e
 ) ;
 
 #endif

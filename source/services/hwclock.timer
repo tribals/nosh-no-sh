@@ -1,0 +1,14 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Invoke %p at startup and hourly thereafter
+
+[Timer]
+OnBootSec=0s
+OnActiveSec=0s
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=workstation.target

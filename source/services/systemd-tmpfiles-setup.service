@@ -1,0 +1,17 @@
+## **************************************************************************
+## For copyright and licensing terms, see the file named COPYING.
+## **************************************************************************
+
+[Unit]
+Description=Create/delete all non-/dev tmpfiles per boot-time configuration
+Before=hostname.target
+
+[Service]
+Type=oneshot
+ExecStart=tmpfiles --create --remove --boot --exclude-prefix=/dev
+# This is a pseudo-daemon that does not have a running process.
+RemainAfterExit=yes
+Restart=no
+
+[Install]
+WantedBy=workstation.target

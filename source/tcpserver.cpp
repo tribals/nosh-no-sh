@@ -26,21 +26,18 @@ For copyright and licensing terms, see the file named COPYING.
 // **************************************************************************
 */
 
-// This must have static storage duration as we are using it in args.
-static std::string banner_storage;
-
 void
-tcpserver ( 
+tcpserver (
 	const char * & next_prog,
 	std::vector<const char *> & args,
-	ProcessEnvironment & /*envs*/
+	ProcessEnvironment & envs
 ) {
 	const char * prog(basename_of(args[0]));
 	bool verbose(false);
-	const char * backlog = 0;
-	const char * connection_limit = 0;
-	const char * localname = 0;
-	const char * banner = 0;
+	const char * backlog(nullptr);
+	const char * connection_limit(nullptr);
+	const char * localname(nullptr);
+	const char * banner(nullptr);
 	bool setuidgid(false);
 #if defined(IP_OPTIONS)
 	bool no_kill_IP_options(false);
@@ -52,7 +49,7 @@ tcpserver (
 
 #if defined(IP_OPTIONS)
 		popt::bool_definition no_kill_IP_options_option('o', "no-kill-IP-options", "Allow a client to set source routes.", no_kill_IP_options);
-		popt::bool_definition kill_IP_options_option('O', "kill-IP-options", "compatibility option; ignored.", kill_IP_options);
+		popt::bool_definition kill_IP_options_option('O', "kill-IP-options", "Compatibility option; ignored.", kill_IP_options);
 #endif
 		popt::bool_definition verbose_option('v', "verbose", "Print status information.", verbose);
 		popt::bool_definition print_errors_option('Q', "print-errors", "Compatibility option; ignored.", print_errors);
@@ -67,56 +64,58 @@ tcpserver (
 		popt::string_definition banner_option('B', "banner", "text", "Print an initial banner in each spawned child.", banner);
 		popt::string_definition connection_limit_option('c', "connection-limit", "number", "Specify the limit on the number of simultaneous parallel connections.", connection_limit);
 		popt::string_definition backlog_option('b', "backlog", "number", "Specify the listening backlog.", backlog);
-		popt::definition * top_table[] = {
+		popt::definition * compatibility_table[] = {
 #if defined(IP_OPTIONS)
-			&no_kill_IP_options_option,
 			&kill_IP_options_option,
 #endif
-			&verbose_option,
 			&print_errors_option,
 			&quiet_option,
 			&delay_option,
-			&no_delay_option,
 			&no_remotehost_option,
 			&no_remoteinfo_option,
 			&no_paranoia_option,
+		};
+		popt::table_definition compatibility_table_option(sizeof compatibility_table/sizeof *compatibility_table, compatibility_table, "Compatibility options");
+		popt::definition * top_table[] = {
+#if defined(IP_OPTIONS)
+			&no_kill_IP_options_option,
+#endif
+			&verbose_option,
+			&no_delay_option,
 			&setuidgid_option,
 			&localname_option,
 			&banner_option,
 			&connection_limit_option,
-			&backlog_option
+			&backlog_option,
+			&compatibility_table_option,
 		};
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{localhost} {localport} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing listen host name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "listen host name");
 	}
 	const char * listenhost(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing listen port number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "listen port number");
 	}
 	const char * listenport(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 
 	if (banner) {
+		// This must have static storage duration as we are using it in args.
+		static std::string banner_storage;
 		banner_storage = banner;
 		if (!banner_storage.empty() && '\n' == banner_storage.back()) {
 			banner_storage.erase(banner_storage.end() - 1);

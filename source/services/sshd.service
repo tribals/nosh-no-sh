@@ -4,8 +4,8 @@
 
 [Unit]
 Description=OpenSSH listening daemon
-Requires=sshdgenkeys.service
-After=sshdgenkeys.service multi-user-pre.target
+Requires=ssh-keygen.service
+After=ssh-keygen.service multi-user-pre.target
 Conflicts=sshd.socket
 
 [Service]

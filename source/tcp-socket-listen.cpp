@@ -28,7 +28,7 @@ For copyright and licensing terms, see the file named COPYING.
 */
 
 void
-tcp_socket_listen ( 
+tcp_socket_listen (
 	const char * & next_prog,
 	std::vector<const char *> & args,
 	ProcessEnvironment & envs
@@ -75,35 +75,29 @@ tcp_socket_listen (
 		popt::top_table_definition main_option(sizeof top_table/sizeof *top_table, top_table, "Main options", "{localhost} {localport} {prog}");
 
 		std::vector<const char *> new_args;
-		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, main_option, new_args);
+		popt::arg_processor<const char **> p(args.data() + 1, args.data() + args.size(), prog, envs, main_option, new_args);
 		p.process(true /* strictly options before arguments */);
 		args = new_args;
 		next_prog = arg0_of(args);
 		if (p.stopped()) throw EXIT_SUCCESS;
 	} catch (const popt::error & e) {
-		std::fprintf(stderr, "%s: FATAL: %s: %s\n", prog, e.arg, e.msg);
-		throw static_cast<int>(EXIT_USAGE);
+		die(prog, envs, e);
 	}
 
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing listen host name.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "listen host name");
 	}
 	const char * listenhost(args.front());
 	args.erase(args.begin());
 	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing listen port number.");
-		throw static_cast<int>(EXIT_USAGE);
+		die_missing_argument(prog, envs, "listen port number");
 	}
 	const char * listenport(args.front());
 	args.erase(args.begin());
-	if (args.empty()) {
-		std::fprintf(stderr, "%s: FATAL: %s\n", prog, "Missing next program.");
-		throw static_cast<int>(EXIT_USAGE);
-	}
+	if (args.empty()) die_missing_next_program(prog, envs);
 	next_prog = arg0_of(args);
 
-	addrinfo * info(0), hints = {0,0,0,0,0,0,0,0};
+	addrinfo * info(nullptr), hints = {};
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
@@ -129,6 +123,9 @@ exit_error:
 	if (0 > socket_set_boolean_option(s, SOL_SOCKET, SO_REUSEADDR, !no_reuse_address)) goto exit_error;
 #if defined(SO_REUSEPORT)
 	if (0 > socket_set_boolean_option(s, SOL_SOCKET, SO_REUSEPORT, reuse_port)) goto exit_error;
+#endif
+#if defined(__NetBSD__)
+	if (bind_to_any)
 #endif
 	if (0 > socket_set_bind_to_any(s, *info, bind_to_any)) goto exit_error;
 	if (AF_INET6 == info->ai_family) {

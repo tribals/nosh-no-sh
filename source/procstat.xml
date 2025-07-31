@@ -26,17 +26,16 @@
 <arg choice="opt">-b</arg>
 <arg choice="opt">-c</arg>
 <arg choice="opt">-e</arg>
-<arg choice="opt">-f</arg>
 <arg choice="opt">-i</arg>
-<arg choice="opt">-j</arg>
 <arg choice="opt">-k</arg>
-<arg choice="opt">-l</arg>
-<arg choice="opt">-r</arg>
 <arg choice="opt">-s</arg>
 <arg choice="opt">-S</arg>
 <arg choice="opt">-t</arg>
-<arg choice="opt">-v</arg>
-<arg choice="opt">-x</arg>
+<arg choice="opt">-H</arg>
+<group choice="req">
+<arg choice="plain">-a</arg>
+<arg choice="plain" repeat="rep"><replaceable>process-id(s)</replaceable></arg>
+</group>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -44,9 +43,21 @@
 
 <para>
 <command>procstat</command> is a tool for listing process information.
-It is a shim for the <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> command that provides a more familiar interface to that command whilst yielding that command's table-format output.
-Its output is suitable for <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> with 1 header line.
+It is a shim for the <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> command that provides a more familiar interface (that of the FreeBSD <citerefentry><refentrytitle>procstat</refentrytitle><manvolnum>8</manvolnum></citerefentry> command) to that command whilst yielding that command's table-format output.
+Its output is therefore machine-parseable and suitable for <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> with 1 header line and <arg choice='plain'>--format tabbed</arg>.
 </para>
+
+<para>
+It has just two selection modes.
+</para>
+<itemizedlist>
+<listitem><para>
+With the <arg choice="plain">-a</arg> command-line option, <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> is told to display the entire process table.
+</para></listitem>
+<listitem><para>
+With a list of <arg choice="plain" repeat="rep"><replaceable>process-id(s)</replaceable></arg>, <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> is told to display just the process table entries for <replaceable>process-id(s)</replaceable> (one process ID per argument).
+</para></listitem>
+</itemizedlist>
 
 <refsection><title>Options</title>
 
@@ -56,46 +67,42 @@ Command-line options are translated into options for <citerefentry><refentrytitl
 
 <variablelist>
 <varlistentry>
-<term><arg choice="plain">-b</arg></term><listitem><para><arg choice="plain">--format binary</arg></para></listitem>
+<term><arg choice="plain">-H</arg></term>
+<listitem><para>Pass the <arg choice="plain">--threads</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-c</arg></term><listitem><para><arg choice="plain">--format args</arg></para></listitem>
+<term><arg choice="plain">-b</arg></term>
+<listitem><para>Request the <arg choice="plain">pid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">osrel</arg>, <arg choice="plain">emul</arg>, and <arg choice="plain">command</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-e</arg></term><listitem><para><arg choice="plain">--format envs</arg></para></listitem>
+<term><arg choice="plain">-c</arg></term>
+<listitem><para>Request the
+<arg choice="plain">pid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">args</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-f</arg></term><listitem><para><arg choice="plain">--format fds</arg></para></listitem>
+<term><arg choice="plain">-e</arg></term>
+<listitem><para>Request the <arg choice="plain">pid</arg>, <arg choice="plain">comm</arg>, and <arg choice="plain">envs</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-i</arg></term><listitem><para><arg choice="plain">--format process-signal</arg></para></listitem>
+<term><arg choice="plain">-i</arg></term>
+<listitem><para>Request the
+<arg choice="plain">pid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">siglist</arg>, <arg choice="plain">sigmask</arg>, <arg choice="plain">sigignore</arg>, and <arg choice="plain">sigcatch</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-j</arg></term><listitem><para><arg choice="plain">--format thread-signal</arg></para></listitem>
+<term><arg choice="plain">-k</arg></term>
+<listitem><para>Request the <arg choice="plain">pid</arg>, <arg choice="plain">tid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">tdname</arg>, and <arg choice="plain">kstack</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-k</arg></term><listitem><para><arg choice="plain">--format kernel-stack</arg></para></listitem>
+<term><arg choice="plain">-s</arg></term>
+<listitem><para>Request the <arg choice="plain">pid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">euid</arg>, <arg choice="plain">ruid</arg>, <arg choice="plain">svuid</arg>, <arg choice="plain">egid</arg>, <arg choice="plain">rgid</arg>, <arg choice="plain">svgid</arg>, <arg choice="plain">umask</arg>, <arg choice="plain">crflags</arg>, and <arg choice="plain">groups</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-l</arg></term><listitem><para><arg choice="plain">--format resource-limits</arg></para></listitem>
+<term><arg choice="plain">-S</arg></term>
+<listitem><para>Request the <arg choice="plain">pid</arg>, <arg choice="plain">tid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">tdname</arg>, <arg choice="plain">oncpu</arg>, <arg choice="plain">lastcpu</arg>, <arg choice="plain">csid</arg>, <arg choice="plain">lastcpu</arg>, and <arg choice="plain">csmask</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 <varlistentry>
-<term><arg choice="plain">-r</arg></term><listitem><para><arg choice="plain">--format resource-usage</arg></para></listitem>
-</varlistentry>
-<varlistentry>
-<term><arg choice="plain">-s</arg></term><listitem><para><arg choice="plain">--format credentials</arg></para></listitem>
-</varlistentry>
-<varlistentry>
-<term><arg choice="plain">-S</arg></term><listitem><para><arg choice="plain">--format cpuset</arg></para></listitem>
-</varlistentry>
-<varlistentry>
-<term><arg choice="plain">-t</arg></term><listitem><para><arg choice="plain">--format thread</arg></para></listitem>
-</varlistentry>
-<varlistentry>
-<term><arg choice="plain">-v</arg></term><listitem><para><arg choice="plain">--format vm</arg></para></listitem>
-</varlistentry>
-<varlistentry>
-<term><arg choice="plain">-x</arg></term><listitem><para><arg choice="plain">--format aux</arg></para></listitem>
+<term><arg choice="plain">-t</arg></term>
+<listitem><para>Request the <arg choice="plain">pid</arg>, <arg choice="plain">tid</arg>, <arg choice="plain">comm</arg>, <arg choice="plain">tdname</arg>, <arg choice="plain">oncpu</arg>, <arg choice="plain">lastcpu</arg>, <arg choice="plain">pri</arg>, <arg choice="plain">state</arg>, <arg choice="plain">mwchan</arg>, and <arg choice="plain">wchan</arg> fields with the <arg choice="plain">--field</arg> command-line option.</para></listitem>
 </varlistentry>
 </variablelist>
 
@@ -109,17 +116,64 @@ No deduplication is done, so <citerefentry><refentrytitle>list-process-table</re
 
 <refsection><title>Examples</title>
 
+<refsection><title>Viewing information of a single process</title>
+
 <informalexample>
 <para>
-This command uses <command>procstat</command> in a loop to feed <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, producing a continually updated display akin to <citerefentry><refentrytitle>top</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
-Using <citerefentry><refentrytitle>sed</refentrytitle><manvolnum>1</manvolnum></citerefentry> to insert the Form Feed rather than printing it separately with <citerefentry><refentrytitle>printf</refentrytitle><manvolnum>1</manvolnum></citerefentry> reduces flicker.
+This command uses <command>procstat</command> to display environment information for a shell process.
 </para>
-<literallayout><computeroutput># </computeroutput><userinput>while procstat | sed -e '1s/^/^L/'</userinput><computeroutput>
-> </computeroutput><userinput>do</userinput><computeroutput>
-> </computeroutput><userinput>sleep 1</userinput><computeroutput>
-> </computeroutput><userinput>done |</userinput><computeroutput>
-> </computeroutput><userinput>console-flat-table-viewer --header-count 1</userinput></literallayout>
+<literallayout><computeroutput>$ </computeroutput><userinput>procstat -e $$ |</userinput><computeroutput>
+&#x3e; </computeroutput><userinput>unvis</userinput>
+</literallayout>
+<para>
+<citerefentry><refentrytitle>unvis</refentrytitle><manvolnum>1</manvolnum></citerefentry> decodes the environment column from the machine-parseable form that is output to a more human-readable form for display to a user.
+</para>
 </informalexample>
+
+</refsection>
+
+<refsection><title>Simulating <citerefentry><refentrytitle>top</refentrytitle><manvolnum>1</manvolnum></citerefentry></title>
+
+<informalexample>
+<para>
+This command uses <command>procstat</command> in a loop to feed <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry>, producing a continually updated display akin to <citerefentry><refentrytitle>top</refentrytitle><manvolnum>1</manvolnum></citerefentry> with its <arg choice="plain">-I</arg> option.
+</para>
+<literallayout><computeroutput>$ </computeroutput><userinput>while procstat -a -t | awk -F'\t' '{ if (NR &lt; 2 || match($8,"R") &gt; 0) print $0; }' | sed -e '1s/^/^L/'</userinput><computeroutput>
+> </computeroutput><userinput>do</userinput><computeroutput>
+> </computeroutput><userinput>    sleep 1</userinput><computeroutput>
+> </computeroutput><userinput>done |</userinput><computeroutput>
+> </computeroutput><userinput>console-flat-table-viewer --header-count 1</userinput>
+</literallayout>
+<para>
+The Form Feeds before the table cause <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> to clear the table display at each iteration.
+<citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> itself decodes the machine-parseable table into a human-readable form for display.
+</para>
+<note>
+Using <citerefentry><refentrytitle>sed</refentrytitle><manvolnum>1</manvolnum></citerefentry> to insert the Form Feed rather than printing it separately with <citerefentry><refentrytitle>printf</refentrytitle><manvolnum>1</manvolnum></citerefentry> reduces flicker.
+(The standard output buffering in <citerefentry><refentrytitle>sed</refentrytitle><manvolnum>1</manvolnum></citerefentry> causes the write to be a single system call, causing <citerefentry><refentrytitle>console-flat-table-viewer</refentrytitle><manvolnum>1</manvolnum></citerefentry> to receive the Form Feed plus replacement data in a single lump, in turn causing it not to redraw a blank intermediate screen.)
+</note>
+<para>
+The use of <citerefentry><refentrytitle>awk</refentrytitle><manvolnum>1</manvolnum></citerefentry> demonstrates the machine-parseable nature of the table output and how to retain headers and select rows based upon field values.
+Because the output of <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> is machine-parseable, with exactly 1 TAB between fields, there are no problems with empty fields or command names that contain spaces, and <code>$8</code> is always the correct field number to test for the running process state.
+The test for <code>NR &lt; 2</code> allows the header row through.
+</para>
+</informalexample>
+
+<informalexample>
+<para>
+The <citerefentry><refentrytitle>sed</refentrytitle><manvolnum>1</manvolnum></citerefentry> processing could be done in the <citerefentry><refentrytitle>awk</refentrytitle><manvolnum>1</manvolnum></citerefentry> script.
+They are separated in the preceding example for simplicity of exposition, with <citerefentry><refentrytitle>sed</refentrytitle><manvolnum>1</manvolnum></citerefentry> handling the table separation and <citerefentry><refentrytitle>awk</refentrytitle><manvolnum>1</manvolnum></citerefentry> handling the row selection.
+Combining requires <code>printf</code>:
+</para>
+<literallayout><computeroutput>$ </computeroutput><userinput>while procstat -a -t | awk -F'\t' '{ if (NR &lt; 2) printf "\f%s\n",$0; else if (match($8,"R") &gt; 0) print; }'</userinput><computeroutput>
+> </computeroutput><userinput>do</userinput><computeroutput>
+> </computeroutput><userinput>    sleep 1</userinput><computeroutput>
+> </computeroutput><userinput>done |</userinput><computeroutput>
+> </computeroutput><userinput>console-flat-table-viewer --header-count 1</userinput>
+</literallayout>
+</informalexample>
+
+</refsection>
 
 </refsection>
 
@@ -128,6 +182,16 @@ Using <citerefentry><refentrytitle>sed</refentrytitle><manvolnum>1</manvolnum></
 
 <para>
 This <command>procstat</command> is modelled on the FreeBSD <citerefentry><refentrytitle>procstat</refentrytitle><manvolnum>8</manvolnum></citerefentry> tool, providing a subset of its functionality.
+</para>
+
+<para>
+Several command-line options of the FreeBSD <citerefentry><refentrytitle>procstat</refentrytitle><manvolnum>8</manvolnum></citerefentry> command are not supported, because they do not translate into <citerefentry><refentrytitle>list-process-table</refentrytitle><manvolnum>1</manvolnum></citerefentry> mechanims.
+Also, several fields are not meaningful outwith FreeBSD.
+</para>
+
+<para>
+The <arg choice="plain">-w</arg> mode of the FreeBSD <citerefentry><refentrytitle>procstat</refentrytitle><manvolnum>8</manvolnum></citerefentry> command is not supported.
+See the examples for a better way to repeatedly print output.
 </para>
 
 </refsection>
